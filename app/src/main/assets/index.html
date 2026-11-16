@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loomis Face Studio - تحكم تفاعلي</title>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <title>Loomis Face Studio - احترافي</title>
     <style>
         body {
             margin: 0;
@@ -21,23 +20,23 @@
         header {
             width: 100%;
             background: #1f1f1f;
-            padding: 12px;
+            padding: 10px;
             text-align: center;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: bold;
             color: #d4af37;
             box-shadow: 0 2px 5px rgba(0,0,0,0.5);
         }
         .container {
             position: relative;
-            margin-top: 10px;
+            margin-top: 8px;
             width: 340px;
-            height: 440px;
-            border-radius: 12px;
+            height: 400px;
+            border-radius: 10px;
             overflow: hidden;
             background-color: #1e1e1e;
             box-shadow: 0 4px 15px rgba(0,0,0,0.7);
-            touch-action: none; /* منع التمرير الافتراضي أثناء سحب الشبكة */
+            touch-action: none;
         }
         canvas {
             width: 100%;
@@ -45,48 +44,88 @@
             object-fit: contain;
         }
         .controls {
-            margin-top: 10px;
+            margin-top: 8px;
             width: 92%;
             max-width: 340px;
             background: #1a1a1a;
-            padding: 12px;
-            border-radius: 10px;
+            padding: 10px;
+            border-radius: 8px;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 6px;
+        }
+        .tabs {
+            display: flex;
+            gap: 5px;
+        }
+        .tab-btn {
+            flex: 1;
+            background: #2a2a2a;
+            color: #aaa;
+            border: 1px solid #444;
+            padding: 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            text-align: center;
+            font-weight: bold;
+        }
+        .tab-btn.active {
+            background: #d4af37;
+            color: #121212;
+            border-color: #d4af37;
         }
         label.file-btn {
             background: #d4af37;
             color: #121212;
             border: none;
-            padding: 10px;
-            border-radius: 6px;
+            padding: 8px;
+            border-radius: 5px;
             font-weight: bold;
             cursor: pointer;
             text-align: center;
             display: block;
-            font-size: 14px;
+            font-size: 13px;
         }
         label.file-btn:active { background: #b08d26; }
         input[type="file"] { display: none; }
         .control-group {
             display: flex;
             flex-direction: column;
-            gap: 3px;
-            font-size: 12px;
+            gap: 2px;
+            font-size: 11px;
         }
-        input[type="range"] { width: 100%; accent-color: #d4af37; }
+        input[type="range"] { width: 100%; accent-color: #d4af37; height: 5px; }
+        .row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        select {
+            background: #2a2a2a;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 4px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
         .status {
             text-align: center;
-            font-size: 11px;
+            font-size: 10px;
             color: #d4af37;
         }
     </style>
 </head>
 <body>
 
-    <header>Loomis Face Studio - تحكم يدوي وتفاعلي</header>
+    <header>Loomis Face Studio - تحكم متقدم</header>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="setViewMode('front', this)">أمامي (Front)</button>
+        <button class="tab-btn" onclick="setViewMode('threeQuarter', this)">ثلاثي (3/4)</button>
+        <button class="tab-btn" onclick="setViewMode('side', this)">جانبي (Profile)</button>
+    </div>
 
     <div class="container">
         <canvas id="output_canvas" width="360" height="480"></canvas>
@@ -96,14 +135,26 @@
         <label class="file-btn" for="imageUpload">رفع صورة وجه من الألبوم</label>
         <input type="file" id="imageUpload" accept="image/*">
         
-        <div class="control-group">
-            <span>حجم الكرة (Radius): <span id="radiusVal">120</span></span>
-            <input type="range" id="radiusRange" min="50" max="250" value="120">
+        <div class="row">
+            <div class="control-group" style="flex:1;">
+                <span>حجم الكرة: <span id="radiusVal">180</span></span>
+                <input type="range" id="radiusRange" min="50" max="500" value="180">
+            </div>
+            <div class="control-group" style="width: 80px; margin-right: 8px;">
+                <span>اللون:</span>
+                <select id="colorSelect">
+                    <option value="#ffd700">ذهبي ساطع</option>
+                    <option value="#00ffff">أزرق نيون</option>
+                    <option value="#00ff00">أخضر فاقع</option>
+                    <option value="#ffffff">أبيض ناصع</option>
+                    <option value="#ff4500">برتقالي ناري</option>
+                </select>
+            </div>
         </div>
 
         <div class="control-group">
-            <span>ارتفاع الوجه (Face Height): <span id="heightVal">240</span></span>
-            <input type="range" id="heightRange" min="100" max="400" value="240">
+            <span>ارتفاع الوجه: <span id="heightVal">350</span></span>
+            <input type="range" id="heightRange" min="100" max="800" value="350">
         </div>
 
         <div class="control-group">
@@ -111,7 +162,7 @@
             <input type="range" id="opacityRange" min="0" max="100" value="90">
         </div>
         
-        <div class="status" id="statusText">اسحب شبكة لوميس بإصبعك لتعديل مكانها على الوجه</div>
+        <div class="status" id="statusText">اسحب الشبكة بإصبعك لتحريكها فوق الوجه بدقة</div>
     </div>
 
     <script>
@@ -125,24 +176,32 @@
         const heightVal = document.getElementById('heightVal');
         const opacityRange = document.getElementById('opacityRange');
         const opacityVal = document.getElementById('opacityVal');
+        const colorSelect = document.getElementById('colorSelect');
         const statusText = document.getElementById('statusText');
 
         let currentImage = null;
         let loomisOpacity = 0.9;
-        
-        // إحداثيات شبكة لوميس القابلة للتحريك
+        let lineColor = '#ffd700';
+        let viewMode = 'front'; // front, threeQuarter, side
+
         let gridState = {
-            cx: 180,       // المركز الأفقي
-            cy: 220,       // المركز العمودي
-            radius: 120,   // حجم الكرة
-            faceHeight: 240 // ارتفاع الوجه
+            cx: 180,
+            cy: 220,
+            radius: 180,
+            faceHeight: 350
         };
 
         let isDragging = false;
         let startX = 0;
         let startY = 0;
 
-        // تحديث القيم من الأشرطة
+        function setViewMode(mode, btn) {
+            viewMode = mode;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            redraw();
+        }
+
         radiusRange.addEventListener('input', (e) => {
             gridState.radius = parseInt(e.target.value);
             radiusVal.textContent = gridState.radius;
@@ -161,66 +220,30 @@
             redraw();
         });
 
-        // تهيئة MediaPipe كبداية تلقائية فقط لتخمين الموضع
-        const faceMesh = new FaceMesh({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-        });
-
-        faceMesh.setOptions({
-            maxNumFaces: 1,
-            refineLandmarks: true,
-            minDetectionConfidence: 0.4,
-            minTrackingConfidence: 0.4
-        });
-
-        faceMesh.onResults((results) => {
-            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-                const landmarks = results.multiFaceLandmarks[0];
-                const topHead = landmarks[10];
-                const chin = landmarks[152];
-                const rightCheek = landmarks[454];
-                const leftCheek = landmarks[234];
-
-                const w = canvasElement.width;
-                const h = canvasElement.height;
-
-                // ضبط الإحداثيات الأولية بناءً على وجه الشخص
-                gridState.cx = ((topHead.x * w) + (chin.x * w)) / 2;
-                gridState.cy = (topHead.y * h) + (chin.y * h) / 3;
-                
-                const faceW = Math.abs(rightCheek.x - leftCheek.x) * w;
-                gridState.radius = Math.round(faceW * 0.6);
-                gridState.faceHeight = Math.round((chin.y - topHead.y) * h * 1.1);
-
-                radiusRange.value = gridState.radius;
-                radiusVal.textContent = gridState.radius;
-                heightRange.value = gridState.faceHeight;
-                heightVal.textContent = gridState.faceHeight;
-
-                statusText.textContent = "تم التحليل! يمكنك سحب الشبكة أو تعديلها بالأشرطة.";
-            } else {
-                statusText.textContent = "ضبط يدوي: اسحب الشبكة وضبط الحجم بالأشرطة.";
-            }
+        colorSelect.addEventListener('change', (e) => {
+            lineColor = e.target.value;
             redraw();
         });
 
-        // رفع الصورة
-        imageUpload.addEventListener('change', async (e) => {
+        imageUpload.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
-            statusText.textContent = "جاري تحميل الصورة...";
+            statusText.textContent = "جاري تحميل الصورة وضبط الشبكة...";
             const img = new Image();
-            img.onload = async () => {
+            img.onload = () => {
                 currentImage = img;
                 canvasElement.width = img.width;
                 canvasElement.height = img.height;
 
-                // ضبط إحداثيات افتراضية في منتصف الصورة
+                // ضبط إحداثيات تناسب أبعاد الصورة المرفوعة
                 gridState.cx = img.width / 2;
                 gridState.cy = img.height / 2.2;
-                gridState.radius = Math.round(img.width * 0.25);
-                gridState.faceHeight = Math.round(img.height * 0.5);
+                gridState.radius = Math.round(img.width * 0.35);
+                gridState.faceHeight = Math.round(img.height * 0.65);
+
+                radiusRange.max = img.width;
+                heightRange.max = img.height * 1.5;
 
                 radiusRange.value = gridState.radius;
                 radiusVal.textContent = gridState.radius;
@@ -228,22 +251,18 @@
                 heightVal.textContent = gridState.faceHeight;
 
                 redraw();
-                await faceMesh.send({image: img});
+                statusText.textContent = "جاهز! اسحب الشبكة وضبط الحجم واللون حسب رغبتك.";
             };
             img.src = URL.createObjectURL(file);
         });
 
-        // تفاعل اللمس والسحب (Touch & Mouse Dragging) لتحريك الشبكة بالكامل
+        // أحداث اللمس والسحب للشبكة
         canvasElement.addEventListener('mousedown', startDrag);
         canvasElement.addEventListener('mousemove', drag);
         canvasElement.addEventListener('mouseup', endDrag);
 
-        canvasElement.addEventListener('touchstart', (e) => {
-            startDrag(e.touches[0]);
-        });
-        canvasElement.addEventListener('touchmove', (e) => {
-            drag(e.touches[0]);
-        });
+        canvasElement.addEventListener('touchstart', (e) => startDrag(e.touches[0]));
+        canvasElement.addEventListener('touchmove', (e) => drag(e.touches[0]));
         canvasElement.addEventListener('touchend', endDrag);
 
         function startDrag(e) {
@@ -260,7 +279,6 @@
             const rect = canvasElement.getBoundingClientRect();
             const scaleX = canvasElement.width / rect.width;
             const scaleY = canvasElement.height / rect.height;
-            
             gridState.cx = (e.clientX - rect.left) * scaleX - startX;
             gridState.cy = (e.clientY - rect.top) * scaleY - startY;
             redraw();
@@ -279,60 +297,92 @@
                 canvasCtx.fillStyle = "#1e1e1e";
                 canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
                 canvasCtx.fillStyle = "#888";
-                canvasCtx.font = "16px Tahoma";
+                canvasCtx.font = "14px Tahoma";
                 canvasCtx.textAlign = "center";
-                canvasCtx.fillText("ارفع صورة وجه لبدء ضبط لوميس", canvasElement.width / 2, canvasElement.height / 2);
+                canvasCtx.fillText("ارفع صورة وجه لبدء التدريب", canvasElement.width / 2, canvasElement.height / 2);
             }
 
-            drawLoomisGrid();
+            drawLoomisByMode();
         }
 
-        // رسم شبكة لوميس الهندسية بدقة
-        function drawLoomisGrid() {
+        // رسم شبكة لوميس حسب وضع الزاوية المحدد
+        function drawLoomisByMode() {
             canvasCtx.save();
             canvasCtx.globalAlpha = loomisOpacity;
+            canvasCtx.strokeStyle = lineColor;
+            canvasCtx.fillStyle = lineColor;
 
             const { cx, cy, radius, faceHeight } = gridState;
             const topY = cy - faceHeight * 0.4;
             const chinY = cy + faceHeight * 0.6;
 
-            // 1. الكرة الأساسية (The Sphere)
-            canvasCtx.strokeStyle = '#d4af37';
-            canvasCtx.lineWidth = 2.5;
+            if (viewMode === 'front') {
+                // الوضع الأمامي (تناظري متكامل)
+                canvasCtx.lineWidth = 3;
+                canvasCtx.beginPath();
+                canvasCtx.arc(cx, cy, radius, 0, 2 * Math.PI);
+                canvasCtx.stroke();
+
+                // الجوانب المقصوصة
+                canvasCtx.setLineDash([6, 6]);
+                canvasCtx.beginPath();
+                canvasCtx.ellipse(cx, cy, radius * 0.35, radius * 0.7, 0, 0, 2 * Math.PI);
+                canvasCtx.stroke();
+                canvasCtx.setLineDash([]);
+
+                drawHorizontalLine(topY + faceHeight * 0.15, 'خط الشعر');
+                drawHorizontalLine(cy - radius * 0.2, 'خط الحواجب');
+                drawHorizontalLine(cy + radius * 0.35, 'خط الأنف');
+                drawHorizontalLine(chinY, 'خط الذقن');
+
+                // خط المنتصف
+                canvasCtx.beginPath();
+                canvasCtx.moveTo(cx, topY - 15);
+                canvasCtx.lineTo(cx, chinY + 15);
+                canvasCtx.stroke();
+
+            } else if (viewMode === 'threeQuarter') {
+                // وضع ثلاثة أرباع (3/4 View)
+                canvasCtx.lineWidth = 3;
+                canvasCtx.beginPath();
+                canvasCtx.arc(cx - radius * 0.15, cy, radius, 0, 2 * Math.PI);
+                canvasCtx.stroke();
+
+                // الجانب المائل
+                canvasCtx.setLineDash([6, 6]);
+                canvasCtx.beginPath();
+                canvasCtx.ellipse(cx + radius * 0.25, cy, radius * 0.3, radius * 0.65, 0, 0, 2 * Math.PI);
+                canvasCtx.stroke();
+                canvasCtx.setLineDash([]);
+
+                drawHorizontalLine(topY + faceHeight * 0.15, 'خط الشعر (3/4)');
+                drawHorizontalLine(cy - radius * 0.2, 'خط الحواجب');
+                drawHorizontalLine(cy + radius * 0.35, 'خط الأنف');
+                drawHorizontalLine(chinY, 'خط الذقن');
+
+            } else if (viewMode === 'side') {
+                // الوضع الجانبي (Profile View - تقنية لوميس للجانب)
+                canvasCtx.lineWidth = 3;
+                // الكرة مرحلة للخلف
+                canvasCtx.beginPath();
+                canvasCtx.arc(cx - radius * 0.3, cy, radius, 0, 2 * Math.PI);
+                canvasCtx.stroke();
+
+                // السطح الجانبي يغطي المقدمة
+                canvasCtx.setLineDash([6, 6]);
+                canvasCtx.beginPath();
+                canvasCtx.rect(cx - radius * 0.3, cy - radius, radius * 0.8, radius * 2);
+                canvasCtx.stroke();
+                canvasCtx.setLineDash([]);
+
+                drawHorizontalLine(cy - radius * 0.2, 'الأذن / الحواجب');
+                drawHorizontalLine(cy + radius * 0.35, 'قاعدة الأنف');
+                drawHorizontalLine(chinY, 'خط الفك والذقن');
+            }
+
+            // نقطة المركز لتسهيل السحب
             canvasCtx.beginPath();
-            canvasCtx.arc(cx, cy, radius, 0, 2 * Math.PI);
-            canvasCtx.stroke();
-
-            // 2. الجوانب المقصوصة للكرة (Side Planes)
-            canvasCtx.strokeStyle = '#3498db';
-            canvasCtx.setLineDash([5, 5]);
-            canvasCtx.beginPath();
-            canvasCtx.ellipse(cx, cy, radius * 0.35, radius * 0.7, 0, 0, 2 * Math.PI);
-            canvasCtx.stroke();
-            canvasCtx.setLineDash([]);
-
-            // 3. الخطوط الأربعة للنسب
-            const hairlineY = topY + faceHeight * 0.15;
-            const browY = cy - radius * 0.2;
-            const noseY = cy + radius * 0.35;
-
-            drawHorizontalLine(hairlineY, 'خط الشعر');
-            drawHorizontalLine(browY, 'خط الحواجب');
-            drawHorizontalLine(noseY, 'خط الأنف');
-            drawHorizontalLine(chinY, 'خط الذقن');
-
-            // خط المنتصف العمودي
-            canvasCtx.strokeStyle = '#e74c3c';
-            canvasCtx.lineWidth = 2;
-            canvasCtx.beginPath();
-            canvasCtx.moveTo(cx, topY - 10);
-            canvasCtx.lineTo(cx, chinY + 10);
-            canvasCtx.stroke();
-
-            // نقطة مركزية لتسهيل السحب
-            canvasCtx.fillStyle = '#d4af37';
-            canvasCtx.beginPath();
-            canvasCtx.arc(cx, cy, 4, 0, 2 * Math.PI);
+            canvasCtx.arc(cx, cy, 5, 0, 2 * Math.PI);
             canvasCtx.fill();
 
             canvasCtx.restore();
@@ -340,19 +390,16 @@
 
         function drawHorizontalLine(y, label) {
             const width = canvasElement.width;
-            canvasCtx.strokeStyle = 'rgba(212, 175, 55, 0.9)';
-            canvasCtx.lineWidth = 1.5;
+            canvasCtx.lineWidth = 2;
             canvasCtx.beginPath();
-            canvasCtx.moveTo(width * 0.1, y);
-            canvasCtx.lineTo(width * 0.9, y);
+            canvasCtx.moveTo(width * 0.05, y);
+            canvasCtx.lineTo(width * 0.95, y);
             canvasCtx.stroke();
 
-            canvasCtx.fillStyle = '#d4af37';
-            canvasCtx.font = '12px Tahoma';
-            canvasCtx.fillText(label, width * 0.12, y - 4);
+            canvasCtx.font = '13px Tahoma';
+            canvasCtx.fillText(label, width * 0.08, y - 5);
         }
 
-        // الرسم الأولي
         redraw();
     </script>
 </body>
