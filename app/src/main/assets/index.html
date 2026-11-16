@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loomis Face Studio - تحليل الصور</title>
-    <!-- MediaPipe Face Mesh Library -->
+    <title>Loomis Face Studio - تحكم تفاعلي</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <style>
         body {
@@ -22,22 +21,23 @@
         header {
             width: 100%;
             background: #1f1f1f;
-            padding: 15px;
+            padding: 12px;
             text-align: center;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
             color: #d4af37;
             box-shadow: 0 2px 5px rgba(0,0,0,0.5);
         }
         .container {
             position: relative;
-            margin-top: 20px;
-            width: 360px;
-            height: 480px;
+            margin-top: 10px;
+            width: 340px;
+            height: 440px;
             border-radius: 12px;
             overflow: hidden;
             background-color: #1e1e1e;
             box-shadow: 0 4px 15px rgba(0,0,0,0.7);
+            touch-action: none; /* منع التمرير الافتراضي أثناء سحب الشبكة */
         }
         canvas {
             width: 100%;
@@ -45,46 +45,48 @@
             object-fit: contain;
         }
         .controls {
-            margin-top: 20px;
-            width: 90%;
-            max-width: 360px;
+            margin-top: 10px;
+            width: 92%;
+            max-width: 340px;
             background: #1a1a1a;
-            padding: 15px;
+            padding: 12px;
             border-radius: 10px;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 8px;
         }
         label.file-btn {
             background: #d4af37;
             color: #121212;
             border: none;
-            padding: 12px;
+            padding: 10px;
             border-radius: 6px;
             font-weight: bold;
             cursor: pointer;
             text-align: center;
             display: block;
+            font-size: 14px;
         }
         label.file-btn:active { background: #b08d26; }
         input[type="file"] { display: none; }
         .control-group {
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 3px;
+            font-size: 12px;
         }
         input[type="range"] { width: 100%; accent-color: #d4af37; }
         .status {
             text-align: center;
-            font-size: 13px;
-            color: #aaa;
+            font-size: 11px;
+            color: #d4af37;
         }
     </style>
 </head>
 <body>
 
-    <header>Loomis Face Studio - تحليل تقنية لوميس</header>
+    <header>Loomis Face Studio - تحكم يدوي وتفاعلي</header>
 
     <div class="container">
         <canvas id="output_canvas" width="360" height="480"></canvas>
@@ -95,33 +97,71 @@
         <input type="file" id="imageUpload" accept="image/*">
         
         <div class="control-group">
-            <span>شفافية شبكة لوميس: <span id="opacityVal">80</span>%</span>
-            <input type="range" id="opacityRange" min="0" max="100" value="80">
+            <span>حجم الكرة (Radius): <span id="radiusVal">120</span></span>
+            <input type="range" id="radiusRange" min="50" max="250" value="120">
         </div>
-        <div class="status" id="statusText">قم برفع صورة وجه لبدء التخطيط الهندسي</div>
+
+        <div class="control-group">
+            <span>ارتفاع الوجه (Face Height): <span id="heightVal">240</span></span>
+            <input type="range" id="heightRange" min="100" max="400" value="240">
+        </div>
+
+        <div class="control-group">
+            <span>شفافية الشبكة: <span id="opacityVal">90</span>%</span>
+            <input type="range" id="opacityRange" min="0" max="100" value="90">
+        </div>
+        
+        <div class="status" id="statusText">اسحب شبكة لوميس بإصبعك لتعديل مكانها على الوجه</div>
     </div>
 
     <script>
         const canvasElement = document.getElementById('output_canvas');
         const canvasCtx = canvasElement.getContext('2d');
+        
+        const imageUpload = document.getElementById('imageUpload');
+        const radiusRange = document.getElementById('radiusRange');
+        const radiusVal = document.getElementById('radiusVal');
+        const heightRange = document.getElementById('heightRange');
+        const heightVal = document.getElementById('heightVal');
         const opacityRange = document.getElementById('opacityRange');
         const opacityVal = document.getElementById('opacityVal');
         const statusText = document.getElementById('statusText');
-        const imageUpload = document.getElementById('imageUpload');
 
-        let loomisOpacity = 0.8;
         let currentImage = null;
-        let currentLandmarks = null;
+        let loomisOpacity = 0.9;
+        
+        // إحداثيات شبكة لوميس القابلة للتحريك
+        let gridState = {
+            cx: 180,       // المركز الأفقي
+            cy: 220,       // المركز العمودي
+            radius: 120,   // حجم الكرة
+            faceHeight: 240 // ارتفاع الوجه
+        };
+
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
+
+        // تحديث القيم من الأشرطة
+        radiusRange.addEventListener('input', (e) => {
+            gridState.radius = parseInt(e.target.value);
+            radiusVal.textContent = gridState.radius;
+            redraw();
+        });
+
+        heightRange.addEventListener('input', (e) => {
+            gridState.faceHeight = parseInt(e.target.value);
+            heightVal.textContent = gridState.faceHeight;
+            redraw();
+        });
 
         opacityRange.addEventListener('input', (e) => {
             loomisOpacity = e.target.value / 100;
             opacityVal.textContent = e.target.value;
-            if (currentImage) {
-                redraw();
-            }
+            redraw();
         });
 
-        // تهيئة MediaPipe Face Mesh لتحليل معالم الوجه
+        // تهيئة MediaPipe كبداية تلقائية فقط لتخمين الموضع
         const faceMesh = new FaceMesh({
             locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
         });
@@ -129,34 +169,63 @@
         faceMesh.setOptions({
             maxNumFaces: 1,
             refineLandmarks: true,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
+            minDetectionConfidence: 0.4,
+            minTrackingConfidence: 0.4
         });
 
         faceMesh.onResults((results) => {
             if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-                currentLandmarks = results.multiFaceLandmarks[0];
-                statusText.textContent = "تم تحليل الوجه وتخطيط شبكة لوميس بنجاح!";
+                const landmarks = results.multiFaceLandmarks[0];
+                const topHead = landmarks[10];
+                const chin = landmarks[152];
+                const rightCheek = landmarks[454];
+                const leftCheek = landmarks[234];
+
+                const w = canvasElement.width;
+                const h = canvasElement.height;
+
+                // ضبط الإحداثيات الأولية بناءً على وجه الشخص
+                gridState.cx = ((topHead.x * w) + (chin.x * w)) / 2;
+                gridState.cy = (topHead.y * h) + (chin.y * h) / 3;
+                
+                const faceW = Math.abs(rightCheek.x - leftCheek.x) * w;
+                gridState.radius = Math.round(faceW * 0.6);
+                gridState.faceHeight = Math.round((chin.y - topHead.y) * h * 1.1);
+
+                radiusRange.value = gridState.radius;
+                radiusVal.textContent = gridState.radius;
+                heightRange.value = gridState.faceHeight;
+                heightVal.textContent = gridState.faceHeight;
+
+                statusText.textContent = "تم التحليل! يمكنك سحب الشبكة أو تعديلها بالأشرطة.";
             } else {
-                currentLandmarks = null;
-                statusText.textContent = "لم يتم اكتشاف وجه بوضوح، يرجى رفع صورة أخرى.";
+                statusText.textContent = "ضبط يدوي: اسحب الشبكة وضبط الحجم بالأشرطة.";
             }
             redraw();
         });
 
-        // التعامل مع رفع الصورة
+        // رفع الصورة
         imageUpload.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
-            statusText.textContent = "جاري تحليل الصورة ومعالجة الأبعاد...";
+            statusText.textContent = "جاري تحميل الصورة...";
             const img = new Image();
             img.onload = async () => {
                 currentImage = img;
-                
-                // ضبط أبعاد اللوحة برمجياً لتناسب الصورة
                 canvasElement.width = img.width;
                 canvasElement.height = img.height;
+
+                // ضبط إحداثيات افتراضية في منتصف الصورة
+                gridState.cx = img.width / 2;
+                gridState.cy = img.height / 2.2;
+                gridState.radius = Math.round(img.width * 0.25);
+                gridState.faceHeight = Math.round(img.height * 0.5);
+
+                radiusRange.value = gridState.radius;
+                radiusVal.textContent = gridState.radius;
+                heightRange.value = gridState.faceHeight;
+                heightVal.textContent = gridState.faceHeight;
 
                 redraw();
                 await faceMesh.send({image: img});
@@ -164,94 +233,127 @@
             img.src = URL.createObjectURL(file);
         });
 
+        // تفاعل اللمس والسحب (Touch & Mouse Dragging) لتحريك الشبكة بالكامل
+        canvasElement.addEventListener('mousedown', startDrag);
+        canvasElement.addEventListener('mousemove', drag);
+        canvasElement.addEventListener('mouseup', endDrag);
+
+        canvasElement.addEventListener('touchstart', (e) => {
+            startDrag(e.touches[0]);
+        });
+        canvasElement.addEventListener('touchmove', (e) => {
+            drag(e.touches[0]);
+        });
+        canvasElement.addEventListener('touchend', endDrag);
+
+        function startDrag(e) {
+            isDragging = true;
+            const rect = canvasElement.getBoundingClientRect();
+            const scaleX = canvasElement.width / rect.width;
+            const scaleY = canvasElement.height / rect.height;
+            startX = (e.clientX - rect.left) * scaleX - gridState.cx;
+            startY = (e.clientY - rect.top) * scaleY - gridState.cy;
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            const rect = canvasElement.getBoundingClientRect();
+            const scaleX = canvasElement.width / rect.width;
+            const scaleY = canvasElement.height / rect.height;
+            
+            gridState.cx = (e.clientX - rect.left) * scaleX - startX;
+            gridState.cy = (e.clientY - rect.top) * scaleY - startY;
+            redraw();
+        }
+
+        function endDrag() {
+            isDragging = false;
+        }
+
         function redraw() {
             canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            
             if (currentImage) {
                 canvasCtx.drawImage(currentImage, 0, 0, canvasElement.width, canvasElement.height);
             } else {
                 canvasCtx.fillStyle = "#1e1e1e";
                 canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
-                canvasCtx.fillStyle = "#777";
+                canvasCtx.fillStyle = "#888";
                 canvasCtx.font = "16px Tahoma";
                 canvasCtx.textAlign = "center";
-                canvasCtx.fillText("اختر صورة وجه لبدء التدريب", canvasElement.width / 2, canvasElement.height / 2);
+                canvasCtx.fillText("ارفع صورة وجه لبدء ضبط لوميس", canvasElement.width / 2, canvasElement.height / 2);
             }
 
-            if (currentLandmarks) {
-                drawLoomisWireframe(currentLandmarks, canvasElement.width, canvasElement.height);
-            }
+            drawLoomisGrid();
         }
 
-        // خوارزمية رسم تقنية لوميس الهندسية
-        function drawLoomisWireframe(landmarks, width, height) {
+        // رسم شبكة لوميس الهندسية بدقة
+        function drawLoomisGrid() {
             canvasCtx.save();
             canvasCtx.globalAlpha = loomisOpacity;
 
-            const topHead = landmarks[10];     // قمة الرأس
-            const chin = landmarks[152];       // الذقن
-            const leftCheek = landmarks[234];  // عظمة الخد اليمنى
-            const rightCheek = landmarks[454]; // عظمة الخد اليسرى
-            const brow = landmarks[9];         // منتصف الحاجبين
-            const noseBase = landmarks[2];     // قاعدة الأنف
+            const { cx, cy, radius, faceHeight } = gridState;
+            const topY = cy - faceHeight * 0.4;
+            const chinY = cy + faceHeight * 0.6;
 
-            const cx = (topHead.x * width + chin.x * width) / 2;
-            const headTopY = topHead.y * height;
-            const chinY = chin.y * height;
-            const faceHeight = chinY - headTopY;
-            const faceWidth = Math.abs(rightCheek.x - leftCheek.x) * width;
-
-            // 1. الكرة الأساسية لتقنية لوميس (The Sphere)
-            const sphereRadius = faceWidth * 0.55;
-            const sphereCenterY = headTopY + faceHeight * 0.45;
-            
-            canvasCtx.strokeStyle = '#d4af37'; // لون ذهبي
-            canvasCtx.lineWidth = Math.max(2, width * 0.003);
+            // 1. الكرة الأساسية (The Sphere)
+            canvasCtx.strokeStyle = '#d4af37';
+            canvasCtx.lineWidth = 2.5;
             canvasCtx.beginPath();
-            canvasCtx.arc(cx, sphereCenterY, sphereRadius, 0, 2 * Math.PI);
+            canvasCtx.arc(cx, cy, radius, 0, 2 * Math.PI);
             canvasCtx.stroke();
 
             // 2. الجوانب المقصوصة للكرة (Side Planes)
-            canvasCtx.strokeStyle = '#3498db'; // لون أزرق للتقطيع الجانبي
-            canvasCtx.setLineDash([6, 6]);
+            canvasCtx.strokeStyle = '#3498db';
+            canvasCtx.setLineDash([5, 5]);
             canvasCtx.beginPath();
-            canvasCtx.ellipse(cx, sphereCenterY, sphereRadius * 0.35, sphereRadius * 0.7, 0, 0, 2 * Math.PI);
+            canvasCtx.ellipse(cx, cy, radius * 0.35, radius * 0.7, 0, 0, 2 * Math.PI);
             canvasCtx.stroke();
             canvasCtx.setLineDash([]);
 
-            // 3. خطوط التقسيم الأربعة للنسب
-            const hairlineY = headTopY + faceHeight * 0.2;
-            drawHorizontalLine(hairlineY, width, 'خط الشعر');
+            // 3. الخطوط الأربعة للنسب
+            const hairlineY = topY + faceHeight * 0.15;
+            const browY = cy - radius * 0.2;
+            const noseY = cy + radius * 0.35;
 
-            const browY = brow.y * height;
-            drawHorizontalLine(browY, width, 'خط الحواجب');
-
-            const noseY = noseBase.y * height;
-            drawHorizontalLine(noseY, width, 'خط الأنف');
-
-            drawHorizontalLine(chinY, width, 'خط الذقن');
+            drawHorizontalLine(hairlineY, 'خط الشعر');
+            drawHorizontalLine(browY, 'خط الحواجب');
+            drawHorizontalLine(noseY, 'خط الأنف');
+            drawHorizontalLine(chinY, 'خط الذقن');
 
             // خط المنتصف العمودي
-            canvasCtx.strokeStyle = '#e74c3c'; // لون أحمر لخط المنتصف
+            canvasCtx.strokeStyle = '#e74c3c';
+            canvasCtx.lineWidth = 2;
             canvasCtx.beginPath();
-            canvasCtx.moveTo(cx, headTopY);
-            canvasCtx.lineTo(cx, chinY);
+            canvasCtx.moveTo(cx, topY - 10);
+            canvasCtx.lineTo(cx, chinY + 10);
             canvasCtx.stroke();
+
+            // نقطة مركزية لتسهيل السحب
+            canvasCtx.fillStyle = '#d4af37';
+            canvasCtx.beginPath();
+            canvasCtx.arc(cx, cy, 4, 0, 2 * Math.PI);
+            canvasCtx.fill();
 
             canvasCtx.restore();
         }
 
-        function drawHorizontalLine(y, width, label) {
-            canvasCtx.strokeStyle = 'rgba(212, 175, 55, 0.85)';
-            canvasCtx.lineWidth = Math.max(1.5, width * 0.002);
+        function drawHorizontalLine(y, label) {
+            const width = canvasElement.width;
+            canvasCtx.strokeStyle = 'rgba(212, 175, 55, 0.9)';
+            canvasCtx.lineWidth = 1.5;
             canvasCtx.beginPath();
-            canvasCtx.moveTo(width * 0.05, y);
-            canvasCtx.lineTo(width * 0.95, y);
+            canvasCtx.moveTo(width * 0.1, y);
+            canvasCtx.lineTo(width * 0.9, y);
             canvasCtx.stroke();
 
             canvasCtx.fillStyle = '#d4af37';
-            canvasCtx.font = `${Math.max(11, width * 0.025)}px Tahoma`;
-            canvasCtx.fillText(label, width * 0.07, y - 5);
+            canvasCtx.font = '12px Tahoma';
+            canvasCtx.fillText(label, width * 0.12, y - 4);
         }
+
+        // الرسم الأولي
+        redraw();
     </script>
 </body>
 </html>
