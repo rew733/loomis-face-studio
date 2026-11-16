@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loomis Face Studio</title>
-    <!-- MediaPipe Face Mesh & Camera Utils -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <title>Loomis Face Studio - تحليل الصور</title>
+    <!-- MediaPipe Face Mesh Library -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <style>
         body {
@@ -23,7 +22,7 @@
         header {
             width: 100%;
             background: #1f1f1f;
-            padding: 12px;
+            padding: 15px;
             text-align: center;
             font-size: 18px;
             font-weight: bold;
@@ -32,101 +31,97 @@
         }
         .container {
             position: relative;
-            width: 100%;
-            max-width: 500px;
-            margin-top: 10px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        video, canvas {
-            position: absolute;
-            top: 0;
-            left: 50%;
-            transform: translateX(-50%);
+            margin-top: 20px;
             width: 360px;
             height: 480px;
             border-radius: 12px;
-            object-fit: cover;
-        }
-        video {
-            display: none; /* يتم تشغيلها في الخلفية للمعالجة */
-        }
-        canvas {
+            overflow: hidden;
             background-color: #1e1e1e;
             box-shadow: 0 4px 15px rgba(0,0,0,0.7);
         }
+        canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
         .controls {
-            margin-top: 500px;
+            margin-top: 20px;
             width: 90%;
+            max-width: 360px;
             background: #1a1a1a;
             padding: 15px;
             border-radius: 10px;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 15px;
         }
-        .control-group {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        button, label.file-btn {
+        label.file-btn {
             background: #d4af37;
             color: #121212;
             border: none;
-            padding: 10px 15px;
+            padding: 12px;
             border-radius: 6px;
             font-weight: bold;
             cursor: pointer;
             text-align: center;
-            flex: 1;
+            display: block;
         }
-        button:active { background: #b08d26; }
+        label.file-btn:active { background: #b08d26; }
         input[type="file"] { display: none; }
-        input[type="range"] { width: 100%; }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        input[type="range"] { width: 100%; accent-color: #d4af37; }
+        .status {
+            text-align: center;
+            font-size: 13px;
+            color: #aaa;
+        }
     </style>
 </head>
 <body>
 
-    <header>Loomis Face Studio - تحليل لوميس الهندسي</header>
+    <header>Loomis Face Studio - تحليل تقنية لوميس</header>
 
     <div class="container">
-        <video id="webcam" autoplay playsinline></video>
         <canvas id="output_canvas" width="360" height="480"></canvas>
     </div>
 
     <div class="controls">
-        <div style="display: flex; gap: 10px;">
-            <button id="toggleCamera">تشغيل الكاميرا</button>
-            <label class="file-btn" for="imageUpload">رفع صورة وجه</label>
-            <input type="file" id="imageUpload" accept="image/*">
-        </div>
+        <label class="file-btn" for="imageUpload">رفع صورة وجه من الألبوم</label>
+        <input type="file" id="imageUpload" accept="image/*">
+        
         <div class="control-group">
-            <span>شفافية شبكة لوميس:</span>
+            <span>شفافية شبكة لوميس: <span id="opacityVal">80</span>%</span>
             <input type="range" id="opacityRange" min="0" max="100" value="80">
         </div>
+        <div class="status" id="statusText">قم برفع صورة وجه لبدء التخطيط الهندسي</div>
     </div>
 
     <script>
-        const videoElement = document.getElementById('webcam');
         const canvasElement = document.getElementById('output_canvas');
         const canvasCtx = canvasElement.getContext('2d');
         const opacityRange = document.getElementById('opacityRange');
-        
+        const opacityVal = document.getElementById('opacityVal');
+        const statusText = document.getElementById('statusText');
+        const imageUpload = document.getElementById('imageUpload');
+
         let loomisOpacity = 0.8;
-        let isCameraActive = false;
-        let uploadedImage = null;
+        let currentImage = null;
+        let currentLandmarks = null;
 
         opacityRange.addEventListener('input', (e) => {
             loomisOpacity = e.target.value / 100;
-            if (!isCameraActive && uploadedImage) {
-                renderImageWithLoomis(uploadedImage);
+            opacityVal.textContent = e.target.value;
+            if (currentImage) {
+                redraw();
             }
         });
 
-        // تهيئة MediaPipe Face Mesh
+        // تهيئة MediaPipe Face Mesh لتحليل معالم الوجه
         const faceMesh = new FaceMesh({
             locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
         });
@@ -138,32 +133,64 @@
             minTrackingConfidence: 0.5
         });
 
-        faceMesh.onResults(onFaceResults);
-
-        function onFaceResults(results) {
-            canvasCtx.save();
-            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-
-            if (results.image) {
-                canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-            }
-
+        faceMesh.onResults((results) => {
             if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-                const landmarks = results.multiFaceLandmarks[0];
-                drawLoomisWireframe(landmarks, canvasElement.width, canvasElement.height);
+                currentLandmarks = results.multiFaceLandmarks[0];
+                statusText.textContent = "تم تحليل الوجه وتخطيط شبكة لوميس بنجاح!";
+            } else {
+                currentLandmarks = null;
+                statusText.textContent = "لم يتم اكتشاف وجه بوضوح، يرجى رفع صورة أخرى.";
             }
-            canvasCtx.restore();
+            redraw();
+        });
+
+        // التعامل مع رفع الصورة
+        imageUpload.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            statusText.textContent = "جاري تحليل الصورة ومعالجة الأبعاد...";
+            const img = new Image();
+            img.onload = async () => {
+                currentImage = img;
+                
+                // ضبط أبعاد اللوحة برمجياً لتناسب الصورة
+                canvasElement.width = img.width;
+                canvasElement.height = img.height;
+
+                redraw();
+                await faceMesh.send({image: img});
+            };
+            img.src = URL.createObjectURL(file);
+        });
+
+        function redraw() {
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            if (currentImage) {
+                canvasCtx.drawImage(currentImage, 0, 0, canvasElement.width, canvasElement.height);
+            } else {
+                canvasCtx.fillStyle = "#1e1e1e";
+                canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+                canvasCtx.fillStyle = "#777";
+                canvasCtx.font = "16px Tahoma";
+                canvasCtx.textAlign = "center";
+                canvasCtx.fillText("اختر صورة وجه لبدء التدريب", canvasElement.width / 2, canvasElement.height / 2);
+            }
+
+            if (currentLandmarks) {
+                drawLoomisWireframe(currentLandmarks, canvasElement.width, canvasElement.height);
+            }
         }
 
-        // خوارزمية رسم تقنية لوميس بناءً على معالم الوجه ثلاثية الأبعاد
+        // خوارزمية رسم تقنية لوميس الهندسية
         function drawLoomisWireframe(landmarks, width, height) {
+            canvasCtx.save();
             canvasCtx.globalAlpha = loomisOpacity;
 
-            // النقاط الرئيسية حسب معالم MediaPipe Face Mesh
             const topHead = landmarks[10];     // قمة الرأس
             const chin = landmarks[152];       // الذقن
-            const leftCheek = landmarks[234];  // الخد الأيمن (في المرآة)
-            const rightCheek = landmarks[454]; // الخد الأيسر
+            const leftCheek = landmarks[234];  // عظمة الخد اليمنى
+            const rightCheek = landmarks[454]; // عظمة الخد اليسرى
             const brow = landmarks[9];         // منتصف الحاجبين
             const noseBase = landmarks[2];     // قاعدة الأنف
 
@@ -177,106 +204,54 @@
             const sphereRadius = faceWidth * 0.55;
             const sphereCenterY = headTopY + faceHeight * 0.45;
             
-            canvasCtx.strokeStyle = '#d4af37';
-            canvasCtx.lineWidth = 2;
+            canvasCtx.strokeStyle = '#d4af37'; // لون ذهبي
+            canvasCtx.lineWidth = Math.max(2, width * 0.003);
             canvasCtx.beginPath();
             canvasCtx.arc(cx, sphereCenterY, sphereRadius, 0, 2 * Math.PI);
             canvasCtx.stroke();
 
             // 2. الجوانب المقصوصة للكرة (Side Planes)
-            canvasCtx.strokeStyle = '#3498db';
-            canvasCtx.setLineDash([4, 4]);
+            canvasCtx.strokeStyle = '#3498db'; // لون أزرق للتقطيع الجانبي
+            canvasCtx.setLineDash([6, 6]);
             canvasCtx.beginPath();
             canvasCtx.ellipse(cx, sphereCenterY, sphereRadius * 0.35, sphereRadius * 0.7, 0, 0, 2 * Math.PI);
             canvasCtx.stroke();
-            canvasCtx.setLineDash([]); // إيقاف الخط المتقطع
+            canvasCtx.setLineDash([]);
 
-            // 3. خطوط التقسيم الأربعة الأساسية للوميس
-            // خط منبت الشعر (Hairline)
+            // 3. خطوط التقسيم الأربعة للنسب
             const hairlineY = headTopY + faceHeight * 0.2;
             drawHorizontalLine(hairlineY, width, 'خط الشعر');
 
-            // خط الحواجب (Brow Line)
             const browY = brow.y * height;
             drawHorizontalLine(browY, width, 'خط الحواجب');
 
-            // خط قاعدة الأنف (Nose Base Line)
             const noseY = noseBase.y * height;
             drawHorizontalLine(noseY, width, 'خط الأنف');
 
-            // خط أسفل الذقن
             drawHorizontalLine(chinY, width, 'خط الذقن');
 
-            // خط المنتصف العمودي (Center Line)
-            canvasCtx.strokeStyle = '#e74c3c';
+            // خط المنتصف العمودي
+            canvasCtx.strokeStyle = '#e74c3c'; // لون أحمر لخط المنتصف
             canvasCtx.beginPath();
             canvasCtx.moveTo(cx, headTopY);
             canvasCtx.lineTo(cx, chinY);
             canvasCtx.stroke();
 
-            canvasCtx.globalAlpha = 1.0;
+            canvasCtx.restore();
         }
 
         function drawHorizontalLine(y, width, label) {
-            canvasCtx.strokeStyle = 'rgba(212, 175, 55, 0.7)';
-            canvasCtx.lineWidth = 1.5;
+            canvasCtx.strokeStyle = 'rgba(212, 175, 55, 0.85)';
+            canvasCtx.lineWidth = Math.max(1.5, width * 0.002);
             canvasCtx.beginPath();
-            canvasCtx.moveTo(20, y);
-            canvasCtx.lineTo(width - 20, y);
+            canvasCtx.moveTo(width * 0.05, y);
+            canvasCtx.lineTo(width * 0.95, y);
             canvasCtx.stroke();
 
             canvasCtx.fillStyle = '#d4af37';
-            canvasCtx.font = '10px Tahoma';
-            canvasCtx.fillText(label, 25, y - 3);
+            canvasCtx.font = `${Math.max(11, width * 0.025)}px Tahoma`;
+            canvasCtx.fillText(label, width * 0.07, y - 5);
         }
-
-        // التعامل مع رفع الصورة
-        const imageUpload = document.getElementById('imageUpload');
-        imageUpload.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            isCameraActive = false;
-            const img = new Image();
-            img.onload = async () => {
-                uploadedImage = img;
-                renderImageWithLoomis(img);
-                await faceMesh.send({image: img});
-            };
-            img.src = URL.createObjectURL(file);
-        });
-
-        function renderImageWithLoomis(img) {
-            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-            canvasCtx.drawImage(img, 0, 0, canvasElement.width, canvasElement.height);
-        }
-
-        // الكاميرا الحية
-        const toggleCameraBtn = document.getElementById('toggleCamera');
-        let camera = null;
-
-        toggleCameraBtn.addEventListener('click', async () => {
-            isCameraActive = !isCameraActive;
-            if (isCameraActive) {
-                toggleCameraBtn.textContent = "إيقاف الكاميرا";
-                camera = new Camera(videoElement, {
-                    onFrame: async () => {
-                        if (isCameraActive) {
-                            await faceMesh.send({image: videoElement});
-                        }
-                    },
-                    width: 360,
-                    height: 480
-                });
-                await camera.start();
-            } else {
-                toggleCameraBtn.textContent = "تشغيل الكاميرا";
-                if (camera) {
-                    // إيقاف الكاميرا
-                    window.location.reload();
-                }
-            }
-        });
     </script>
 </body>
 </html>
