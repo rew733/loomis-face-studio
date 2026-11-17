@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Loomis Face Studio - الاستوديو التشريحي والمرشد الذكي</title>
+    <title>Loomis Face Studio - الاستوديو التشريحي الذكي</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
@@ -440,7 +440,7 @@
             border: 1px solid #2e2e2e;
             border-radius: 8px;
             padding: 10px;
-            min-height: 130px;
+            min-height: 120px;
             font-size: 12px;
             line-height: 1.65;
             color: #eaeaea;
@@ -452,13 +452,27 @@
             color: #4facfe;
             text-align: center;
             font-weight: bold;
-            padding: 20px 0;
+            padding: 16px 0;
         }
+        .apply-canvas-btn {
+            display: none;
+            width: 100%;
+            background: linear-gradient(90deg, #00b09b, #96c93d);
+            color: #000;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            text-align: center;
+        }
+        .apply-canvas-btn.show { display: block; }
     </style>
 </head>
 <body>
 
-    <header>Loomis Face Studio - الاستوديو التشريحي والمرشد الذكي</header>
+    <header>Loomis Face Studio - الاستوديو التشريحي الذكي</header>
 
     <div class="tabs">
         <button class="tab-btn active" onclick="setMode('front', this)">أمامي (Front)</button>
@@ -471,6 +485,7 @@
         <div class="floating-toolbar">
             <div class="tool-group">
                 <button class="float-btn ai-btn" onclick="openAiModal()">🤖 المرشد الذكي</button>
+                <button class="float-btn" id="btnAiLayer" onclick="toggleAiOverlay()" style="display:none;">✨ طبقة AI</button>
                 <button class="float-btn" id="btnFullscreen" onclick="toggleFullscreen()">⛶ ملء الشاشة</button>
                 <button class="float-btn" id="btnLock" onclick="toggleLock()">🔓 مفتوح</button>
             </div>
@@ -602,7 +617,7 @@
             </select>
         </div>
 
-        <div class="hint">💡 اضغط على "🤖 المرشد الذكي" لاختيار موديل Gemini أو كتابته يدوياً</div>
+        <div class="hint">💡 اضغط على "🤖 المرشد الذكي" ليقوم الذكاء الاصطناعي بضبط الشبكة ورسم الظلال فوق الوجه تلقائياً</div>
     </div>
 
     <!-- نافذة المرشد التشريحي الذكي Gemini AI -->
@@ -620,37 +635,38 @@
                         <button class="save-key-btn" onclick="saveAiSettings()">حفظ الإعدادات</button>
                     </div>
 
-                    <div style="font-size:11px; color:#ccc; margin-top:2px;">اختر موديل Gemini أو اكتبه يدوياً:</div>
+                    <div style="font-size:11px; color:#ccc; margin-top:2px;">موديل Gemini (الافتراضي gemini-3.5-flash-lite):</div>
                     <select id="geminiModelSelect" class="model-select" onchange="onModelSelectChange()">
-                        <option value="gemini-2.5-flash" selected>gemini-2.5-flash (الأسرع والأكثر استقراراً)</option>
-                        <option value="gemini-3.5-flash">gemini-3.5-flash (سريع ودقيق للصور)</option>
-                        <option value="gemini-3.8-flash">gemini-3.8-flash (أحدث إصدار فلاش)</option>
-                        <option value="gemini-2.5-pro">gemini-2.5-pro (تحليل تشريحي عميق)</option>
-                        <option value="gemini-2.0-flash">gemini-2.0-flash (خفيف وسريع)</option>
-                        <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+                        <option value="gemini-3.5-flash-lite" selected>gemini-3.5-flash-lite (الأسرع والأحدث للصور)</option>
+                        <option value="gemini-3.5-flash">gemini-3.5-flash</option>
+                        <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+                        <option value="gemini-2.5-pro">gemini-2.5-pro (تحليل عميق)</option>
+                        <option value="gemini-2.0-flash">gemini-2.0-flash</option>
                         <option value="custom">✍️ كتابة اسم الموديل يدوياً...</option>
                     </select>
 
                     <div class="custom-model-box" id="customModelBox">
-                        <input type="text" id="customModelInput" class="api-input" style="width:100%; color:#ffd700;" placeholder="اكتب اسم الموديل هنا مثل: gemini-3.5-flash">
+                        <input type="text" id="customModelInput" class="api-input" style="width:100%; color:#ffd700;" placeholder="اكتب اسم الموديل هنا...">
                     </div>
                 </div>
 
-                <div style="font-size:11px; color:#4facfe; font-weight:bold;">اختر نوع التحليل المطلوب:</div>
+                <div style="font-size:11px; color:#4facfe; font-weight:bold;">اختر التحليل لتطبيقه تلقائياً فوق الوجه:</div>
                 <div class="ai-actions-grid">
-                    <button class="ai-task-btn" onclick="askGemini('blueprint', this)">📐 خطة رسم لوميس بالسنتيمتر</button>
-                    <button class="ai-task-btn" onclick="askGemini('shading', this)">🌗 تحليل الإضاءة والتظليل</button>
-                    <button class="ai-task-btn" onclick="askGemini('tilt', this)">🧭 تصحيح زاوية الرأس والميلان</button>
+                    <button class="ai-task-btn" onclick="askGemini('blueprint', this)">📐 ضبط الشبكة وخطة لوميس</button>
+                    <button class="ai-task-btn" onclick="askGemini('shading', this)">🌗 رسم خريطة الضوء والظل</button>
+                    <button class="ai-task-btn" onclick="askGemini('tilt', this)">🧭 تصحيح زاوية الرأس تلقائياً</button>
                     <button class="ai-task-btn" onclick="toggleSketchCompare(this)">🎨 مقارنة رسمتي بالأصل</button>
                 </div>
 
                 <div class="sketch-upload-box" id="sketchUploadBox">
-                    <div style="margin-bottom:6px; color:#ddd;">ارفع صورة رسمتك على الورق ليقارنها الذكاء الاصطناعي بالصورة الأصلية:</div>
+                    <div style="margin-bottom:6px; color:#ddd;">ارفع صورة رسمتك على الورق ليحدد الذكاء الاصطناعي أماكن التصحيح فوق اللوحة:</div>
                     <label for="sketchFileInput" style="background:#4facfe; color:#000; padding:6px 12px; border-radius:5px; font-weight:bold; cursor:pointer; display:inline-block;">📷 اختيار صورة الرسمة</label>
                     <input type="file" id="sketchFileInput" accept="image/*" onchange="handleSketchUpload(event)">
                 </div>
 
-                <div class="ai-result-box" id="aiResultBox">ارفع صورة الوجه أولاً، ثم اختر الموديل واضغط على أحد أزرار التحليل أعلاه.</div>
+                <button class="apply-canvas-btn" id="applyCanvasBtn" onclick="closeAiModal()">👁️ عرض التطبيق البصري على الوجه الآن</button>
+
+                <div class="ai-result-box" id="aiResultBox">ارفع صورة الوجه أولاً، ثم اضغط على أي زر تحليل ليقوم الذكاء الاصطناعي بضبط الشبكة ورسم الإرشادات فوق الصورة مباشرة.</div>
             </div>
         </div>
     </div>
@@ -693,13 +709,21 @@
 
         let features = null;
 
+        // بيانات الطبقة البصرية المستخرجة من الذكاء الاصطناعي لتطبيقها فوق الوجه
+        let aiVisualOverlay = {
+            visible: true,
+            lightArrow: null, // { fromX, fromY, toX, toY, label } (نسب مئوية 0..100)
+            shadowZones: [],  // [{ x, y, rx, ry, label }]
+            corrections: []   // [{ x, y, text }]
+        };
+
         let dragTarget = null;
         let dragStart = { x: 0, y: 0 };
         let initialPinchDist = null;
         let initialViewScale = 1;
         let lastPinchCenter = null;
 
-        // تحميل مفتاح Gemini API والموديل المحفوظ إن وجد
+        // تحميل مفتاح Gemini API والموديل المحفوظ
         window.addEventListener('DOMContentLoaded', () => {
             const savedKey = localStorage.getItem('loomis_gemini_api_key');
             if (savedKey) {
@@ -738,7 +762,7 @@
             const selectVal = document.getElementById('geminiModelSelect').value;
             if (selectVal === 'custom') {
                 const customVal = document.getElementById('customModelInput').value.trim();
-                return customVal || 'gemini-2.5-flash';
+                return customVal || 'gemini-3.5-flash-lite';
             }
             return selectVal;
         }
@@ -771,16 +795,23 @@
 
         function closeAiModal() {
             document.getElementById('aiModal').classList.remove('open');
+            redraw();
+        }
+
+        function toggleAiOverlay() {
+            aiVisualOverlay.visible = !aiVisualOverlay.visible;
+            const btn = document.getElementById('btnAiLayer');
+            btn.classList.toggle('active', aiVisualOverlay.visible);
+            redraw();
         }
 
         function toggleSketchCompare(btn) {
             document.querySelectorAll('.ai-task-btn').forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
             document.getElementById('sketchUploadBox').classList.add('show');
-            document.getElementById('aiResultBox').textContent = 'اختر صورة رسمتك من الزر أعلاه ليقوم المرشد الذكي بمقارنتها مع الصورة الأصلية وتحديد مواضع التصحيح.';
+            document.getElementById('aiResultBox').textContent = 'اختر صورة رسمتك من الزر أعلاه ليحدد الذكاء الاصطناعي أماكن التصحيح باللون الأحمر فوق الوجه.';
         }
 
-        // ضغط الصورة بذكاء (512px) لسرعة فائقة على اتصال الهاتف
         function getResizedBase64(imgSource, maxDim = 512) {
             const tempCanvas = document.createElement('canvas');
             let w = imgSource.width || imgSource.naturalWidth;
@@ -814,18 +845,79 @@
             const t2 = document.getElementById('m_t2').textContent;
             const t3 = document.getElementById('m_t3').textContent;
 
-            return `المقياس المختار: ${scaleText}
-- الطول الكلي للوجه: ${faceH} | العرض الكلي: ${faceW} (نسبة الطول للعرض: ${faceRatio})
-- طول العين (يمنى/يسرى): ${eyesLen} | المسافة بين العينين: ${interEye}
-- عرض الأنف: ${noseW} | عرض الفم: ${mouthW}
-- الأثلاث العمودية: (الشعر للحاجب: ${t1})، (الحاجب للأنف: ${t2})، (الأنف للذقن: ${t3})
-- زاوية الميلان الحالية للشبكة: ${state.angle} درجة`;
+            return `المقياس: ${scaleText} | الطول: ${faceH} | العرض: ${faceW} (${faceRatio}) | العين: ${eyesLen} | بين العينين: ${interEye} | الأنف: ${noseW} | الفم: ${mouthW} | الأثلاث: (${t1} / ${t2} / ${t3})`;
+        }
+
+        // تطبيق مخرجات الذكاء الاصطناعي الهندسية والبصرية مباشرة على الوجه والشبكة
+        function applyAiVisualData(aiJson) {
+            if (!aiJson) return;
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // 1. تحديث وضعية الشبكة وزاوية الميلان وإحداثيات الجمجمة إذا أرجعها النموذج
+            if (aiJson.grid && !isLocked) {
+                const g = aiJson.grid;
+                if (typeof g.mode === 'string' && ['front', 'threeQuarter', 'side'].includes(g.mode)) {
+                    currentMode = g.mode;
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    const idx = g.mode === 'front' ? 0 : (g.mode === 'threeQuarter' ? 1 : 2);
+                    if (document.querySelectorAll('.tab-btn')[idx]) {
+                        document.querySelectorAll('.tab-btn')[idx].classList.add('active');
+                    }
+                }
+                if (typeof g.cxPct === 'number') state.cx = (g.cxPct / 100) * w;
+                if (typeof g.cyPct === 'number') state.cy = (g.cyPct / 100) * h;
+                if (typeof g.radiusPct === 'number') {
+                    state.radius = Math.round((g.radiusPct / 100) * Math.min(w, h));
+                    radiusRange.value = state.radius;
+                    document.getElementById('radiusVal').textContent = state.radius;
+                }
+                if (typeof g.angleDeg === 'number') {
+                    state.angle = Math.max(-60, Math.min(60, Math.round(g.angleDeg)));
+                    angleRange.value = state.angle;
+                    document.getElementById('angleVal').textContent = state.angle + '°';
+                }
+
+                // تحديث مواضع الخطوط الأفقية (نسب مئوية من نصف القطر)
+                const r = state.radius;
+                if (typeof g.hairFactor === 'number') state.yOffsets.hair = -r * Math.abs(g.hairFactor);
+                if (typeof g.browFactor === 'number') state.yOffsets.brow = r * g.browFactor;
+                if (typeof g.noseFactor === 'number') state.yOffsets.nose = r * g.noseFactor;
+                if (typeof g.chinFactor === 'number') state.yOffsets.chin = r * Math.abs(g.chinFactor);
+
+                state.bounds.topY = state.yOffsets.hair - r * 0.2;
+                state.bounds.bottomY = state.yOffsets.chin;
+                state.bounds.leftX = -r * 0.85;
+                state.bounds.rightX = r * 0.85;
+            }
+
+            // 2. تحديث خريطة الإضاءة والظل العميق (Shading Overlay)
+            if (aiJson.lightArrow) {
+                aiVisualOverlay.lightArrow = aiJson.lightArrow;
+            }
+            if (Array.isArray(aiJson.shadowZones)) {
+                aiVisualOverlay.shadowZones = aiJson.shadowZones;
+            }
+
+            // 3. تحديث مؤشرات التصحيح على الوجه (Corrections)
+            if (Array.isArray(aiJson.corrections)) {
+                aiVisualOverlay.corrections = aiJson.corrections;
+            }
+
+            aiVisualOverlay.visible = true;
+            const layerBtn = document.getElementById('btnAiLayer');
+            layerBtn.style.display = 'flex';
+            layerBtn.classList.add('active');
+
+            document.getElementById('applyCanvasBtn').classList.add('show');
+            redraw();
         }
 
         async function askGemini(taskType, btn, sketchBase64 = null) {
             const apiKey = document.getElementById('geminiApiKeyInput').value.trim() || localStorage.getItem('loomis_gemini_api_key');
             const modelName = getSelectedModelName();
             const resultBox = document.getElementById('aiResultBox');
+            const applyBtn = document.getElementById('applyCanvasBtn');
 
             if (!apiKey) {
                 resultBox.textContent = '⚠️ يرجى إدخال مفتاح Gemini API وحفظه في الخانة أعلاه أولاً.';
@@ -844,43 +936,52 @@
                 }
             }
 
-            resultBox.innerHTML = `<div class="ai-loading">⏳ جاري التحليل السريع بواسطة (${modelName})...</div>`;
+            applyBtn.classList.remove('show');
+            resultBox.innerHTML = `<div class="ai-loading">⏳ جاري التحليل وتجهيز التطبيق البصري بواسطة (${modelName})...</div>`;
 
             const refBase64 = getResizedBase64(currentImage, 512);
             const gridOverlayBase64 = getResizedBase64(canvas, 512);
             const stats = buildCurrentMeasurementsSummary();
 
-            let promptText = '';
-            if (taskType === 'blueprint') {
-                promptText = `أنت أستاذ أكاديمي متخصص في تعليم رسم البورتريه بتقنية أندرو لوميس (Loomis Method).
-بناءً على الصورة المرفقة وهذه القياسات الدقيقة المحسوبة من التطبيق:
-${stats}
+            const jsonSchemaInstruction = `
+أجب بصيغة JSON صالحة فقط (بدون أي علامات markdown مثل \`\`\`json) تحتوي على الحقول التالية:
+{
+  "explanation": "شرح عربي مختصر وواضح ومباشر للرسام في نقاط مرقمة",
+  "grid": {
+    "mode": "front أو threeQuarter أو side حسب زاوية الرأس في الصورة",
+    "cxPct": رقم من 20 إلى 80 يمثل النسبة المئوية الأفقية لمركز كرة الجمجمة في الصورة,
+    "cyPct": رقم من 20 إلى 80 يمثل النسبة المئوية العمودية لمركز كرة الجمجمة في الصورة,
+    "radiusPct": رقم من 15 إلى 45 يمثل نصف قطر كرة لوميس كنسبة من أصغر بعد للصورة,
+    "angleDeg": رقم من -45 إلى 45 يمثل زاوية ميلان الرأس بالدرجات,
+    "hairFactor": رقم مثل 1.15,
+    "browFactor": رقم مثل -0.25,
+    "noseFactor": رقم مثل 0.55,
+    "chinFactor": رقم مثل 1.35
+  },
+  "lightArrow": { "fromX": رقم_0_100, "fromY": رقم_0_100, "toX": رقم_0_100, "toY": رقم_0_100, "label": "اتجاه الضوء" },
+  "shadowZones": [
+    { "x": رقم_0_100, "y": رقم_0_100, "rx": رقم_3_15, "ry": رقم_3_15, "label": "اسم منطقة الظل" }
+  ],
+  "corrections": [
+    { "x": رقم_0_100, "y": رقم_0_100, "text": "ملاحظة التصحيح القصيرة" }
+  ]
+}`;
 
-اكتب لي باللغة العربية خطة رسم هندسية عملية ومختصرة ومرقمة خطوة بخطوة لتطبيقها بالمسطرة والقلم على كراستي:
-1. كيف أبدأ برسم كرة لوميس وقطعيها الجانبيين ومقاس قطر الكرة المناسب بالسنتيمتر.
-2. تحديد مواقع خطوط (الشعر، الحواجب، الأنف، الذقن) بالسنتيمتر بدقة.
-3. تثبيت العينين والأنف والفم وفق الأبعاد المقاسة أعلاه مع ملاحظات تشريحية خاصة بهذا الوجه تحديداً.`;
+            let taskGoal = '';
+            if (taskType === 'blueprint') {
+                taskGoal = `حلل هذا الوجه وفق تقنية أندرو لوميس والقياسات الحالية (${stats}). اضبط قيم grid بدقة لتنطبق كرة لوميس وخطوط الحواجب والأنف والذقن على الوجه في الصورة، واكتب خطة الرسم بالسنتيمتر في explanation. اجعل shadowZones و corrections مصفوفات فارغة.`;
             } else if (taskType === 'shading') {
-                promptText = `أنت أستاذ متخصص في التشريح الفني وتظليل البورتريه (Planes of the Head).
-حلل الإضاءة والظل في هذه الصورة باللغة العربية بشكل عملي ومباشر للرسام:
-1. اتجاه مصدر الضوء الرئيسي وزاويته.
-2. تقسيم الوجه إلى كتل الضوء وكتل الظل (مستويات الجبهة، عظام الوجنتين، أسفل الأنف، ومحجر العين).
-3. أين تقع أعمق مناطق الظل (Core Shadows) ومناطق الضوء المنعكس (Reflected Light) لتجنب تسطيح الرسمة.`;
+                taskGoal = `حلل الإضاءة ومناطق الظل العميق (Core Shadows) في الصورة. حدد اتجاه الضوء في lightArrow، وحدد أهم 3 إلى 4 مناطق ظل على الوجه (مثل أسفل عظم الخد، أسفل الأنف، تجويف العين، أسفل الفك) بإحداثياتها المئوية في shadowZones لترسم فوق الوجه مباشرة، واشرحها في explanation.`;
             } else if (taskType === 'tilt') {
-                promptText = `أنت خبير في هندسة المنظور وتقنية أندرو لوميس.
-انظر إلى الصورة الأولى (الأصلية) والصورة الثانية (التي تحتوي على شبكة لوميس المرسومة حالياً بزاوية ${state.angle}°):
-1. ما هي زاوية دوران الرأس يميناً أو يساراً (Yaw) وزاوية ميلانه للأعلى أو الأسفل (Pitch)؟
-2. هل كرة لوميس وخط الحواجب وخط المنتصف في الصورة الثانية منطبقة بدقة على تشريح الجمجمة أم تحتاج إزاحة؟ أعطني توجيهات دقيقة ومختصرة لضبطها.`;
+                taskGoal = `قارن الصورة الأصلية بالصورة الثانية التي تحتوي على الشبكة الحالية (بزاوية ${state.angle}°). صحح إحداثيات grid (cxPct, cyPct, radiusPct, angleDeg, mode) لتنطبق كرة لوميس بدقة تامة على منظور الرأس، واشرح التعديل في explanation.`;
             } else if (taskType === 'compare') {
-                promptText = `أنت ناقد فني ومعلّم رسم بورتريه.
-الصورة الأولى هي الصورة المرجعية الأصلية، والصورة الثانية هي رسمتي على الورق.
-قارن بين الرسمة والأصل بدقة وموضوعية باللغة العربية، واذكر لي في نقاط واضحة:
-1. نقاط القوة التي نجحت فيها.
-2. أي اختلافات في النسب (حجم العينين، المسافة بينهما، طول الأنف، عرض الفك، أو ميلان الرأس) وكيف أصححها بالملليمتر والسنتيمتر.`;
+                taskGoal = `قارن الصورة المرجعية الأولى برسمة المستخدم الثانية. حدد أهم 3 مواضع تحتاج لتصحيح النسب على الصورة المرجعية وضع إحداثياتها المئوية وتعليمات التصحيح في corrections، واشرح الفروقات في explanation.`;
             }
 
+            const fullPrompt = `${taskGoal}\n\n${jsonSchemaInstruction}`;
+
             const parts = [
-                { text: promptText },
+                { text: fullPrompt },
                 { inline_data: { mime_type: 'image/jpeg', data: refBase64 } }
             ];
 
@@ -891,7 +992,7 @@ ${stats}
             }
 
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 25000); // مهلة 25 ثانية كحد أقصى لمنع التعليق
+            const timeoutId = setTimeout(() => controller.abort(), 25000);
 
             try {
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
@@ -901,8 +1002,9 @@ ${stats}
                     body: JSON.stringify({
                         contents: [{ parts: parts }],
                         generationConfig: {
-                            temperature: 0.4,
-                            maxOutputTokens: 1024
+                            temperature: 0.3,
+                            maxOutputTokens: 1200,
+                            responseMimeType: "application/json"
                         }
                     })
                 });
@@ -910,18 +1012,32 @@ ${stats}
 
                 const data = await response.json();
                 if (data.error) {
-                    resultBox.textContent = `❌ خطأ من API (${modelName}): ${data.error.message}\n\n💡 جرب اختيار موديل آخر مثل gemini-2.5-flash أو gemini-2.0-flash.`;
+                    resultBox.textContent = `❌ خطأ من API (${modelName}): ${data.error.message}`;
                     return;
                 }
 
-                const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-                resultBox.textContent = reply || 'لم يتم استلام رد من النموذج، حاول مرة أخرى.';
+                const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                try {
+                    const cleanJsonStr = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+                    const parsed = JSON.parse(cleanJsonStr);
+
+                    // مسح الطبقات السابقة قبل تطبيق الطبقة الجديدة
+                    aiVisualOverlay.lightArrow = null;
+                    aiVisualOverlay.shadowZones = [];
+                    aiVisualOverlay.corrections = [];
+
+                    applyAiVisualData(parsed);
+                    resultBox.textContent = `✅ تم تطبيق التحليل بصرياً على اللوحة!\n\n${parsed.explanation || ''}`;
+                } catch (parseErr) {
+                    // في حال عاد الرد كنص عادي غير JSON
+                    resultBox.textContent = rawText || 'لم يتم استلام رد، حاول مجدداً.';
+                }
             } catch (err) {
                 clearTimeout(timeoutId);
                 if (err.name === 'AbortError') {
-                    resultBox.textContent = `⏱️ انتهت مهلة الانتظار (25 ثانية) بسبب بطء الشبكة أو انشغال الموديل (${modelName}).\n\n💡 اختر موديل gemini-2.5-flash أو gemini-2.0-flash وحاول مجدداً.`;
+                    resultBox.textContent = `⏱️ انتهت مهلة الانتظار (25 ثانية) بسبب بطء الشبكة. حاول مجدداً.`;
                 } else {
-                    resultBox.textContent = `❌ تعذر الاتصال بالخادم. تأكد من اتصال الإنترنت وصحة المفتاح واسم الموديل.\n(${err.message})`;
+                    resultBox.textContent = `❌ تعذر الاتصال بالخادم:\n${err.message}`;
                 }
             }
         }
@@ -1216,6 +1332,11 @@ ${stats}
             angleRange.value = 0;
             document.getElementById('angleVal').textContent = '0°';
             hasDetectedOnce = false;
+            aiVisualOverlay.lightArrow = null;
+            aiVisualOverlay.shadowZones = [];
+            aiVisualOverlay.corrections = [];
+            document.getElementById('btnAiLayer').style.display = 'none';
+
             if (currentMode === 'anatomy') {
                 runAutoFeatureDetection();
             } else {
@@ -1484,8 +1605,102 @@ ${stats}
                 drawInteractiveAnatomy(pxToCm);
             }
 
+            // رسم الطبقة البصرية المستخرجة من الذكاء الاصطناعي فوق الوجه
+            if (aiVisualOverlay.visible) {
+                drawAiVisualOverlay();
+            }
+
             ctx.restore();
             updateMeasurements(pxToCm);
+        }
+
+        function drawAiVisualOverlay() {
+            const w = canvas.width;
+            const h = canvas.height;
+            const resFactor = Math.max(1, w / 600);
+            const lw = (3 * resFactor) / Math.sqrt(view.scale);
+
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+            ctx.shadowBlur = 5 * resFactor;
+
+            // 1. رسم سهم اتجاه الضوء
+            if (aiVisualOverlay.lightArrow) {
+                const la = aiVisualOverlay.lightArrow;
+                const x1 = (la.fromX / 100) * w;
+                const y1 = (la.fromY / 100) * h;
+                const x2 = (la.toX / 100) * w;
+                const y2 = (la.toY / 100) * h;
+
+                ctx.strokeStyle = '#FFD700';
+                ctx.fillStyle = '#FFD700';
+                ctx.lineWidth = lw * 1.4;
+
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+
+                // رأس السهم
+                const angle = Math.atan2(y2 - y1, x2 - x1);
+                const headLen = 14 * resFactor;
+                ctx.beginPath();
+                ctx.moveTo(x2, y2);
+                ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
+                ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
+                ctx.closePath();
+                ctx.fill();
+
+                drawLabelBadge(`☀️ ${la.label || 'مصدر الضوء'}`, x1, y1 - 14 * resFactor, 'rgba(0,0,0,0.85)', '#FFD700', resFactor);
+            }
+
+            // 2. رسم مناطق الظل العميق (Core Shadows)
+            if (aiVisualOverlay.shadowZones && aiVisualOverlay.shadowZones.length > 0) {
+                aiVisualOverlay.shadowZones.forEach(sz => {
+                    const cx = (sz.x / 100) * w;
+                    const cy = (sz.y / 100) * h;
+                    const rx = ((sz.rx || 7) / 100) * w;
+                    const ry = ((sz.ry || 7) / 100) * h;
+
+                    ctx.save();
+                    ctx.strokeStyle = '#4FACFE';
+                    ctx.fillStyle = 'rgba(79, 172, 254, 0.22)';
+                    ctx.lineWidth = lw;
+                    ctx.setLineDash([6 * resFactor, 4 * resFactor]);
+
+                    ctx.beginPath();
+                    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.restore();
+
+                    if (sz.label) {
+                        drawLabelBadge(`🌗 ${sz.label}`, cx, cy, 'rgba(0,0,0,0.85)', '#4FACFE', resFactor);
+                    }
+                });
+            }
+
+            // 3. رسم مؤشرات التصحيح الموضعية (عند مقارنة الرسمة بالأصل)
+            if (aiVisualOverlay.corrections && aiVisualOverlay.corrections.length > 0) {
+                aiVisualOverlay.corrections.forEach((corr, idx) => {
+                    const cx = (corr.x / 100) * w;
+                    const cy = (corr.y / 100) * h;
+                    const r = 16 * resFactor;
+
+                    ctx.strokeStyle = '#FF3366';
+                    ctx.fillStyle = 'rgba(255, 51, 102, 0.25)';
+                    ctx.lineWidth = lw * 1.2;
+
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    drawLabelBadge(`⚠️ ${idx + 1}: ${corr.text}`, cx, cy - r - 12 * resFactor, 'rgba(20,0,0,0.9)', '#FF6B8B', resFactor);
+                });
+            }
+
+            ctx.restore();
         }
 
         function drawLabelBadge(text, x, y, bgColor, textColor, resFactor) {
