@@ -157,7 +157,6 @@
             z-index: 10;
         }
 
-        /* بطاقة الشاقول الذكي المزدوج والمغناطيس التشريحي */
         .plumb-card {
             display: none;
             width: 96%;
@@ -736,7 +735,7 @@
             </select>
         </div>
 
-        <div class="hint">💡 اسحب أي خط من خطوط الشاقول من طرف الشاشة لتحريكه دون تغطية العين أو الأنف بإصبعك</div>
+        <div class="hint">💡 المقارنة مع رسمتك تتم بالقياس الهندسي الفعلي (MediaPipe) بالملليمتر دون تخمين عشوائي</div>
     </div>
 
     <!-- نافذة المرشد التشريحي الذكي Gemini AI -->
@@ -778,14 +777,14 @@
                 </div>
 
                 <div class="sketch-upload-box" id="sketchUploadBox">
-                    <div style="margin-bottom:6px; color:#ddd;">ارفع صورة رسمتك على الورق ليحدد الذكاء الاصطناعي أماكن التصحيح بالملليمتر فوق اللوحة:</div>
+                    <div style="margin-bottom:6px; color:#ddd;">ارفع صورة رسمتك ليقيسها المحرك التشريحي ويقارنها بالأصل بالملليمتر بدقة ثابتة:</div>
                     <label for="sketchFileInput" style="background:#4facfe; color:#000; padding:6px 12px; border-radius:5px; font-weight:bold; cursor:pointer; display:inline-block;">📷 اختيار صورة الرسمة</label>
                     <input type="file" id="sketchFileInput" accept="image/*" onchange="handleSketchUpload(event)">
                 </div>
 
                 <button class="apply-canvas-btn" id="applyCanvasBtn" onclick="closeAiModal()">👁️ عرض خريطة الظلال والتصحيح على الوجه</button>
 
-                <div class="ai-result-box" id="aiResultBox">ارفع صورة الوجه أولاً، ثم اضغط على أي زر تحليل ليقوم الذكاء الاصطناعي برسم خريطة الإضاءة والظل أو مقارنة رسمتك بالأصل مع نسبة الشبه.</div>
+                <div class="ai-result-box" id="aiResultBox">ارفع صورة الوجه أولاً، ثم اختر "مقارنة رسمتي بالأصل" لقياس الفروقات الحقيقية بالملليمتر ونسبة الشبه الدقيقة.</div>
             </div>
         </div>
     </div>
@@ -828,6 +827,7 @@
         };
 
         let features = null;
+        let refRawLandmarks = null; // حفظ نقاط MediaPipe الكاملة للصورة الأصلية
         let landmarksList = [];
 
         let plumbState = {
@@ -1158,7 +1158,7 @@
             document.querySelectorAll('.ai-task-btn').forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
             document.getElementById('sketchUploadBox').classList.add('show');
-            document.getElementById('aiResultBox').textContent = 'اختر صورة رسمتك من الزر أعلاه ليحدد الذكاء الاصطناعي الأخطاء وطريقة تصحيحها بالمقياس ونسبة الشبه.';
+            document.getElementById('aiResultBox').textContent = 'اختر صورة رسمتك من الزر أعلاه ليقيسها المحرك التشريحي ويقارنها بالأصل بالملليمتر ونسبة الشبه الدقيقة.';
         }
 
         function getResizedBase64(imgSource, maxDim = 512) {
@@ -1220,7 +1220,239 @@
             redraw();
         }
 
-        async function askGemini(taskType, btn, sketchBase64 = null) {
+        // --- محرك المقارنة التشريحية الرياضية الثابتة (Deterministic Face Comparison) ---
+        function computeAnatomicalRatiosFromLandmarks(lm, imgW, imgH) {
+            const pt = (idx) => ({ x: lm[idx].x * imgW, y: lm[idx].y * imgH });
+            const d = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
+
+            const leftEyeOuter = pt(33);
+            const leftEyeInner = pt(133);
+            const rightEyeInner = pt(362);
+            const rightEyeOuter = pt(263);
+            const noseLeft = pt(129);
+            const noseRight = pt(358);
+            const mouthLeft = pt(61);
+            const mouthRight = pt(291);
+            const leftFaceEdge = pt(234);
+            const rightFaceEdge = pt(454);
+            const browPt = pt(9);
+            const noseBase = pt(2);
+            const chinPt = pt(152);
+
+            const faceW = Math.max(1, d(leftFaceEdge, rightFaceEdge));
+            const lowerFaceH = Math.max(1, d(browPt, chinPt));
+
+            const leftEyeW = d(leftEyeOuter, leftEyeInner);
+            const rightEyeW = d(rightEyeInner, rightEyeOuter);
+            const interEyeW = d(leftEyeInner, rightEyeInner);
+            const noseW = d(noseLeft, noseRight);
+            const mouthW = d(mouthLeft, mouthRight);
+            const browToNose = d(browPt, noseBase);
+            const noseToChin = d(noseBase, chinPt);
+            const eyeAngleDeg = Math.atan2(rightEyeOuter.y - leftEyeOuter.y, rightEyeOuter.x - leftEyeOuter.x) * 180 / Math.PI;
+
+            return {
+                leftEyeRatio: leftEyeW / faceW,
+                rightEyeRatio: rightEyeW / faceW,
+                interEyeRatio: interEyeW / faceW,
+                noseRatio: noseW / faceW,
+                mouthRatio: mouthW / faceW,
+                heightToWidthRatio: lowerFaceH / faceW,
+                browToNoseRatio: browToNose / lowerFaceH,
+                noseToChinRatio: noseToChin / lowerFaceH,
+                tiltDeg: eyeAngleDeg
+            };
+        }
+
+        function analyzeSketchMathematically(sketchLm, sketchW, sketchH) {
+            const pxToCm = getPrecisePxToCm();
+            const refFaceWPx = Math.max(1, Math.abs(state.bounds.rightX - state.bounds.leftX));
+            const refFaceWCm = refFaceWPx * pxToCm;
+            const refFaceHCm = Math.abs(state.bounds.bottomY - state.bounds.topY) * pxToCm;
+
+            // 1. استخراج نسب الصورة الأصلية (من نقاط MediaPipe المحفوظة أو من الشبكة الحالية)
+            let refRatios = null;
+            if (refRawLandmarks) {
+                refRatios = computeAnatomicalRatiosFromLandmarks(refRawLandmarks, canvas.width, canvas.height);
+            } else if (features) {
+                const f = features;
+                const lowerH = Math.max(1, Math.abs(state.yOffsets.chin - state.yOffsets.brow));
+                refRatios = {
+                    leftEyeRatio: dist(f.leftEyeOuter, f.leftEyeInner) / refFaceWPx,
+                    rightEyeRatio: dist(f.rightEyeInner, f.rightEyeOuter) / refFaceWPx,
+                    interEyeRatio: dist(f.leftEyeInner, f.rightEyeInner) / refFaceWPx,
+                    noseRatio: dist(f.noseLeft, f.noseRight) / refFaceWPx,
+                    mouthRatio: dist(f.mouthLeft, f.mouthRight) / refFaceWPx,
+                    heightToWidthRatio: lowerH / refFaceWPx,
+                    browToNoseRatio: Math.abs(state.yOffsets.nose - state.yOffsets.brow) / lowerH,
+                    noseToChinRatio: Math.abs(state.yOffsets.chin - state.yOffsets.nose) / lowerH,
+                    tiltDeg: state.angle
+                };
+            }
+
+            // 2. استخراج نسب رسمتك من صورة الرسمة المرفوعة
+            const skRatios = computeAnatomicalRatiosFromLandmarks(sketchLm, sketchW, sketchH);
+
+            // 3. حساب الفروقات الحقيقية بالملليمتر وفق مقياس الكراسة المختار
+            const metricsToCompare = [
+                {
+                    part: 'left_eye',
+                    name: 'العين اليسرى',
+                    refMm: refRatios.leftEyeRatio * refFaceWCm * 10,
+                    skMm: skRatios.leftEyeRatio * refFaceWCm * 10
+                },
+                {
+                    part: 'right_eye',
+                    name: 'العين اليمنى',
+                    refMm: refRatios.rightEyeRatio * refFaceWCm * 10,
+                    skMm: skRatios.rightEyeRatio * refFaceWCm * 10
+                },
+                {
+                    part: 'brow',
+                    name: 'المسافة بين العينين',
+                    refMm: refRatios.interEyeRatio * refFaceWCm * 10,
+                    skMm: skRatios.interEyeRatio * refFaceWCm * 10
+                },
+                {
+                    part: 'nose',
+                    name: 'عرض الأنف',
+                    refMm: refRatios.noseRatio * refFaceWCm * 10,
+                    skMm: skRatios.noseRatio * refFaceWCm * 10
+                },
+                {
+                    part: 'mouth',
+                    name: 'عرض الفم',
+                    refMm: refRatios.mouthRatio * refFaceWCm * 10,
+                    skMm: skRatios.mouthRatio * refFaceWCm * 10
+                },
+                {
+                    part: 'jaw',
+                    name: 'طول الوجه السفلي (الحاجب للذقن)',
+                    refMm: refRatios.heightToWidthRatio * refFaceWCm * 10,
+                    skMm: skRatios.heightToWidthRatio * refFaceWCm * 10
+                }
+            ];
+
+            let totalErrorPct = 0;
+            const errorsList = [];
+            const visualMarkers = [];
+
+            metricsToCompare.forEach(m => {
+                const diffMm = m.skMm - m.refMm; // موجب = أكبر من الأصل، سالب = أصغر من الأصل
+                const absDiffMm = Math.abs(diffMm);
+                const relErr = absDiffMm / Math.max(1, m.refMm);
+                totalErrorPct += Math.min(1, relErr);
+
+                if (absDiffMm >= 1.2) {
+                    const isSmaller = diffMm < 0;
+                    const errDesc = isSmaller
+                        ? `صِغَر في (${m.name}) بمقدار ${absDiffMm.toFixed(1)} مم عن القياس الأصلي (${(m.refMm / 10).toFixed(1)} سم)`
+                        : `كِبَر واتساع في (${m.name}) بمقدار ${absDiffMm.toFixed(1)} مم عن القياس الأصلي (${(m.refMm / 10).toFixed(1)} سم)`;
+
+                    const fixDesc = isSmaller
+                        ? `توسيع وتكبير (${m.name}) بمقدار +${absDiffMm.toFixed(1)} مم ليصل إلى ${(m.refMm / 10).toFixed(1)} سم`
+                        : `تضييق وتصغير (${m.name}) بمقدار -${absDiffMm.toFixed(1)} مم ليصل إلى ${(m.refMm / 10).toFixed(1)} سم`;
+
+                    errorsList.push({
+                        absDiffMm,
+                        text: `الخطأ هو: ${errDesc} — ويتم تصحيحه بـ: ${fixDesc}.`
+                    });
+
+                    visualMarkers.push({
+                        part: m.part,
+                        text: isSmaller ? `توسيع +${absDiffMm.toFixed(1)} مم` : `تضييق -${absDiffMm.toFixed(1)} مم`
+                    });
+                }
+            });
+
+            // فحص زاوية ميلان الرأس
+            const tiltDiff = skRatios.tiltDeg - refRatios.tiltDeg;
+            if (Math.abs(tiltDiff) >= 2.5) {
+                const dir = tiltDiff > 0 ? 'مع عقارب الساعة' : 'عكس عقارب الساعة';
+                errorsList.push({
+                    absDiffMm: Math.abs(tiltDiff),
+                    text: `الخطأ هو: انحراف في زاوية ميلان الرأس بمقدار ${Math.abs(tiltDiff).toFixed(1)}° (${dir}) — ويتم تصحيحه بـ: تعديل ميلان محور العينين والفم بمقدار ${Math.abs(tiltDiff).toFixed(1)}° ليطابق زاوية الأصل (${refRatios.tiltDeg.toFixed(1)}°).`
+                });
+            }
+
+            // ترتيب الأخطاء من الأكبر إلى الأصغر
+            errorsList.sort((a, b) => b.absDiffMm - a.absDiffMm);
+
+            // حساب نسبة الشبه الرياضية الثابتة
+            const avgRelErr = totalErrorPct / metricsToCompare.length;
+            const similarityPct = Math.max(15, Math.min(99, Math.round((1 - avgRelErr * 1.35) * 100)));
+
+            let report = `نسبة الشبه بين الصورة والرسمة تُقدّر بـ: ${similarityPct}%\n`;
+            report += `(مقاسة رياضياً على مقياس عرض الوجه ${refFaceWCm.toFixed(1)} سم وطوله ${refFaceHCm.toFixed(1)} سم)\n\n`;
+
+            if (errorsList.length === 0) {
+                report += `✅ النسب الهندسية والملامح في رسمتك مطابقة للصورة الأصلية بدقة عالية (الفروقات أقل من 1.2 مم).`;
+            } else {
+                errorsList.forEach((item, idx) => {
+                    report += `${idx + 1}. ${item.text}\n`;
+                });
+            }
+
+            return {
+                report,
+                markers: visualMarkers.slice(0, 4)
+            };
+        }
+
+        async function handleSketchUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const resultBox = document.getElementById('aiResultBox');
+            const applyBtn = document.getElementById('applyCanvasBtn');
+
+            if (!currentImage) {
+                resultBox.textContent = '⚠️ يرجى رفع الصورة المرجعية الأصلية إلى اللوحة أولاً قبل رفع صورة الرسمة.';
+                return;
+            }
+
+            applyBtn.classList.remove('show');
+            resultBox.innerHTML = `<div class="ai-loading">📐 جاري مسح نقاط الرسمة ومطابقتها رياضياً بالملليمتر مع الصورة الأصلية...</div>`;
+
+            const img = new Image();
+            img.onload = async () => {
+                if (!isFaceMeshReady || !faceMesh) {
+                    resultBox.textContent = '⚠️ محرك الرصد التشريحي غير جاهز بعد، انتظر ثوانٍ وحاول مجدداً.';
+                    return;
+                }
+
+                // تبديل مستمع النتائج مؤقتاً لقياس صورة الرسمة بدقة دون تغيير شبكة الصورة الأصلية
+                faceMesh.onResults((sketchResults) => {
+                    // إعادة المستمع الأصلي فوراً
+                    faceMesh.onResults(onFaceMeshResults);
+
+                    if (!sketchResults.multiFaceLandmarks || sketchResults.multiFaceLandmarks.length === 0) {
+                        resultBox.textContent = '⚠️ تعذر رصد ملامح الوجه بوضوح في صورة الرسمة. تأكد من إضاءة الورقة وتصوير الرسمة بشكل مستقيم وواضح.';
+                        return;
+                    }
+
+                    const sketchLm = sketchResults.multiFaceLandmarks[0];
+                    const analysis = analyzeSketchMathematically(sketchLm, img.width, img.height);
+
+                    aiVisualOverlay.lightDir = null;
+                    aiVisualOverlay.shadowZones = [];
+                    aiVisualOverlay.corrections = analysis.markers;
+
+                    applyAiVisualData({ corrections: analysis.markers });
+                    resultBox.textContent = analysis.report;
+                });
+
+                try {
+                    await faceMesh.send({ image: img });
+                } catch (err) {
+                    faceMesh.onResults(onFaceMeshResults);
+                    resultBox.textContent = `❌ حدث خطأ أثناء تحليل صورة الرسمة: ${err.message}`;
+                }
+            };
+            img.src = URL.createObjectURL(file);
+        }
+
+        async function askGemini(taskType, btn) {
             const apiKey = document.getElementById('geminiApiKeyInput').value.trim() || localStorage.getItem('loomis_gemini_api_key');
             const modelName = getSelectedModelName();
             const resultBox = document.getElementById('aiResultBox');
@@ -1238,9 +1470,7 @@
             if (btn) {
                 document.querySelectorAll('.ai-task-btn').forEach(b => b.classList.remove('selected'));
                 btn.classList.add('selected');
-                if (taskType !== 'compare') {
-                    document.getElementById('sketchUploadBox').classList.remove('show');
-                }
+                document.getElementById('sketchUploadBox').classList.remove('show');
             }
 
             applyBtn.classList.remove('show');
@@ -1258,9 +1488,7 @@
   "shadowZones": [
     { "part": "اختر بدقة من القائمة: cheek_left | cheek_right | nose_base | jaw_bottom | eye_socket_left | eye_socket_right | forehead_left | forehead_right", "label": "وصف قصير للظل" }
   ],
-  "corrections": [
-    { "part": "اختر بدقة من القائمة: left_eye | right_eye | nose | mouth | jaw | brow", "text": "ملاحظة التصحيح القصيرة بالمقياس" }
-  ]
+  "corrections": []
 }`;
 
             let taskGoal = '';
@@ -1270,16 +1498,6 @@
                 taskGoal = `حلل الإضاءة ومناطق الظل العميق (Core Shadows) في هذه الصورة. حدد زاوية قدوم الضوء في lightDir، واختر من القائمة المحددة أهم مناطق الظل الحقيقية الموجودة في الصورة في shadowZones ليرسمها التطبيق فوق تلك الأجزاء التشريحية بدقة، واشرح كتل الضوء والظل في explanation.`;
             } else if (taskType === 'tilt') {
                 taskGoal = `انظر للصورة الأولى (الأصلية) والثانية (شبكة لوميس المطبقة عليها حالياً بزاوية ${state.angle}°). اشرح للرسام في explanation زاوية دوران الرأس (Yaw/Pitch) ومدى دقة تطابق الشبكة الحالية أو أي تعديل يدوي بسيط ينصحه به. اجعل lightDir=null و shadowZones=[] و corrections=[].`;
-            } else if (taskType === 'compare') {
-                taskGoal = `أنت ناقد تشريحي دقيق تقارن الصورة المرجعية الأولى برسمة المستخدم الثانية. اعتمد على مقياس اللوحة الحقيقي (${stats}) لتقدير الفروقات بالملليمتر أو السنتيمتر.
-يجب أن يكون نص "explanation" ملتزماً حرفياً بهذا القالب الصارم فقط:
-نسبة الشبه بين الصورة والرسمة تُقدّر بـ: [اكتب النسبة المئوية مثل 82%]
-
-1. الخطأ هو: [اذكر الخطأ التشريحي في الرسمة مقارنة بالأصل] — ويتم تصحيحه بـ: [اذكر طريقة التصحيح ومقدار التوسيع أو التكبير أو التصغير أو الإزاحة بالمقياس بالملليمتر أو السنتيمتر بدقة].
-2. الخطأ هو: [اذكر الخطأ الثاني] — ويتم تصحيحه بـ: [اذكر طريقة التصحيح والمقياس بالملليمتر أو السنتيمتر].
-3. الخطأ هو: [اذكر الخطأ الثالث إن وجد] — ويتم تصحيحه بـ: [اذكر طريقة التصحيح والمقياس بالملليمتر أو السنتيمتر].
-
-وفي حقل "corrections" ضع نفس هذه الأجزاء من القائمة (left_eye | right_eye | nose | mouth | jaw | brow) مع اختصار التصحيح بالمقياس (مثل: توسيع +3 مم) ليُعرض فوق الصورة. اجعل lightDir=null و shadowZones=[].`;
             }
 
             const fullPrompt = `${taskGoal}\n\n${jsonSchemaInstruction}`;
@@ -1291,8 +1509,6 @@
 
             if (taskType === 'tilt') {
                 parts.push({ inline_data: { mime_type: 'image/jpeg', data: gridOverlayBase64 } });
-            } else if (taskType === 'compare' && sketchBase64) {
-                parts.push({ inline_data: { mime_type: 'image/jpeg', data: sketchBase64 } });
             }
 
             const controller = new AbortController();
@@ -1306,7 +1522,7 @@
                     body: JSON.stringify({
                         contents: [{ parts: parts }],
                         generationConfig: {
-                            temperature: 0.25,
+                            temperature: 0.2,
                             maxOutputTokens: 1200,
                             responseMimeType: "application/json"
                         }
@@ -1342,17 +1558,6 @@
                     resultBox.textContent = `❌ تعذر الاتصال بالخادم:\n${err.message}`;
                 }
             }
-        }
-
-        function handleSketchUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const img = new Image();
-            img.onload = () => {
-                const sketchB64 = getResizedBase64(img, 512);
-                askGemini('compare', null, sketchB64);
-            };
-            img.src = URL.createObjectURL(file);
         }
 
         // --- محرك MediaPipe والرسم الهندسي ---
@@ -1405,6 +1610,7 @@
             detectBanner.style.display = 'none';
             if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0 && currentImage) {
                 const lm = results.multiFaceLandmarks[0];
+                refRawLandmarks = lm;
                 const w = canvas.width;
                 const h = canvas.height;
 
@@ -1670,6 +1876,7 @@
             img.onload = () => {
                 currentImage = img;
                 features = null;
+                refRawLandmarks = null;
                 hasDetectedOnce = false;
                 canvas.width = img.width;
                 canvas.height = img.height;
