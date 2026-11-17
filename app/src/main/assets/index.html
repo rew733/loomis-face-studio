@@ -155,6 +155,20 @@
             font-size: 11px;
         }
         .proportions-card.show { display: block; }
+        .recalc-btn {
+            width: 100%;
+            background: linear-gradient(90deg, #00c6ff, #0072ff);
+            color: #fff;
+            border: none;
+            padding: 9px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            margin-bottom: 8px;
+            box-shadow: 0 2px 8px rgba(0, 198, 255, 0.3);
+        }
+        .recalc-btn:active { opacity: 0.85; }
         .paper-row {
             display: flex;
             justify-content: space-between;
@@ -297,16 +311,18 @@
             </div>
             <div class="tool-group">
                 <button class="float-btn" id="btnGrayscale" onclick="toggleGrayscale()">◐ ظل ونور</button>
-                <button class="float-btn" onclick="resetZoom()">🔍 100%</button>
+                <button class="float-btn" id="btnZoomReset" onclick="resetZoom()">🔍 100%</button>
             </div>
         </div>
 
-        <div class="detect-banner" id="detectBanner">جاري رصد النقاط التشريحية للوجه والملامح...</div>
+        <div class="detect-banner" id="detectBanner">جاري إعادة رصد وحساب القياسات...</div>
         <canvas id="output_canvas" width="720" height="960"></canvas>
     </div>
 
     <!-- بطاقة القياسات التشريحية المعايرة بالسنتيمتر -->
     <div class="proportions-card" id="propCard">
+        <button class="recalc-btn" onclick="recalculateAllMeasurements()">🔄 إعادة قياس وتحديث النسب الآن</button>
+
         <div class="paper-row">
             <span style="color:#ffd700; font-weight:bold;">طول الرأس الكامل على كراستك:</span>
             <select id="headHeightScale" class="paper-select" onchange="redraw()">
@@ -421,7 +437,7 @@
             </select>
         </div>
 
-        <div class="hint">💡 في تبويب نسب الملامح: اسحب الخطين الأفقيين والعموديين الأرجوانيين لقياس طول وعرض الوجه بدقة</div>
+        <div class="hint">💡 بعد تكبير أو تصغير الوجه، اضغط "إعادة قياس وتحديث النسب الآن" لمطابقة القياسات</div>
     </div>
 
     <script>
@@ -437,6 +453,7 @@
 
         let isLocked = false;
         let isGrayscale = false;
+        let hasDetectedOnce = false;
 
         let view = { scale: 1, offsetX: 0, offsetY: 0 };
 
@@ -451,7 +468,6 @@
                 nose: 90,
                 chin: 240
             },
-            // إطار قياس الطول والعرض الكلي للوجه (خطان أفقيان وخطان عموديان)
             bounds: {
                 topY: -260,
                 bottomY: 250,
@@ -536,7 +552,6 @@
                 const chinPt = { x: lm[152].x * w, y: lm[152].y * h };
                 const browPt = { x: lm[9].x * w, y: lm[9].y * h };
 
-                // حدود الوجه الجانبية (عظام الوجنتين والصدغين 234 و 454)
                 const leftFaceEdge = { x: lm[234].x * w, y: lm[234].y * h };
                 const rightFaceEdge = { x: lm[454].x * w, y: lm[454].y * h };
 
@@ -566,14 +581,14 @@
                     state.yOffsets.chin = localChin.y;
                     state.yOffsets.hair = localTop.y;
 
-                    // ضبط إطار الطول والعرض الكلي تلقائياً
                     const faceSpanY = localChin.y - localTop.y;
-                    state.bounds.topY = localTop.y - faceSpanY * 0.14; // قمة الجمجمة
+                    state.bounds.topY = localTop.y - faceSpanY * 0.14;
                     state.bounds.bottomY = localChin.y;
                     state.bounds.leftX = localLeft.x;
                     state.bounds.rightX = localRight.x;
                 }
 
+                hasDetectedOnce = true;
                 redraw();
             } else {
                 if (!features) createDefaultFeaturesFromGrid();
@@ -602,6 +617,21 @@
             }
         }
 
+        // الدالة المخصصة لطلب المستخدم لإعادة القياس وتحديث النسب عند الحاجة
+        async function recalculateAllMeasurements() {
+            if (isLocked) {
+                alert('يرجى فتح القفل أولاً لتحديث القياسات.');
+                return;
+            }
+            if (currentImage) {
+                // إعادة الرصد التلقائي الكامل ومطابقة النسب مع الوضع الحالي للصورة
+                await runAutoFeatureDetection();
+            } else {
+                createDefaultFeaturesFromGrid();
+                redraw();
+            }
+        }
+
         const radiusRange = document.getElementById('radiusRange');
         const angleRange = document.getElementById('angleRange');
         const thickRange = document.getElementById('thickRange');
@@ -612,6 +642,7 @@
             const oldR = state.radius;
             state.radius = parseInt(e.target.value);
             const ratio = state.radius / oldR;
+
             state.yOffsets.hair *= ratio;
             state.yOffsets.brow *= ratio;
             state.yOffsets.nose *= ratio;
@@ -621,6 +652,14 @@
             state.bounds.bottomY *= ratio;
             state.bounds.leftX *= ratio;
             state.bounds.rightX *= ratio;
+
+            // تحجيم نقاط الملامح تناسبياً حول مركز الشبكة إذا لم تكن مقيدة بصورة ثابتة
+            if (features && !currentImage) {
+                for (let k in features) {
+                    features[k].x = state.cx + (features[k].x - state.cx) * ratio;
+                    features[k].y = state.cy + (features[k].y - state.cy) * ratio;
+                }
+            }
 
             document.getElementById('radiusVal').textContent = state.radius;
             redraw();
@@ -686,6 +725,7 @@
             view.scale = 1;
             view.offsetX = 0;
             view.offsetY = 0;
+            document.getElementById('btnZoomReset').textContent = '🔍 100%';
             redraw();
         }
 
@@ -697,7 +737,9 @@
             const propCard = document.getElementById('propCard');
             if (mode === 'anatomy') {
                 propCard.classList.add('show');
-                runAutoFeatureDetection();
+                if (!hasDetectedOnce) {
+                    runAutoFeatureDetection();
+                }
             } else {
                 propCard.classList.remove('show');
             }
@@ -722,8 +764,11 @@
             state.angle = 0;
             angleRange.value = 0;
             document.getElementById('angleVal').textContent = '0°';
+            hasDetectedOnce = false;
             if (currentMode === 'anatomy') {
                 runAutoFeatureDetection();
+            } else {
+                createDefaultFeaturesFromGrid();
             }
             redraw();
         }
@@ -736,6 +781,7 @@
             img.onload = () => {
                 currentImage = img;
                 features = null;
+                hasDetectedOnce = false;
                 canvas.width = img.width;
                 canvas.height = img.height;
 
@@ -749,10 +795,6 @@
 
                 resetZoom();
                 resetLines();
-
-                if (currentMode === 'anatomy') {
-                    runAutoFeatureDetection();
-                }
             };
             img.src = URL.createObjectURL(file);
         });
@@ -802,7 +844,6 @@
             const pos = screenToImagePos(clientX, clientY);
             const ptHitThreshold = Math.max(28, canvas.width * 0.04) / view.scale;
 
-            // 1. في تبويب نسب الملامح: التحقق من نقاط الملامح (العين، الأنف، الفم)
             if (currentMode === 'anatomy' && features) {
                 const featureKeys = [
                     'leftEyeOuter', 'leftEyeInner',
@@ -828,7 +869,6 @@
             const local = toLocalGridSpace(pos.x, pos.y);
             const lineHitThreshold = Math.max(26, canvas.width * 0.04) / view.scale;
 
-            // 2. التحقق من خطي الطول (الأفقيين) وخطي العرض (العموديين) لإطار الوجه الكلي
             if (currentMode === 'anatomy') {
                 if (Math.abs(local.y - state.bounds.topY) < lineHitThreshold && Math.abs(local.x) < state.radius * 2) {
                     dragTarget = 'bound:topY';
@@ -848,7 +888,6 @@
                 }
             }
 
-            // 3. التحقق من الخطوط الأفقية الأربعة لتقنية لوميس
             const lines = ['hair', 'brow', 'nose', 'chin'];
             for (let key of lines) {
                 if (Math.abs(local.y - state.yOffsets[key]) < lineHitThreshold && Math.abs(local.x) < state.radius * 1.8) {
@@ -857,7 +896,6 @@
                 }
             }
 
-            // 4. تحريك الشبكة بالكامل
             dragTarget = 'center';
             dragStart = { x: pos.x - state.cx, y: pos.y - state.cy };
         }
@@ -933,6 +971,7 @@
                 }
                 lastPinchCenter = center;
                 view.scale = newScale;
+                document.getElementById('btnZoomReset').textContent = `🔍 ${Math.round(view.scale * 100)}%`;
                 redraw();
             }
         }, { passive: false });
@@ -952,7 +991,6 @@
 
         function getPrecisePxToCm() {
             const scaleVal = document.getElementById('headHeightScale').value;
-            // الاعتماد على الطول الفعلي المحدد بين خطي الطول (topY و bottomY) كمرجع أساسي لطول الرأس
             const totalHeadPx = Math.max(80, Math.abs(state.bounds.bottomY - state.bounds.topY));
 
             if (scaleVal === 'screen') {
@@ -1032,7 +1070,6 @@
             ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
             ctx.shadowBlur = 4 * resFactor;
 
-            // 1. العينان
             ctx.strokeStyle = '#00FFFF';
             ctx.fillStyle = '#00FFFF';
             ctx.lineWidth = lw;
@@ -1045,7 +1082,6 @@
             drawLabelBadge(`${leftEyeCm} سم`, (f.leftEyeOuter.x + f.leftEyeInner.x) / 2, (f.leftEyeOuter.y + f.leftEyeInner.y) / 2 - 18 * resFactor, 'rgba(0,0,0,0.85)', '#00FFFF', resFactor);
             drawLabelBadge(`${rightEyeCm} سم`, (f.rightEyeInner.x + f.rightEyeOuter.x) / 2, (f.rightEyeInner.y + f.rightEyeOuter.y) / 2 - 18 * resFactor, 'rgba(0,0,0,0.85)', '#00FFFF', resFactor);
 
-            // 2. المسافة بين المدمعين الداخليين
             ctx.strokeStyle = '#00FF44';
             ctx.beginPath();
             ctx.moveTo(f.leftEyeInner.x, f.leftEyeInner.y);
@@ -1055,7 +1091,6 @@
             const interEyeCm = (dist(f.leftEyeInner, f.rightEyeInner) * pxToCm).toFixed(1);
             drawLabelBadge(`${interEyeCm} سم`, (f.leftEyeInner.x + f.rightEyeInner.x) / 2, (f.leftEyeInner.y + f.rightEyeInner.y) / 2 + 18 * resFactor, 'rgba(0,0,0,0.85)', '#00FF44', resFactor);
 
-            // 3. عرض الأنف
             ctx.strokeStyle = '#FF9900';
             ctx.fillStyle = '#FF9900';
             ctx.beginPath();
@@ -1072,7 +1107,6 @@
             const noseCm = (dist(f.noseLeft, f.noseRight) * pxToCm).toFixed(1);
             drawLabelBadge(`${noseCm} سم`, (f.noseLeft.x + f.noseRight.x) / 2, (f.noseLeft.y + f.noseRight.y) / 2 - 16 * resFactor, 'rgba(0,0,0,0.85)', '#FF9900', resFactor);
 
-            // 4. عرض الفم
             ctx.strokeStyle = '#FF3366';
             ctx.fillStyle = '#FF3366';
             ctx.beginPath();
@@ -1207,7 +1241,6 @@
             drawAdjustableLine(nose, lineSpan, 'الأنف', lw, fontSize, resFactor);
             drawAdjustableLine(chin, lineSpan, 'الذقن', lw, fontSize, resFactor);
 
-            // رسم إطار قياس الطول والعرض الكلي للوجه (خطان أفقيان وخطان عموديان) في تبويب نسب الملامح
             if (currentMode === 'anatomy') {
                 drawFaceDimensionFrame(pxToCm, lw, resFactor);
 
@@ -1228,7 +1261,6 @@
             ctx.restore();
         }
 
-        // رسم الخطين الأفقيين (الطول) والخطين العموديين (العرض) القابلين للسحب
         function drawFaceDimensionFrame(pxToCm, lw, resFactor) {
             const { topY, bottomY, leftX, rightX } = state.bounds;
             const hSpan = Math.max(Math.abs(leftX), Math.abs(rightX)) + 45 * resFactor;
@@ -1242,7 +1274,6 @@
             ctx.lineWidth = lw * 0.9;
             ctx.setLineDash([10 * resFactor, 6 * resFactor]);
 
-            // 1. الخطان الأفقيان (الطول: قمة الرأس وأسفل الذقن)
             [topY, bottomY].forEach(y => {
                 ctx.beginPath();
                 ctx.moveTo(-hSpan, y);
@@ -1260,7 +1291,6 @@
                 }
             });
 
-            // 2. الخطان العموديان (العرض: يمين ويسار الوجه)
             [leftX, rightX].forEach(x => {
                 ctx.beginPath();
                 ctx.moveTo(x, vTop);
@@ -1280,7 +1310,6 @@
 
             ctx.setLineDash([]);
 
-            // شارات العرض والطول المباشرة على الإطار
             const totalHCm = (Math.abs(bottomY - topY) * pxToCm).toFixed(1);
             const totalWCm = (Math.abs(rightX - leftX) * pxToCm).toFixed(1);
 
@@ -1329,7 +1358,6 @@
         }
 
         function updateMeasurements(pxToCm) {
-            // حساب الطول والعرض الكلي للوجه ونسبتهما
             const faceHPx = Math.max(1, Math.abs(state.bounds.bottomY - state.bounds.topY));
             const faceWPx = Math.max(1, Math.abs(state.bounds.rightX - state.bounds.leftX));
 
@@ -1343,7 +1371,6 @@
             document.getElementById('m_faceRatio').textContent = `${hwRatio} : 1`;
             document.getElementById('m_facePct').textContent = `العرض ${wPct}% من الطول`;
 
-            // حساب الأثلاث الثلاثة
             const d1 = Math.abs(state.yOffsets.brow - state.yOffsets.hair);
             const d2 = Math.abs(state.yOffsets.nose - state.yOffsets.brow);
             const d3 = Math.abs(state.yOffsets.chin - state.yOffsets.nose);
@@ -1357,7 +1384,6 @@
             document.getElementById('m_t2Pct').textContent = Math.round((d2 / totalD) * 100) + '% من الوجه';
             document.getElementById('m_t3Pct').textContent = Math.round((d3 / totalD) * 100) + '% من الوجه';
 
-            // حساب أبعاد الملامح
             if (features) {
                 const f = features;
                 const leftEyePx = dist(f.leftEyeOuter, f.leftEyeInner);
