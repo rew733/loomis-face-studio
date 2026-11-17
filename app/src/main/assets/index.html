@@ -778,14 +778,14 @@
                 </div>
 
                 <div class="sketch-upload-box" id="sketchUploadBox">
-                    <div style="margin-bottom:6px; color:#ddd;">ارفع صورة رسمتك على الورق ليحدد الذكاء الاصطناعي أماكن التصحيح فوق اللوحة:</div>
+                    <div style="margin-bottom:6px; color:#ddd;">ارفع صورة رسمتك على الورق ليحدد الذكاء الاصطناعي أماكن التصحيح بالملليمتر فوق اللوحة:</div>
                     <label for="sketchFileInput" style="background:#4facfe; color:#000; padding:6px 12px; border-radius:5px; font-weight:bold; cursor:pointer; display:inline-block;">📷 اختيار صورة الرسمة</label>
                     <input type="file" id="sketchFileInput" accept="image/*" onchange="handleSketchUpload(event)">
                 </div>
 
                 <button class="apply-canvas-btn" id="applyCanvasBtn" onclick="closeAiModal()">👁️ عرض خريطة الظلال والتصحيح على الوجه</button>
 
-                <div class="ai-result-box" id="aiResultBox">ارفع صورة الوجه أولاً، ثم اضغط على أي زر تحليل ليقوم الذكاء الاصطناعي برسم خريطة الإضاءة والظل أو خطة الرسم بالسنتيمتر.</div>
+                <div class="ai-result-box" id="aiResultBox">ارفع صورة الوجه أولاً، ثم اضغط على أي زر تحليل ليقوم الذكاء الاصطناعي برسم خريطة الإضاءة والظل أو مقارنة رسمتك بالأصل مع نسبة الشبه.</div>
             </div>
         </div>
     </div>
@@ -1158,7 +1158,7 @@
             document.querySelectorAll('.ai-task-btn').forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
             document.getElementById('sketchUploadBox').classList.add('show');
-            document.getElementById('aiResultBox').textContent = 'اختر صورة رسمتك من الزر أعلاه ليحدد الذكاء الاصطناعي أماكن التصحيح باللون الأحمر فوق الوجه.';
+            document.getElementById('aiResultBox').textContent = 'اختر صورة رسمتك من الزر أعلاه ليحدد الذكاء الاصطناعي الأخطاء وطريقة تصحيحها بالمقياس ونسبة الشبه.';
         }
 
         function getResizedBase64(imgSource, maxDim = 512) {
@@ -1194,7 +1194,7 @@
             const t2 = document.getElementById('m_t2').textContent;
             const t3 = document.getElementById('m_t3').textContent;
 
-            return `المقياس: ${scaleText} | الطول: ${faceH} | العرض: ${faceW} (${faceRatio}) | العين: ${eyesLen} | بين العينين: ${interEye} | الأنف: ${noseW} | الفم: ${mouthW} | الأثلاث: (${t1} / ${t2} / ${t3})`;
+            return `المقياس: ${scaleText} | الطول الكلي للوجه: ${faceH} | العرض الكلي للوجه: ${faceW} (${faceRatio}) | طول العين: ${eyesLen} | المسافة بين العينين: ${interEye} | عرض الأنف: ${noseW} | عرض الفم: ${mouthW} | الأثلاث: (${t1} / ${t2} / ${t3})`;
         }
 
         function applyAiVisualData(aiJson) {
@@ -1253,13 +1253,13 @@
             const jsonSchemaInstruction = `
 أجب بصيغة JSON صالحة فقط (بدون markdown) تحتوي على الحقول التالية:
 {
-  "explanation": "شرح عربي مختصر وواضح ومباشر للرسام في نقاط مرقمة",
+  "explanation": "النص العربي المنسق للعرض للمستخدم",
   "lightDir": { "angleDeg": رقم_من_0_إلى_360_يمثل_اتجاه_قدوم_الضوء, "label": "وصف قصير لمصدر الضوء مثل: علوي يمين" },
   "shadowZones": [
     { "part": "اختر بدقة من القائمة: cheek_left | cheek_right | nose_base | jaw_bottom | eye_socket_left | eye_socket_right | forehead_left | forehead_right", "label": "وصف قصير للظل" }
   ],
   "corrections": [
-    { "part": "اختر بدقة من القائمة: left_eye | right_eye | nose | mouth | jaw | brow", "text": "ملاحظة التصحيح القصيرة" }
+    { "part": "اختر بدقة من القائمة: left_eye | right_eye | nose | mouth | jaw | brow", "text": "ملاحظة التصحيح القصيرة بالمقياس" }
   ]
 }`;
 
@@ -1271,7 +1271,15 @@
             } else if (taskType === 'tilt') {
                 taskGoal = `انظر للصورة الأولى (الأصلية) والثانية (شبكة لوميس المطبقة عليها حالياً بزاوية ${state.angle}°). اشرح للرسام في explanation زاوية دوران الرأس (Yaw/Pitch) ومدى دقة تطابق الشبكة الحالية أو أي تعديل يدوي بسيط ينصحه به. اجعل lightDir=null و shadowZones=[] و corrections=[].`;
             } else if (taskType === 'compare') {
-                taskGoal = `قارن الصورة المرجعية الأولى برسمة المستخدم الثانية. حدد الأجزاء التي تحتاج تصحيحاً من القائمة المحددة في corrections مع ذكر مقدار التعديل، واشرح الفروقات في explanation.`;
+                taskGoal = `أنت ناقد تشريحي دقيق تقارن الصورة المرجعية الأولى برسمة المستخدم الثانية. اعتمد على مقياس اللوحة الحقيقي (${stats}) لتقدير الفروقات بالملليمتر أو السنتيمتر.
+يجب أن يكون نص "explanation" ملتزماً حرفياً بهذا القالب الصارم فقط:
+نسبة الشبه بين الصورة والرسمة تُقدّر بـ: [اكتب النسبة المئوية مثل 82%]
+
+1. الخطأ هو: [اذكر الخطأ التشريحي في الرسمة مقارنة بالأصل] — ويتم تصحيحه بـ: [اذكر طريقة التصحيح ومقدار التوسيع أو التكبير أو التصغير أو الإزاحة بالمقياس بالملليمتر أو السنتيمتر بدقة].
+2. الخطأ هو: [اذكر الخطأ الثاني] — ويتم تصحيحه بـ: [اذكر طريقة التصحيح والمقياس بالملليمتر أو السنتيمتر].
+3. الخطأ هو: [اذكر الخطأ الثالث إن وجد] — ويتم تصحيحه بـ: [اذكر طريقة التصحيح والمقياس بالملليمتر أو السنتيمتر].
+
+وفي حقل "corrections" ضع نفس هذه الأجزاء من القائمة (left_eye | right_eye | nose | mouth | jaw | brow) مع اختصار التصحيح بالمقياس (مثل: توسيع +3 مم) ليُعرض فوق الصورة. اجعل lightDir=null و shadowZones=[].`;
             }
 
             const fullPrompt = `${taskGoal}\n\n${jsonSchemaInstruction}`;
@@ -1298,7 +1306,7 @@
                     body: JSON.stringify({
                         contents: [{ parts: parts }],
                         generationConfig: {
-                            temperature: 0.3,
+                            temperature: 0.25,
                             maxOutputTokens: 1200,
                             responseMimeType: "application/json"
                         }
@@ -1720,7 +1728,6 @@
             };
         }
 
-        // حساب المسافة العمودية من نقطة اللمس إلى خطي الشاقول (للسحب من أي مكان على طول الخط)
         function hitTestPlumb(pos, plumbPt, axisDeg, centerTol, lineTol) {
             const dCenter = dist(pos, plumbPt);
             if (dCenter < centerTol) {
@@ -1729,14 +1736,14 @@
             const rad = axisDeg * Math.PI / 180;
             const dx = pos.x - plumbPt.x;
             const dy = pos.y - plumbPt.y;
-            const u = dx * Math.cos(rad) + dy * Math.sin(rad);  // البعد عن الخط العمودي
-            const v = -dx * Math.sin(rad) + dy * Math.cos(rad); // البعد عن الخط الأفقي
+            const u = dx * Math.cos(rad) + dy * Math.sin(rad);
+            const v = -dx * Math.sin(rad) + dy * Math.cos(rad);
 
             if (Math.abs(u) < lineTol && Math.abs(v) >= centerTol * 0.7) {
-                return 'vLine'; // لمس الخط العمودي لتحريكه يميناً ويساراً
+                return 'vLine';
             }
             if (Math.abs(v) < lineTol && Math.abs(u) >= centerTol * 0.7) {
-                return 'hLine'; // لمس الخط الأفقي لتحريكه أعلى وأسفل
+                return 'hLine';
             }
             return null;
         }
@@ -1746,7 +1753,6 @@
             const ptHitThreshold = Math.max(28, canvas.width * 0.04) / view.scale;
             const plumbLineTol = Math.max(26, canvas.width * 0.038) / view.scale;
 
-            // 1. أولوية لمس الشاقول (من المركز أو من أي مكان على الخط العمودي أو الأفقي)
             if (plumbState.active) {
                 const axisDeg = plumbState.alignWithHead ? state.angle : 0;
 
@@ -1768,7 +1774,6 @@
 
             if (isLocked || !isGridVisible) return;
 
-            // 2. نقاط الملامح في تبويب نسب الملامح
             if (currentMode === 'anatomy' && features) {
                 const featureKeys = [
                     'leftEyeOuter', 'leftEyeInner',
@@ -1794,7 +1799,6 @@
             const local = toLocalGridSpace(pos.x, pos.y);
             const lineHitThreshold = Math.max(26, canvas.width * 0.04) / view.scale;
 
-            // 3. إطار الطول والعرض الأرجواني
             if (currentMode === 'anatomy') {
                 if (Math.abs(local.y - state.bounds.topY) < lineHitThreshold && Math.abs(local.x) < state.radius * 2) {
                     dragTarget = 'bound:topY';
@@ -1814,7 +1818,6 @@
                 }
             }
 
-            // 4. الخطوط الأفقية الأربعة
             const lines = ['hair', 'brow', 'nose', 'chin'];
             for (let key of lines) {
                 if (Math.abs(local.y - state.yOffsets[key]) < lineHitThreshold && Math.abs(local.x) < state.radius * 1.8) {
@@ -1834,7 +1837,7 @@
             if (dragTarget.startsWith('plumb:')) {
                 const parts = dragTarget.split(':');
                 const pIdx = parts[1];
-                const mode = parts[2]; // 'both', 'vLine', 'hLine'
+                const mode = parts[2];
                 const targetPt = pIdx === '2' ? plumbState.p2 : plumbState.p1;
                 const axisDeg = plumbState.alignWithHead ? state.angle : 0;
                 const rad = axisDeg * Math.PI / 180;
@@ -1844,7 +1847,6 @@
                     targetPt.y = pos.y;
                     applyMagneticSnap(targetPt);
                 } else if (mode === 'vLine') {
-                    // تحريك الخط العمودي فقط على طول المحور المتعامد معه
                     const dx = pos.x - targetPt.x;
                     const dy = pos.y - targetPt.y;
                     const uShift = dx * Math.cos(rad) + dy * Math.sin(rad);
@@ -1852,7 +1854,6 @@
                     targetPt.y += uShift * Math.sin(rad);
                     targetPt.snappedName = null;
                 } else if (mode === 'hLine') {
-                    // تحريك الخط الأفقي فقط على طول المحور المتعامد معه
                     const dx = pos.x - targetPt.x;
                     const dy = pos.y - targetPt.y;
                     const vShift = -dx * Math.sin(rad) + dy * Math.cos(rad);
@@ -2052,7 +2053,6 @@
             ctx.fillStyle = color;
             ctx.lineWidth = lw;
 
-            // خطا التقاطع
             ctx.beginPath();
             ctx.moveTo(0, -span);
             ctx.lineTo(0, span);
@@ -2060,7 +2060,6 @@
             ctx.lineTo(span, 0);
             ctx.stroke();
 
-            // شرطات السنتيمتر
             if (cmStepPx > 12) {
                 const tickLen = 4 * resFactor / Math.sqrt(view.scale);
                 ctx.beginPath();
@@ -2073,12 +2072,10 @@
                 ctx.stroke();
             }
 
-            // حلقة خارجية رفيعة ومفرغة تماماً
             ctx.beginPath();
             ctx.arc(0, 0, handleR, 0, Math.PI * 2);
             ctx.stroke();
 
-            // نقطة مركزية دقيقة جداً للتصويب
             ctx.beginPath();
             ctx.arc(0, 0, 1.5 * resFactor / Math.sqrt(view.scale), 0, Math.PI * 2);
             ctx.fill();
