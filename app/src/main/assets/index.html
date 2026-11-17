@@ -3,44 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Loomis Face Studio - التخطيط التشريحي</title>
+    <title>Loomis Face Studio - الاستوديو الاحترافي</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body {
             margin: 0;
             padding: 0;
-            background-color: #0e0e0e;
+            background-color: #0d0d0d;
             color: #f0f0f0;
             font-family: Tahoma, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
-            padding-bottom: 20px;
+            padding-bottom: 16px;
         }
         header {
             width: 100%;
-            background: #1a1a1a;
+            background: #181818;
             padding: 10px;
             text-align: center;
             font-size: 15px;
             font-weight: bold;
             color: #ffd700;
-            border-bottom: 1px solid #2c2c2c;
+            border-bottom: 1px solid #2a2a2a;
         }
         .tabs {
             display: flex;
-            width: 94%;
-            max-width: 400px;
+            width: 96%;
+            max-width: 480px;
             gap: 4px;
             margin-top: 8px;
         }
         .tab-btn {
             flex: 1;
-            background: #222;
+            background: #202020;
             color: #bbb;
             border: 1px solid #383838;
-            padding: 8px 4px;
+            padding: 9px 4px;
             border-radius: 6px;
             font-size: 11px;
             cursor: pointer;
@@ -55,26 +55,92 @@
         .container {
             position: relative;
             margin-top: 8px;
-            width: 94%;
-            max-width: 400px;
-            height: 410px;
+            width: 96%;
+            max-width: 480px;
+            height: 62vh;
+            min-height: 430px;
             border-radius: 10px;
             overflow: hidden;
-            background-color: #181818;
+            background-color: #141414;
             border: 1px solid #333;
             touch-action: none;
+            transition: all 0.25s ease;
         }
+        /* وضع ملء الشاشة الكامل */
+        body.fullscreen-mode header,
+        body.fullscreen-mode .tabs,
+        body.fullscreen-mode .controls,
+        body.fullscreen-mode .proportions-card {
+            display: none !important;
+        }
+        body.fullscreen-mode {
+            padding-bottom: 0;
+        }
+        body.fullscreen-mode .container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            max-width: none;
+            margin: 0;
+            border-radius: 0;
+            border: none;
+            z-index: 9999;
+        }
+
         canvas {
             width: 100%;
             height: 100%;
-            object-fit: contain;
             display: block;
         }
+
+        /* شريط الأدوات العائم فوق شاشة الرسم */
+        .floating-toolbar {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .tool-group {
+            display: flex;
+            gap: 6px;
+            pointer-events: auto;
+        }
+        .float-btn {
+            background: rgba(20, 20, 20, 0.85);
+            color: #fff;
+            border: 1px solid #444;
+            padding: 7px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .float-btn.active {
+            background: #ffd700;
+            color: #000;
+            border-color: #ffd700;
+        }
+        .float-btn.locked {
+            background: #e74c3c;
+            color: #fff;
+            border-color: #ff6b6b;
+        }
+
         .proportions-card {
             display: none;
-            width: 94%;
-            max-width: 400px;
-            background: #1c1c1c;
+            width: 96%;
+            max-width: 480px;
+            background: #1a1a1a;
             border: 1px solid #ffd700;
             border-radius: 8px;
             padding: 10px;
@@ -82,27 +148,43 @@
             font-size: 12px;
         }
         .proportions-card.show { display: block; }
+        .paper-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #2e2e2e;
+        }
+        .paper-select {
+            background: #262626;
+            color: #ffd700;
+            border: 1px solid #555;
+            padding: 4px 8px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-weight: bold;
+        }
         .prop-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 6px;
-            margin-top: 6px;
         }
         .prop-item {
-            background: #262626;
+            background: #242424;
             padding: 6px 8px;
             border-radius: 5px;
             display: flex;
             justify-content: space-between;
             border-right: 3px solid #ffd700;
         }
-        .prop-val { color: #ffd700; font-weight: bold; }
+        .prop-val { color: #ffd700; font-weight: bold; direction: ltr; }
 
         .controls {
             margin-top: 8px;
-            width: 94%;
-            max-width: 400px;
-            background: #1a1a1a;
+            width: 96%;
+            max-width: 480px;
+            background: #181818;
             padding: 10px;
             border-radius: 8px;
             display: flex;
@@ -118,7 +200,7 @@
             flex: 2;
             background: #ffd700;
             color: #000;
-            padding: 9px;
+            padding: 10px;
             border-radius: 6px;
             font-weight: bold;
             cursor: pointer;
@@ -127,7 +209,7 @@
         }
         .reset-btn {
             flex: 1;
-            background: #2c2c2c;
+            background: #2a2a2a;
             color: #fff;
             border: 1px solid #444;
             border-radius: 6px;
@@ -145,8 +227,8 @@
             flex-direction: column;
             gap: 3px;
             font-size: 11px;
-            background: #222;
-            padding: 6px;
+            background: #202020;
+            padding: 6px 8px;
             border-radius: 6px;
         }
         .control-header {
@@ -161,47 +243,66 @@
             background: #141414;
             color: #fff;
             border: 1px solid #444;
-            padding: 4px;
+            padding: 5px;
             border-radius: 4px;
             font-size: 11px;
         }
         .hint {
             text-align: center;
             font-size: 11px;
-            color: #aaa;
+            color: #999;
         }
     </style>
 </head>
 <body>
 
-    <header>Loomis Face Studio - الاستوديو التشريحي</header>
+    <header>Loomis Face Studio - الاستوديو الاحترافي</header>
 
     <div class="tabs">
         <button class="tab-btn active" onclick="setMode('front', this)">أمامي (Front)</button>
         <button class="tab-btn" onclick="setMode('threeQuarter', this)">ثلاثي (3/4)</button>
         <button class="tab-btn" onclick="setMode('side', this)">جانبي (Profile)</button>
-        <button class="tab-btn" onclick="setMode('anatomy', this)">نسب الملامح</button>
+        <button class="tab-btn" onclick="setMode('anatomy', this)">نسب الملامح (سم)</button>
     </div>
 
-    <div class="container">
+    <div class="container" id="canvasContainer">
+        <!-- أزرار التحكم السريعة فوق اللوحة -->
+        <div class="floating-toolbar">
+            <div class="tool-group">
+                <button class="float-btn" id="btnFullscreen" onclick="toggleFullscreen()">⛶ ملء الشاشة</button>
+                <button class="float-btn" id="btnLock" onclick="toggleLock()">🔓 مفتوح</button>
+            </div>
+            <div class="tool-group">
+                <button class="float-btn" id="btnGrayscale" onclick="toggleGrayscale()">◐ ظل ونور</button>
+                <button class="float-btn" onclick="resetZoom()">🔍 100%</button>
+            </div>
+        </div>
+
         <canvas id="output_canvas" width="720" height="960"></canvas>
     </div>
 
-    <!-- بطاقة قياسات الملامح الحية (تظهر عند اختيار تبويب نسب الملامح) -->
+    <!-- بطاقة قياسات الملامح بالسنتيمتر -->
     <div class="proportions-card" id="propCard">
-        <div style="color:#ffd700; font-weight:bold; text-align:center;">قياسات النسب التشريحية الحية للوجه</div>
+        <div class="paper-row">
+            <span style="color:#ffd700; font-weight:bold;">مقاس ورقة الرسم المرجعي:</span>
+            <select id="paperWidthSelect" class="paper-select" onchange="updateMeasurements()">
+                <option value="21.0">ورقة A4 (عرض 21 سم)</option>
+                <option value="29.7">ورقة A3 (عرض 29.7 سم)</option>
+                <option value="14.8">كراسة A5 (عرض 14.8 سم)</option>
+            </select>
+        </div>
         <div class="prop-grid">
-            <div class="prop-item"><span>طول العين (1/5):</span> <span class="prop-val" id="m_eyeW">0 px</span></div>
-            <div class="prop-item"><span>بين العينين:</span> <span class="prop-val" id="m_interEye">0 px</span></div>
-            <div class="prop-item"><span>الحاجب للأنف:</span> <span class="prop-val" id="m_browNose">0 px</span></div>
-            <div class="prop-item"><span>الأنف للذقن:</span> <span class="prop-val" id="m_noseChin">0 px</span></div>
+            <div class="prop-item"><span>طول العين (1/5):</span> <span class="prop-val" id="m_eyeW">0.0 سم</span></div>
+            <div class="prop-item"><span>بين العينين:</span> <span class="prop-val" id="m_interEye">0.0 سم</span></div>
+            <div class="prop-item"><span>الحاجب للأنف:</span> <span class="prop-val" id="m_browNose">0.0 سم</span></div>
+            <div class="prop-item"><span>الأنف للذقن:</span> <span class="prop-val" id="m_noseChin">0.0 سم</span></div>
         </div>
     </div>
 
     <div class="controls">
         <div class="top-actions">
             <label class="file-btn" for="imageUpload">📁 رفع صورة من الاستديو</label>
-            <button class="reset-btn" onclick="resetLines()">إعادة ضبط الخطوط</button>
+            <button class="reset-btn" onclick="resetLines()">إعادة ضبط الشبكة</button>
         </div>
         <input type="file" id="imageUpload" accept="image/*">
 
@@ -212,7 +313,7 @@
             </div>
 
             <div class="control-group">
-                <div class="control-header"><span>ميلان الزاوية (تدوير)</span><span id="angleVal">0°</span></div>
+                <div class="control-header"><span>ميلان الزاوية</span><span id="angleVal">0°</span></div>
                 <input type="range" id="angleRange" min="-60" max="60" value="0">
             </div>
 
@@ -238,7 +339,7 @@
             </select>
         </div>
 
-        <div class="hint">💡 اسحب مركز الكرة لتحريك الشبكة، أو اسحب أي خط أفقي لضبط ارتفاعه بحرية</div>
+        <div class="hint">💡 استخدم إصبعين لتقريب الصورة (Zoom)، أو إصبعاً واحداً لتحريك الشبكة والخطوط</div>
     </div>
 
     <script>
@@ -251,13 +352,22 @@
         let lineOpacity = 1.0;
         let baseThickness = 4;
 
-        // حالة الشبكة والإزاحات المستقلة للخطوط الأفقية
+        let isLocked = false;
+        let isGrayscale = false;
+
+        // حالة الكاميرا (التقريب والإزاحة بإصبعين)
+        let view = {
+            scale: 1,
+            offsetX: 0,
+            offsetY: 0
+        };
+
+        // حالة شبكة لوميس
         let state = {
             cx: 360,
             cy: 440,
             radius: 180,
-            angle: 0, // بالدرجات
-            // إزاحة كل خط أفقي بالنسبة لمركز الكرة (قابلة للسحب الحر)
+            angle: 0,
             yOffsets: {
                 hair: -220,
                 brow: -60,
@@ -266,20 +376,22 @@
             }
         };
 
-        let dragTarget = null; // 'center', 'hair', 'brow', 'nose', 'chin'
+        let dragTarget = null;
         let dragStart = { x: 0, y: 0 };
+        let initialPinchDist = null;
+        let initialViewScale = 1;
+        let lastPinchCenter = null;
 
-        // ربط عناصر التحكم
         const radiusRange = document.getElementById('radiusRange');
         const angleRange = document.getElementById('angleRange');
         const thickRange = document.getElementById('thickRange');
         const opacityRange = document.getElementById('opacityRange');
 
         radiusRange.addEventListener('input', (e) => {
+            if (isLocked) return;
             const oldR = state.radius;
             state.radius = parseInt(e.target.value);
             const ratio = state.radius / oldR;
-            // تحجيم الخطوط تناسبياً مع الكرة عند تغيير الحجم
             state.yOffsets.hair *= ratio;
             state.yOffsets.brow *= ratio;
             state.yOffsets.nose *= ratio;
@@ -289,6 +401,7 @@
         });
 
         angleRange.addEventListener('input', (e) => {
+            if (isLocked) return;
             state.angle = parseInt(e.target.value);
             document.getElementById('angleVal').textContent = state.angle + '°';
             redraw();
@@ -311,6 +424,45 @@
             redraw();
         });
 
+        function toggleFullscreen() {
+            document.body.classList.toggle('fullscreen-mode');
+            const btn = document.getElementById('btnFullscreen');
+            if (document.body.classList.contains('fullscreen-mode')) {
+                btn.textContent = '✕ خروج';
+                btn.classList.add('active');
+            } else {
+                btn.textContent = '⛶ ملء الشاشة';
+                btn.classList.remove('active');
+            }
+            fitCanvasToScreen();
+        }
+
+        function toggleLock() {
+            isLocked = !isLocked;
+            const btn = document.getElementById('btnLock');
+            if (isLocked) {
+                btn.textContent = '🔒 مقفل';
+                btn.classList.add('locked');
+            } else {
+                btn.textContent = '🔓 مفتوح';
+                btn.classList.remove('locked');
+            }
+        }
+
+        function toggleGrayscale() {
+            isGrayscale = !isGrayscale;
+            const btn = document.getElementById('btnGrayscale');
+            btn.classList.toggle('active', isGrayscale);
+            redraw();
+        }
+
+        function resetZoom() {
+            view.scale = 1;
+            view.offsetX = 0;
+            view.offsetY = 0;
+            redraw();
+        }
+
         function setMode(mode, btn) {
             currentMode = mode;
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -326,6 +478,7 @@
         }
 
         function resetLines() {
+            if (isLocked) return;
             const r = state.radius;
             state.yOffsets = {
                 hair: -r * 1.15,
@@ -339,7 +492,11 @@
             redraw();
         }
 
-        // رفع الصورة وضبط الدقة التناسبية
+        function fitCanvasToScreen() {
+            if (!currentImage) return;
+            redraw();
+        }
+
         document.getElementById('imageUpload').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -354,27 +511,50 @@
                 state.cy = img.height / 2.2;
                 state.radius = Math.round(Math.min(img.width, img.height) * 0.28);
 
-                radiusRange.max = Math.round(Math.max(img.width, img.height) * 0.6);
+                radiusRange.max = Math.round(Math.max(img.width, img.height) * 0.65);
                 radiusRange.value = state.radius;
                 document.getElementById('radiusVal').textContent = state.radius;
 
+                resetZoom();
                 resetLines();
             };
             img.src = URL.createObjectURL(file);
         });
 
-        // تحويل إحداثيات اللمس إلى نظام الإحداثيات المحلي للشبكة (مع مراعاة التدوير)
-        function getPointerPos(clientX, clientY) {
+        // تحويل إحداثيات الشاشة إلى إحداثيات الصورة الفعلية مع مراعاة التناسب والتقريب (Zoom)
+        function screenToImagePos(clientX, clientY) {
             const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
+            const imgAspect = canvas.width / canvas.height;
+            const rectAspect = rect.width / rect.height;
+
+            let renderW, renderH, offsetLeft, offsetTop;
+            if (imgAspect > rectAspect) {
+                renderW = rect.width;
+                renderH = rect.width / imgAspect;
+                offsetLeft = 0;
+                offsetTop = (rect.height - renderH) / 2;
+            } else {
+                renderH = rect.height;
+                renderW = rect.height * imgAspect;
+                offsetTop = 0;
+                offsetLeft = (rect.width - renderW) / 2;
+            }
+
+            // موقع اللمس داخل إطار الصورة المعروضة
+            const relX = (clientX - rect.left - offsetLeft) / renderW;
+            const relY = (clientY - rect.top - offsetTop) / renderH;
+
+            // عكس تأثير التكبير والإزاحة (Zoom & Pan)
+            const rawX = relX * canvas.width;
+            const rawY = relY * canvas.height;
+
             return {
-                x: (clientX - rect.left) * scaleX,
-                y: (clientY - rect.top) * scaleY
+                x: (rawX - view.offsetX) / view.scale,
+                y: (rawY - view.offsetY) / view.scale
             };
         }
 
-        function toLocalSpace(px, py) {
+        function toLocalGridSpace(px, py) {
             const dx = px - state.cx;
             const dy = py - state.cy;
             const rad = -state.angle * Math.PI / 180;
@@ -385,35 +565,32 @@
         }
 
         function handleStart(clientX, clientY) {
-            const pos = getPointerPos(clientX, clientY);
-            const local = toLocalSpace(pos.x, pos.y);
-            const hitThreshold = Math.max(25, canvas.width * 0.04);
+            if (isLocked) return;
+            const pos = screenToImagePos(clientX, clientY);
+            const local = toLocalGridSpace(pos.x, pos.y);
+            const hitThreshold = Math.max(30, canvas.width * 0.045) / view.scale;
 
-            // التحقق أولاً من لمس أحد الخطوط الأفقية الأربعة لتحريكه بشكل مستقل
             const lines = ['hair', 'brow', 'nose', 'chin'];
             for (let key of lines) {
                 if (Math.abs(local.y - state.yOffsets[key]) < hitThreshold && Math.abs(local.x) < state.radius * 1.8) {
                     dragTarget = key;
-                    dragStart = { x: pos.x, y: pos.y, initialOffset: state.yOffsets[key] };
                     return;
                 }
             }
 
-            // إذا لم يلمس خطاً محدداً، يتم تحريك الشبكة بالكامل
             dragTarget = 'center';
             dragStart = { x: pos.x - state.cx, y: pos.y - state.cy };
         }
 
         function handleMove(clientX, clientY) {
-            if (!dragTarget) return;
-            const pos = getPointerPos(clientX, clientY);
+            if (isLocked || !dragTarget) return;
+            const pos = screenToImagePos(clientX, clientY);
 
             if (dragTarget === 'center') {
                 state.cx = pos.x - dragStart.x;
                 state.cy = pos.y - dragStart.y;
             } else {
-                // حساب الحركة العمودية في الفضاء المائل للوجه
-                const localNow = toLocalSpace(pos.x, pos.y);
+                const localNow = toLocalGridSpace(pos.x, pos.y);
                 state.yOffsets[dragTarget] = localNow.y;
             }
             redraw();
@@ -421,27 +598,80 @@
 
         function handleEnd() {
             dragTarget = null;
+            initialPinchDist = null;
+            lastPinchCenter = null;
         }
 
+        // أحداث الماوس
         canvas.addEventListener('mousedown', e => handleStart(e.clientX, e.clientY));
         canvas.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY));
         canvas.addEventListener('mouseup', handleEnd);
 
+        // أحداث اللمس (إصبع واحد لتحريك الشبكة، إصبعان للتقريب والتحريك)
         canvas.addEventListener('touchstart', e => {
-            if (e.touches.length > 0) handleStart(e.touches[0].clientX, e.touches[0].clientY);
+            if (e.touches.length === 1) {
+                handleStart(e.touches[0].clientX, e.touches[0].clientY);
+            } else if (e.touches.length === 2) {
+                dragTarget = null;
+                initialPinchDist = getPinchDist(e.touches);
+                initialViewScale = view.scale;
+                lastPinchCenter = getPinchCenter(e.touches);
+            }
         });
+
         canvas.addEventListener('touchmove', e => {
-            if (e.touches.length > 0) handleMove(e.touches[0].clientX, e.touches[0].clientY);
-        });
+            e.preventDefault();
+            if (e.touches.length === 1) {
+                handleMove(e.touches[0].clientX, e.touches[0].clientY);
+            } else if (e.touches.length === 2 && initialPinchDist) {
+                const currentDist = getPinchDist(e.touches);
+                const newScale = Math.min(5, Math.max(0.8, initialViewScale * (currentDist / initialPinchDist)));
+                
+                const center = getPinchCenter(e.touches);
+                const rect = canvas.getBoundingClientRect();
+                const scaleFactor = canvas.width / rect.width;
+
+                if (lastPinchCenter) {
+                    view.offsetX += (center.x - lastPinchCenter.x) * scaleFactor;
+                    view.offsetY += (center.y - lastPinchCenter.y) * scaleFactor;
+                }
+                lastPinchCenter = center;
+                view.scale = newScale;
+                redraw();
+            }
+        }, { passive: false });
+
         canvas.addEventListener('touchend', handleEnd);
 
+        function getPinchDist(touches) {
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            return Math.hypot(dx, dy);
+        }
+
+        function getPinchCenter(touches) {
+            return {
+                x: (touches[0].clientX + touches[1].clientX) / 2,
+                y: (touches[0].clientY + touches[1].clientY) / 2
+            };
+        }
+
         function redraw() {
+            ctx.save();
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+            // تطبيق التحويلات البصرية للتقريب والإزاحة (Zoom & Pan)
+            ctx.translate(view.offsetX, view.offsetY);
+            ctx.scale(view.scale, view.scale);
+
             if (currentImage) {
+                if (isGrayscale) {
+                    ctx.filter = 'grayscale(100%) contrast(115%)';
+                }
                 ctx.drawImage(currentImage, 0, 0, canvas.width, canvas.height);
+                ctx.filter = 'none';
             } else {
-                ctx.fillStyle = '#181818';
+                ctx.fillStyle = '#141414';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 ctx.fillStyle = '#777';
                 ctx.font = `${Math.round(canvas.width * 0.035)}px Tahoma`;
@@ -450,6 +680,7 @@
             }
 
             drawGrid();
+            ctx.restore();
             updateMeasurements();
         }
 
@@ -457,17 +688,14 @@
             ctx.save();
             ctx.globalAlpha = lineOpacity;
 
-            // مضاعف دقة الصورة لضمان وضوح حاد مهما كانت أبعاد الصورة المرفوعة
             const resFactor = Math.max(1, canvas.width / 600);
-            const lw = baseThickness * resFactor;
-            const fontSize = Math.round(14 * resFactor);
+            const lw = (baseThickness * resFactor) / Math.sqrt(view.scale);
+            const fontSize = Math.round((14 * resFactor) / Math.sqrt(view.scale));
 
-            // تطبيق المركز والتدوير
             ctx.translate(state.cx, state.cy);
             ctx.rotate(state.angle * Math.PI / 180);
 
-            // إضافة ظل أسود خلف الخطوط لضمان رؤيتها بوضوح فوق الألوان الفاتحة والداكنة
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
             ctx.shadowBlur = 4 * resFactor;
             ctx.shadowOffsetX = 1 * resFactor;
             ctx.shadowOffsetY = 1 * resFactor;
@@ -480,12 +708,10 @@
             const { hair, brow, nose, chin } = state.yOffsets;
 
             if (currentMode === 'front' || currentMode === 'anatomy') {
-                // 1. الكرة الأساسية
                 ctx.beginPath();
                 ctx.arc(0, 0, r, 0, Math.PI * 2);
                 ctx.stroke();
 
-                // 2. القطع الجانبي للجمجمة (Side Planes)
                 ctx.save();
                 ctx.setLineDash([8 * resFactor, 6 * resFactor]);
                 ctx.beginPath();
@@ -493,13 +719,11 @@
                 ctx.stroke();
                 ctx.restore();
 
-                // 3. خط المنتصف العمودي
                 ctx.beginPath();
                 ctx.moveTo(0, hair - r * 0.2);
                 ctx.lineTo(0, chin + r * 0.2);
                 ctx.stroke();
 
-                // 4. خطوط الفك الجانبية
                 ctx.beginPath();
                 ctx.moveTo(-r * 0.68, 0);
                 ctx.lineTo(-r * 0.45, nose);
@@ -510,12 +734,10 @@
                 ctx.stroke();
 
             } else if (currentMode === 'threeQuarter') {
-                // وضع 3/4
                 ctx.beginPath();
                 ctx.arc(0, 0, r, 0, Math.PI * 2);
                 ctx.stroke();
 
-                // دائرة القطع الجانبي المزاحة
                 ctx.save();
                 ctx.setLineDash([8 * resFactor, 6 * resFactor]);
                 ctx.beginPath();
@@ -523,24 +745,20 @@
                 ctx.stroke();
                 ctx.restore();
 
-                // خط المنتصف المنحني للوجه 3/4
                 ctx.beginPath();
                 ctx.moveTo(r * 0.25, hair - r * 0.1);
                 ctx.quadraticCurveTo(r * 0.45, 0, r * 0.2, chin);
                 ctx.stroke();
 
             } else if (currentMode === 'side') {
-                // الوضع الجانبي (Profile)
                 ctx.beginPath();
                 ctx.arc(0, 0, r, 0, Math.PI * 2);
                 ctx.stroke();
 
-                // دائرة القطع الجانبي في المنتصف تماماً
                 ctx.beginPath();
                 ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2);
                 ctx.stroke();
 
-                // خط العمود الفقري / الأذن العمودي وخط مقدمة الوجه
                 ctx.beginPath();
                 ctx.moveTo(0, hair - r * 0.1);
                 ctx.lineTo(0, chin);
@@ -549,26 +767,23 @@
                 ctx.stroke();
             }
 
-            // رسم الخطوط الأفقية الأربعة القابلة للسحب مع مقابض تحكم
             const lineSpan = r * 1.5;
             drawAdjustableLine(hair, lineSpan, 'الشعر', lw, fontSize, resFactor);
             drawAdjustableLine(brow, lineSpan, 'الحواجب', lw, fontSize, resFactor);
             drawAdjustableLine(nose, lineSpan, 'الأنف', lw, fontSize, resFactor);
             drawAdjustableLine(chin, lineSpan, 'الذقن', lw, fontSize, resFactor);
 
-            // إذا كان التبويب هو "نسب الملامح" نرسم مسطرة الـ 5 عيون وخط الشفاه
             if (currentMode === 'anatomy') {
-                const faceWidth = r * 1.36; // عرض الوجه بين عظام الخد
+                const faceWidth = r * 1.36;
                 const eyeWidth = faceWidth / 5;
-                const eyeY = brow + (nose - brow) * 0.28; // مستوى العينين أسفل الحاجب
-                const mouthY = nose + (chin - nose) * 0.35; // خط منتصف الفم
+                const eyeY = brow + (nose - brow) * 0.28;
+                const mouthY = nose + (chin - nose) * 0.35;
 
                 ctx.save();
                 ctx.strokeStyle = '#00FFFF';
                 ctx.fillStyle = '#00FFFF';
                 ctx.lineWidth = lw * 0.8;
 
-                // خط مستوى العينين وتقسيمات الـ 5 عيون
                 ctx.beginPath();
                 ctx.moveTo(-faceWidth / 2, eyeY);
                 ctx.lineTo(faceWidth / 2, eyeY);
@@ -582,13 +797,11 @@
                     ctx.stroke();
                 }
 
-                // رسم شكل العينين الإرشادي في الخانتين 2 و 4
                 ctx.beginPath();
                 ctx.ellipse(-eyeWidth, eyeY, eyeWidth * 0.45, eyeWidth * 0.22, 0, 0, Math.PI * 2);
                 ctx.ellipse(eyeWidth, eyeY, eyeWidth * 0.45, eyeWidth * 0.22, 0, 0, Math.PI * 2);
                 ctx.stroke();
 
-                // خطوط عرض الأنف النازلة من مدمع العين
                 ctx.setLineDash([4 * resFactor, 4 * resFactor]);
                 ctx.beginPath();
                 ctx.moveTo(-eyeWidth * 0.5, eyeY);
@@ -597,7 +810,6 @@
                 ctx.lineTo(eyeWidth * 0.5, nose);
                 ctx.stroke();
 
-                // خط الشفاه
                 ctx.setLineDash([]);
                 ctx.beginPath();
                 ctx.moveTo(-eyeWidth * 0.8, mouthY);
@@ -609,7 +821,6 @@
                 ctx.restore();
             }
 
-            // نقطة المركز البارزة للسحب
             ctx.beginPath();
             ctx.arc(0, 0, 7 * resFactor, 0, Math.PI * 2);
             ctx.fill();
@@ -624,11 +835,12 @@
             ctx.lineTo(span, y);
             ctx.stroke();
 
-            // مقابض دائرية على طرفي الخط لتسهيل الإمساك بها وتحريكها بالإصبع
-            ctx.beginPath();
-            ctx.arc(-span, y, 6 * resFactor, 0, Math.PI * 2);
-            ctx.arc(span, y, 6 * resFactor, 0, Math.PI * 2);
-            ctx.fill();
+            if (!isLocked) {
+                ctx.beginPath();
+                ctx.arc(-span, y, 6 * resFactor, 0, Math.PI * 2);
+                ctx.arc(span, y, 6 * resFactor, 0, Math.PI * 2);
+                ctx.fill();
+            }
 
             ctx.font = `bold ${fontSize}px Tahoma`;
             ctx.textAlign = 'right';
@@ -636,15 +848,18 @@
         }
 
         function updateMeasurements() {
-            const faceWidth = Math.round(state.radius * 1.36);
-            const eyeW = Math.round(faceWidth / 5);
-            const browToNose = Math.round(Math.abs(state.yOffsets.nose - state.yOffsets.brow));
-            const noseToChin = Math.round(Math.abs(state.yOffsets.chin - state.yOffsets.nose));
+            const paperWidthCm = parseFloat(document.getElementById('paperWidthSelect').value) || 21.0;
+            const pxToCm = paperWidthCm / canvas.width;
 
-            document.getElementById('m_eyeW').textContent = eyeW + ' px';
-            document.getElementById('m_interEye').textContent = eyeW + ' px';
-            document.getElementById('m_browNose').textContent = browToNose + ' px';
-            document.getElementById('m_noseChin').textContent = noseToChin + ' px';
+            const faceWidthPx = state.radius * 1.36;
+            const eyeWCm = ((faceWidthPx / 5) * pxToCm).toFixed(1);
+            const browToNoseCm = (Math.abs(state.yOffsets.nose - state.yOffsets.brow) * pxToCm).toFixed(1);
+            const noseToChinCm = (Math.abs(state.yOffsets.chin - state.yOffsets.nose) * pxToCm).toFixed(1);
+
+            document.getElementById('m_eyeW').textContent = eyeWCm + ' سم';
+            document.getElementById('m_interEye').textContent = eyeWCm + ' سم';
+            document.getElementById('m_browNose').textContent = browToNoseCm + ' سم';
+            document.getElementById('m_noseChin').textContent = noseToChinCm + ' سم';
         }
 
         redraw();
