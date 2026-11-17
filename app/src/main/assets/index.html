@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Loomis Face Studio - الاستوديو التشريحي الذكي</title>
-    <!-- مكتبة MediaPipe لرصد النقاط التشريحية الحقيقية للعينين والفم والأنف -->
+    <title>Loomis Face Studio - القياس التشريحي الدقيق</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
@@ -133,7 +132,7 @@
             bottom: 10px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.85);
             color: #00ffff;
             padding: 5px 12px;
             border-radius: 20px;
@@ -163,12 +162,13 @@
             margin-bottom: 8px;
             padding-bottom: 6px;
             border-bottom: 1px solid #2e2e2e;
+            gap: 8px;
         }
         .paper-select {
             background: #262626;
             color: #ffd700;
             border: 1px solid #555;
-            padding: 4px 8px;
+            padding: 5px 8px;
             border-radius: 5px;
             font-size: 11px;
             font-weight: bold;
@@ -201,6 +201,7 @@
         .prop-item.cyan { border-right-color: #00ffff; }
         .prop-label { color: #ccc; font-size: 10px; }
         .prop-val { color: #ffd700; font-weight: bold; font-size: 12px; direction: ltr; text-align: right; }
+        .prop-sub { color: #999; font-size: 10px; }
         .prop-item.cyan .prop-val { color: #00ffff; }
 
         .controls {
@@ -276,7 +277,7 @@
 </head>
 <body>
 
-    <header>Loomis Face Studio - الاستوديو التشريحي الذكي</header>
+    <header>Loomis Face Studio - القياس التشريحي الدقيق</header>
 
     <div class="tabs">
         <button class="tab-btn active" onclick="setMode('front', this)">أمامي (Front)</button>
@@ -297,34 +298,64 @@
             </div>
         </div>
 
-        <div class="detect-banner" id="detectBanner">جاري رصد ملامح العينين والفم تلقائياً...</div>
+        <div class="detect-banner" id="detectBanner">جاري معايرة النقاط التشريحية بدقة...</div>
         <canvas id="output_canvas" width="720" height="960"></canvas>
     </div>
 
-    <!-- بطاقة القياسات التشريحية الشاملة بالسنتيمتر -->
+    <!-- بطاقة القياسات التشريحية المعايرة بالسنتيمتر -->
     <div class="proportions-card" id="propCard">
         <div class="paper-row">
-            <span style="color:#ffd700; font-weight:bold;">مقاس ورقة الرسم المرجعي:</span>
-            <select id="paperWidthSelect" class="paper-select" onchange="updateMeasurements()">
-                <option value="21.0">ورقة A4 (عرض 21 سم)</option>
-                <option value="29.7">ورقة A3 (عرض 29.7 سم)</option>
-                <option value="14.8">كراسة A5 (عرض 14.8 سم)</option>
+            <span style="color:#ffd700; font-weight:bold;">طول الرأس الكامل على كراستك:</span>
+            <select id="headHeightScale" class="paper-select" onchange="redraw()">
+                <option value="15.0">رسم صغير (طول الرأس 15 سم)</option>
+                <option value="18.0" selected>ورقة A4 قياسي (طول الرأس 18 سم)</option>
+                <option value="22.0">ورقة A4 كبير (طول الرأس 22 سم)</option>
+                <option value="26.0">ورقة A3 (طول الرأس 26 سم)</option>
+                <option value="screen">مقياس شاشة الهاتف الفعلي (1:1)</option>
             </select>
         </div>
 
-        <div class="section-subtitle">أبعاد الملامح المرصودة تلقائياً:</div>
+        <div class="section-subtitle">أبعاد الملامح الدقيقة (بالسنتيمتر والنسبة):</div>
         <div class="prop-grid">
-            <div class="prop-item cyan"><span class="prop-label">طول العين (يمنى / يسرى):</span> <span class="prop-val" id="m_eyesLen">0.0 / 0.0 سم</span></div>
-            <div class="prop-item cyan"><span class="prop-label">المسافة بين العينين:</span> <span class="prop-val" id="m_interEye">0.0 سم</span></div>
-            <div class="prop-item cyan"><span class="prop-label">عرض الفم (الزاويتين):</span> <span class="prop-val" id="m_mouthW">0.0 سم</span></div>
-            <div class="prop-item cyan"><span class="prop-label">عرض الأنف:</span> <span class="prop-val" id="m_noseW">0.0 سم</span></div>
+            <div class="prop-item cyan">
+                <span class="prop-label">طول العين (يمنى / يسرى):</span>
+                <span class="prop-val" id="m_eyesLen">0.0 / 0.0 سم</span>
+                <span class="prop-sub" id="m_eyesRatio">وحدة القياس الأساسية (1.0)</span>
+            </div>
+            <div class="prop-item cyan">
+                <span class="prop-label">المسافة بين العينين:</span>
+                <span class="prop-val" id="m_interEye">0.0 سم</span>
+                <span class="prop-sub" id="m_interEyeRatio">1.0 × طول العين</span>
+            </div>
+            <div class="prop-item cyan">
+                <span class="prop-label">عرض الفم (بين الزاويتين):</span>
+                <span class="prop-val" id="m_mouthW">0.0 سم</span>
+                <span class="prop-sub" id="m_mouthRatio">1.5 × طول العين</span>
+            </div>
+            <div class="prop-item cyan">
+                <span class="prop-label">عرض الأنف (بين الفتحتين):</span>
+                <span class="prop-val" id="m_noseW">0.0 سم</span>
+                <span class="prop-sub" id="m_noseRatio">1.0 × طول العين</span>
+            </div>
         </div>
 
-        <div class="section-subtitle">المسافات بين الخطوط الأفقية الثلاثة (الأثلاث):</div>
+        <div class="section-subtitle">المسافات العمودية بين الخطوط الأفقية (الأثلاث):</div>
         <div class="prop-grid-3">
-            <div class="prop-item"><span class="prop-label">الشعر ← الحواجب:</span> <span class="prop-val" id="m_t1">0.0 سم</span></div>
-            <div class="prop-item"><span class="prop-label">الحواجب ← الأنف:</span> <span class="prop-val" id="m_t2">0.0 سم</span></div>
-            <div class="prop-item"><span class="prop-label">الأنف ← الذقن:</span> <span class="prop-val" id="m_t3">0.0 سم</span></div>
+            <div class="prop-item">
+                <span class="prop-label">الشعر ← الحواجب:</span>
+                <span class="prop-val" id="m_t1">0.0 سم</span>
+                <span class="prop-sub" id="m_t1Pct">33%</span>
+            </div>
+            <div class="prop-item">
+                <span class="prop-label">الحواجب ← الأنف:</span>
+                <span class="prop-val" id="m_t2">0.0 سم</span>
+                <span class="prop-sub" id="m_t2Pct">33%</span>
+            </div>
+            <div class="prop-item">
+                <span class="prop-label">الأنف ← الذقن:</span>
+                <span class="prop-val" id="m_t3">0.0 سم</span>
+                <span class="prop-sub" id="m_t3Pct">33%</span>
+            </div>
         </div>
     </div>
 
@@ -368,7 +399,7 @@
             </select>
         </div>
 
-        <div class="hint">💡 عند الضغط على "نسب الملامح" يتم رصد العينين والفم تلقائياً وحسابها بالسنتيمتر</div>
+        <div class="hint">💡 اختر طول الرأس الذي ترسمه على ورقتك لتظهر القياسات بالسنتيمتر فوق الصورة مباشرة</div>
     </div>
 
     <script>
@@ -400,7 +431,6 @@
             }
         };
 
-        // النقاط التشريحية الحقيقية المرصودة تلقائياً للعينين والأنف والفم
         let detectedFeatures = null;
 
         let dragTarget = null;
@@ -409,7 +439,6 @@
         let initialViewScale = 1;
         let lastPinchCenter = null;
 
-        // تهيئة محرك MediaPipe FaceMesh للرصد التلقائي الدقيق
         let faceMesh = null;
         let isFaceMeshReady = false;
 
@@ -434,37 +463,37 @@
                 const w = canvas.width;
                 const h = canvas.height;
 
-                // استخراج النقاط التشريحية الدقيقة من MediaPipe
-                // العين اليسرى في الصورة (طرف خارجي 33، مدمع داخلي 133، أعلى 159، أسفل 145)
                 const leftEyeOuter = { x: lm[33].x * w, y: lm[33].y * h };
                 const leftEyeInner = { x: lm[133].x * w, y: lm[133].y * h };
                 const leftEyeTop = { x: lm[159].x * w, y: lm[159].y * h };
                 const leftEyeBottom = { x: lm[145].x * w, y: lm[145].y * h };
 
-                // العين اليمنى في الصورة (مدمع داخلي 362، طرف خارجي 263، أعلى 386، أسفل 374)
                 const rightEyeInner = { x: lm[362].x * w, y: lm[362].y * h };
                 const rightEyeOuter = { x: lm[263].x * w, y: lm[263].y * h };
                 const rightEyeTop = { x: lm[386].x * w, y: lm[386].y * h };
                 const rightEyeBottom = { x: lm[374].x * w, y: lm[374].y * h };
 
-                // زوايا الفم (61 و 291) ومنتصف الشفاه (13 و 14)
                 const mouthLeft = { x: lm[61].x * w, y: lm[61].y * h };
                 const mouthRight = { x: lm[291].x * w, y: lm[291].y * h };
                 const mouthCenter = { x: (lm[13].x + lm[14].x) * 0.5 * w, y: (lm[13].y + lm[14].y) * 0.5 * h };
 
-                // طرفا الأنف (129 و 358) وقاعدة الأنف (2)
-                const noseLeft = { x: lm[129].x * w, y: lm[129].y * h };
-                const noseRight = { x: lm[358].x * w, y: lm[358].y * h };
+                // استخدام نقاط جناحي الأنف الخارجية الدقيقة (48 و 278) للحصول على العرض الفعلي للأنف
+                const noseLeft = { x: lm[48].x * w, y: lm[48].y * h };
+                const noseRight = { x: lm[278].x * w, y: lm[278].y * h };
                 const noseBase = { x: lm[2].x * w, y: lm[2].y * h };
+
+                const topHead = { x: lm[10].x * w, y: lm[10].y * h };
+                const chinPt = { x: lm[152].x * w, y: lm[152].y * h };
+                const browPt = { x: lm[9].x * w, y: lm[9].y * h };
 
                 detectedFeatures = {
                     leftEyeOuter, leftEyeInner, leftEyeTop, leftEyeBottom,
                     rightEyeInner, rightEyeOuter, rightEyeTop, rightEyeBottom,
                     mouthLeft, mouthRight, mouthCenter,
-                    noseLeft, noseRight, noseBase
+                    noseLeft, noseRight, noseBase,
+                    topHead, chinPt, browPt
                 };
 
-                // حساب زاوية ميلان العينين تلقائياً لتطابق زاوية الرأس
                 const eyeAngleRad = Math.atan2(rightEyeOuter.y - leftEyeOuter.y, rightEyeOuter.x - leftEyeOuter.x);
                 const eyeAngleDeg = Math.round(eyeAngleRad * 180 / Math.PI);
                 if (!isLocked && Math.abs(eyeAngleDeg) <= 60) {
@@ -473,21 +502,15 @@
                     document.getElementById('angleVal').textContent = eyeAngleDeg + '°';
                 }
 
-                // ضبط خط الحواجب والأنف والذقن لتنطبق مع النقاط المرصودة
                 if (!isLocked) {
-                    const browPt = { x: lm[9].x * w, y: lm[9].y * h };
-                    const chinPt = { x: lm[152].x * w, y: lm[152].y * h };
-                    const topPt = { x: lm[10].x * w, y: lm[10].y * h };
-
                     state.yOffsets.brow = toLocalGridSpace(browPt.x, browPt.y).y;
                     state.yOffsets.nose = toLocalGridSpace(noseBase.x, noseBase.y).y;
                     state.yOffsets.chin = toLocalGridSpace(chinPt.x, chinPt.y).y;
-                    state.yOffsets.hair = toLocalGridSpace(topPt.x, topPt.y).y;
+                    state.yOffsets.hair = toLocalGridSpace(topHead.x, topHead.y).y;
                 }
 
                 redraw();
             } else {
-                // في حال عدم توفر الإنترنت أو تعذر الرصد، نستخدم تقديراً تشريحياً ذكياً من الشبكة
                 detectedFeatures = null;
                 redraw();
             }
@@ -594,7 +617,6 @@
             const propCard = document.getElementById('propCard');
             if (mode === 'anatomy') {
                 propCard.classList.add('show');
-                // تشغيل التعرف التلقائي على العينين والفم فور الضغط على التبويب
                 runAutoFeatureDetection();
             } else {
                 propCard.classList.remove('show');
@@ -773,6 +795,27 @@
             };
         }
 
+        // حساب معامل التحويل الدقيق من البكسل إلى السنتيمتر بناءً على طول الرأس الفعلي
+        function getPrecisePxToCm() {
+            const scaleVal = document.getElementById('headHeightScale').value;
+
+            // الارتفاع الكلي للرأس بالبكسل (من قمة الرأس/الشعر إلى الذقن)
+            // في تقنية لوميس، المسافة من خط الشعر إلى الذقن تمثل 3 أثلاث (حوالي 88% من ارتفاع الجمجمة الكلي)
+            const faceThreeThirdsPx = Math.abs(state.yOffsets.chin - state.yOffsets.hair);
+            const fullHeadHeightPx = Math.max(100, faceThreeThirdsPx * 1.12);
+
+            if (scaleVal === 'screen') {
+                // مقياس شاشة الهاتف الفعلي 1:1 (96 DPI قياسي في CSS × معامل التكبير)
+                const rect = canvas.getBoundingClientRect();
+                const displayedScale = (rect.width / canvas.width) * view.scale;
+                const cssPxPerCm = 37.795; // 1 سم = 37.8 بكسل شاشة قياسي
+                return displayedScale / cssPxPerCm;
+            } else {
+                const targetHeadCm = parseFloat(scaleVal) || 18.0;
+                return targetHeadCm / fullHeadHeightPx;
+            }
+        }
+
         function redraw() {
             ctx.save();
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -795,18 +838,40 @@
                 ctx.fillText('اضغط "رفع صورة من الاستديو" للبدء', canvas.width / 2, canvas.height / 2);
             }
 
-            drawGrid();
+            const pxToCm = getPrecisePxToCm();
+            drawGrid(pxToCm);
 
-            // رسم النقاط التشريحية المرصودة للعينين والفم والأنف عند تفعيل تبويب نسب الملامح
             if (currentMode === 'anatomy' && detectedFeatures) {
-                drawDetectedAnatomy();
+                drawDetectedAnatomy(pxToCm);
             }
 
             ctx.restore();
-            updateMeasurements();
+            updateMeasurements(pxToCm);
         }
 
-        function drawDetectedAnatomy() {
+        function drawLabelBadge(text, x, y, bgColor, textColor, resFactor) {
+            const fontSize = Math.round((12 * resFactor) / Math.sqrt(view.scale));
+            ctx.save();
+            ctx.font = `bold ${fontSize}px Tahoma`;
+            const metrics = ctx.measureText(text);
+            const padX = 5 * resFactor / Math.sqrt(view.scale);
+            const padY = 3 * resFactor / Math.sqrt(view.scale);
+            const w = metrics.width + padX * 2;
+            const h = fontSize + padY * 2;
+
+            ctx.fillStyle = bgColor;
+            ctx.beginPath();
+            ctx.roundRect(x - w / 2, y - h / 2, w, h, 4 * resFactor);
+            ctx.fill();
+
+            ctx.fillStyle = textColor;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, x, y);
+            ctx.restore();
+        }
+
+        function drawDetectedAnatomy(pxToCm) {
             const f = detectedFeatures;
             const resFactor = Math.max(1, canvas.width / 600);
             const lw = (baseThickness * 0.85 * resFactor) / Math.sqrt(view.scale);
@@ -817,7 +882,7 @@
             ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
             ctx.shadowBlur = 4 * resFactor;
 
-            // 1. رسم العين اليسرى واليمنى بدقة فوق موقعيهما الفعليين
+            // 1. العينان
             ctx.strokeStyle = '#00FFFF';
             ctx.fillStyle = '#00FFFF';
             ctx.lineWidth = lw;
@@ -825,21 +890,32 @@
             drawEyeContour(f.leftEyeOuter, f.leftEyeTop, f.leftEyeInner, f.leftEyeBottom, ptR);
             drawEyeContour(f.rightEyeInner, f.rightEyeTop, f.rightEyeOuter, f.rightEyeBottom, ptR);
 
-            // 2. خط المسافة بين العينين (من المدمع للمدمع)
+            const leftEyeCm = (dist(f.leftEyeOuter, f.leftEyeInner) * pxToCm).toFixed(1);
+            const rightEyeCm = (dist(f.rightEyeInner, f.rightEyeOuter) * pxToCm).toFixed(1);
+            drawLabelBadge(`${leftEyeCm} سم`, (f.leftEyeOuter.x + f.leftEyeInner.x) / 2, f.leftEyeTop.y - 16 * resFactor, 'rgba(0,0,0,0.8)', '#00FFFF', resFactor);
+            drawLabelBadge(`${rightEyeCm} سم`, (f.rightEyeInner.x + f.rightEyeOuter.x) / 2, f.rightEyeTop.y - 16 * resFactor, 'rgba(0,0,0,0.8)', '#00FFFF', resFactor);
+
+            // 2. المسافة بين العينين
             ctx.strokeStyle = '#00FF44';
             ctx.beginPath();
             ctx.moveTo(f.leftEyeInner.x, f.leftEyeInner.y);
             ctx.lineTo(f.rightEyeInner.x, f.rightEyeInner.y);
             ctx.stroke();
 
-            // 3. خط عرض الأنف
+            const interEyeCm = (dist(f.leftEyeInner, f.rightEyeInner) * pxToCm).toFixed(1);
+            drawLabelBadge(`${interEyeCm} سم`, (f.leftEyeInner.x + f.rightEyeInner.x) / 2, (f.leftEyeInner.y + f.rightEyeInner.y) / 2 + 16 * resFactor, 'rgba(0,0,0,0.8)', '#00FF44', resFactor);
+
+            // 3. عرض الأنف
             ctx.strokeStyle = '#FF9900';
             ctx.beginPath();
             ctx.moveTo(f.noseLeft.x, f.noseLeft.y);
             ctx.lineTo(f.noseRight.x, f.noseRight.y);
             ctx.stroke();
 
-            // 4. خط عرض الفم ونقاط زوايا الشفاه
+            const noseCm = (dist(f.noseLeft, f.noseRight) * pxToCm).toFixed(1);
+            drawLabelBadge(`${noseCm} سم`, (f.noseLeft.x + f.noseRight.x) / 2, f.noseLeft.y - 14 * resFactor, 'rgba(0,0,0,0.8)', '#FF9900', resFactor);
+
+            // 4. عرض الفم
             ctx.strokeStyle = '#FF3366';
             ctx.fillStyle = '#FF3366';
             ctx.beginPath();
@@ -853,6 +929,9 @@
                 ctx.fill();
             });
 
+            const mouthCm = (dist(f.mouthLeft, f.mouthRight) * pxToCm).toFixed(1);
+            drawLabelBadge(`${mouthCm} سم`, f.mouthCenter.x, f.mouthCenter.y + 18 * resFactor, 'rgba(0,0,0,0.8)', '#FF3366', resFactor);
+
             ctx.restore();
         }
 
@@ -863,7 +942,6 @@
             ctx.quadraticCurveTo(pBot.x, pBot.y + (pBot.y - pTop.y) * 0.25, p1.x, p1.y);
             ctx.stroke();
 
-            // خط طول العين المستقيم
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
             ctx.lineTo(p2.x, p2.y);
@@ -876,7 +954,7 @@
             });
         }
 
-        function drawGrid() {
+        function drawGrid(pxToCm) {
             ctx.save();
             ctx.globalAlpha = lineOpacity;
 
@@ -965,26 +1043,37 @@
             drawAdjustableLine(nose, lineSpan, 'الأنف', lw, fontSize, resFactor);
             drawAdjustableLine(chin, lineSpan, 'الذقن', lw, fontSize, resFactor);
 
-            // إذا لم يتم الرصد الآلي بعد في تبويب نسب الملامح، نرسم مسطرة إرشادية احتياطية
-            if (currentMode === 'anatomy' && !detectedFeatures) {
-                const faceWidth = r * 1.36;
-                const eyeWidth = faceWidth / 5;
-                const eyeY = brow + (nose - brow) * 0.28;
+            // إظهار قياس الأثلاث الثلاثة مباشرة على يمين الشبكة في تبويب نسب الملامح
+            if (currentMode === 'anatomy') {
+                const t1Cm = (Math.abs(brow - hair) * pxToCm).toFixed(1);
+                const t2Cm = (Math.abs(nose - brow) * pxToCm).toFixed(1);
+                const t3Cm = (Math.abs(chin - nose) * pxToCm).toFixed(1);
 
-                ctx.save();
-                ctx.strokeStyle = '#00FFFF';
-                ctx.lineWidth = lw * 0.8;
-                ctx.beginPath();
-                ctx.moveTo(-faceWidth / 2, eyeY);
-                ctx.lineTo(faceWidth / 2, eyeY);
-                ctx.stroke();
-                ctx.restore();
+                const bracketX = lineSpan + (18 * resFactor);
+                drawVerticalSpanBracket(bracketX, hair, brow, `${t1Cm} سم`, resFactor);
+                drawVerticalSpanBracket(bracketX, brow, nose, `${t2Cm} سم`, resFactor);
+                drawVerticalSpanBracket(bracketX, nose, chin, `${t3Cm} سم`, resFactor);
             }
 
             ctx.beginPath();
             ctx.arc(0, 0, 7 * resFactor, 0, Math.PI * 2);
             ctx.fill();
 
+            ctx.restore();
+        }
+
+        function drawVerticalSpanBracket(x, y1, y2, label, resFactor) {
+            ctx.save();
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 2 * resFactor / Math.sqrt(view.scale);
+            ctx.beginPath();
+            ctx.moveTo(x - 5 * resFactor, y1);
+            ctx.lineTo(x, y1);
+            ctx.lineTo(x, y2);
+            ctx.lineTo(x - 5 * resFactor, y2);
+            ctx.stroke();
+
+            drawLabelBadge(label, x + 28 * resFactor, (y1 + y2) / 2, 'rgba(0,0,0,0.85)', '#FFD700', resFactor);
             ctx.restore();
         }
 
@@ -1011,32 +1100,38 @@
             return Math.hypot(p2.x - p1.x, p2.y - p1.y);
         }
 
-        function updateMeasurements() {
-            const paperWidthCm = parseFloat(document.getElementById('paperWidthSelect').value) || 21.0;
-            const pxToCm = paperWidthCm / canvas.width;
+        function updateMeasurements(pxToCm) {
+            const d1 = Math.abs(state.yOffsets.brow - state.yOffsets.hair);
+            const d2 = Math.abs(state.yOffsets.nose - state.yOffsets.brow);
+            const d3 = Math.abs(state.yOffsets.chin - state.yOffsets.nose);
+            const totalD = Math.max(1, d1 + d2 + d3);
 
-            // 1. المسافات بين الخطوط الأفقية الثلاثة (الأثلاث الكلاسيكية)
-            const t1Cm = (Math.abs(state.yOffsets.brow - state.yOffsets.hair) * pxToCm).toFixed(1);
-            const t2Cm = (Math.abs(state.yOffsets.nose - state.yOffsets.brow) * pxToCm).toFixed(1);
-            const t3Cm = (Math.abs(state.yOffsets.chin - state.yOffsets.nose) * pxToCm).toFixed(1);
+            document.getElementById('m_t1').textContent = (d1 * pxToCm).toFixed(1) + ' سم';
+            document.getElementById('m_t2').textContent = (d2 * pxToCm).toFixed(1) + ' سم';
+            document.getElementById('m_t3').textContent = (d3 * pxToCm).toFixed(1) + ' سم';
 
-            document.getElementById('m_t1').textContent = t1Cm + ' سم';
-            document.getElementById('m_t2').textContent = t2Cm + ' سم';
-            document.getElementById('m_t3').textContent = t3Cm + ' سم';
+            document.getElementById('m_t1Pct').textContent = Math.round((d1 / totalD) * 100) + '% من الوجه';
+            document.getElementById('m_t2Pct').textContent = Math.round((d2 / totalD) * 100) + '% من الوجه';
+            document.getElementById('m_t3Pct').textContent = Math.round((d3 / totalD) * 100) + '% من الوجه';
 
-            // 2. قياسات العينين والفم والأنف (من النقاط المرصودة تلقائياً إن وجدت)
             if (detectedFeatures) {
                 const f = detectedFeatures;
-                const leftEyeCm = (dist(f.leftEyeOuter, f.leftEyeInner) * pxToCm).toFixed(1);
-                const rightEyeCm = (dist(f.rightEyeInner, f.rightEyeOuter) * pxToCm).toFixed(1);
-                const interEyeCm = (dist(f.leftEyeInner, f.rightEyeInner) * pxToCm).toFixed(1);
-                const mouthCm = (dist(f.mouthLeft, f.mouthRight) * pxToCm).toFixed(1);
-                const noseCm = (dist(f.noseLeft, f.noseRight) * pxToCm).toFixed(1);
+                const leftEyePx = dist(f.leftEyeOuter, f.leftEyeInner);
+                const rightEyePx = dist(f.rightEyeInner, f.rightEyeOuter);
+                const avgEyePx = Math.max(1, (leftEyePx + rightEyePx) / 2);
 
-                document.getElementById('m_eyesLen').textContent = `${rightEyeCm} / ${leftEyeCm} سم`;
-                document.getElementById('m_interEye').textContent = `${interEyeCm} سم`;
-                document.getElementById('m_mouthW').textContent = `${mouthCm} سم`;
-                document.getElementById('m_noseW').textContent = `${noseCm} سم`;
+                const interEyePx = dist(f.leftEyeInner, f.rightEyeInner);
+                const mouthPx = dist(f.mouthLeft, f.mouthRight);
+                const nosePx = dist(f.noseLeft, f.noseRight);
+
+                document.getElementById('m_eyesLen').textContent = `${(rightEyePx * pxToCm).toFixed(1)} / ${(leftEyePx * pxToCm).toFixed(1)} سم`;
+                document.getElementById('m_interEye').textContent = `${(interEyePx * pxToCm).toFixed(1)} سم`;
+                document.getElementById('m_mouthW').textContent = `${(mouthPx * pxToCm).toFixed(1)} سم`;
+                document.getElementById('m_noseW').textContent = `${(nosePx * pxToCm).toFixed(1)} سم`;
+
+                document.getElementById('m_interEyeRatio').textContent = `${(interEyePx / avgEyePx).toFixed(2)} × طول العين`;
+                document.getElementById('m_mouthRatio').textContent = `${(mouthPx / avgEyePx).toFixed(2)} × طول العين`;
+                document.getElementById('m_noseRatio').textContent = `${(nosePx / avgEyePx).toFixed(2)} × طول العين`;
             } else {
                 const faceWidthPx = state.radius * 1.36;
                 const eyeWCm = ((faceWidthPx / 5) * pxToCm).toFixed(1);
