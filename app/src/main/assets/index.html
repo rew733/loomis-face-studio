@@ -298,7 +298,6 @@
             color: #999;
         }
 
-        /* نافذة المرشد الذكي Gemini AI Modal */
         .ai-modal {
             display: none;
             position: fixed;
@@ -495,7 +494,7 @@
             </div>
         </div>
 
-        <div class="detect-banner" id="detectBanner">جاري إعادة رصد وحساب القياسات...</div>
+        <div class="detect-banner" id="detectBanner">جاري رصد المعالم التشريحية بدقة...</div>
         <canvas id="output_canvas" width="720" height="960"></canvas>
     </div>
 
@@ -617,7 +616,7 @@
             </select>
         </div>
 
-        <div class="hint">💡 اضغط على "🤖 المرشد الذكي" ليقوم الذكاء الاصطناعي بضبط الشبكة ورسم الظلال فوق الوجه تلقائياً</div>
+        <div class="hint">💡 الشبكة تنطبق تلقائياً بالرصد التشريحي، و"المرشد الذكي" يرسم الظلال وخطط التظليل فوقها بدقة</div>
     </div>
 
     <!-- نافذة المرشد التشريحي الذكي Gemini AI -->
@@ -650,11 +649,11 @@
                     </div>
                 </div>
 
-                <div style="font-size:11px; color:#4facfe; font-weight:bold;">اختر التحليل لتطبيقه تلقائياً فوق الوجه:</div>
+                <div style="font-size:11px; color:#4facfe; font-weight:bold;">اختر التحليل لتطبيقه فوق إحداثيات الوجه الدقيقة:</div>
                 <div class="ai-actions-grid">
-                    <button class="ai-task-btn" onclick="askGemini('blueprint', this)">📐 ضبط الشبكة وخطة لوميس</button>
+                    <button class="ai-task-btn" onclick="askGemini('blueprint', this)">📐 خطة رسم لوميس بالسنتيمتر</button>
                     <button class="ai-task-btn" onclick="askGemini('shading', this)">🌗 رسم خريطة الضوء والظل</button>
-                    <button class="ai-task-btn" onclick="askGemini('tilt', this)">🧭 تصحيح زاوية الرأس تلقائياً</button>
+                    <button class="ai-task-btn" onclick="askGemini('tilt', this)">🧭 فحص زاوية الرأس والمنظور</button>
                     <button class="ai-task-btn" onclick="toggleSketchCompare(this)">🎨 مقارنة رسمتي بالأصل</button>
                 </div>
 
@@ -664,9 +663,9 @@
                     <input type="file" id="sketchFileInput" accept="image/*" onchange="handleSketchUpload(event)">
                 </div>
 
-                <button class="apply-canvas-btn" id="applyCanvasBtn" onclick="closeAiModal()">👁️ عرض التطبيق البصري على الوجه الآن</button>
+                <button class="apply-canvas-btn" id="applyCanvasBtn" onclick="closeAiModal()">👁️ عرض خريطة الظلال والتصحيح على الوجه</button>
 
-                <div class="ai-result-box" id="aiResultBox">ارفع صورة الوجه أولاً، ثم اضغط على أي زر تحليل ليقوم الذكاء الاصطناعي بضبط الشبكة ورسم الإرشادات فوق الصورة مباشرة.</div>
+                <div class="ai-result-box" id="aiResultBox">ارفع صورة الوجه أولاً، ثم اضغط على أي زر تحليل ليقوم الذكاء الاصطناعي برسم خريطة الإضاءة والظل أو خطة الرسم بالسنتيمتر.</div>
             </div>
         </div>
     </div>
@@ -709,12 +708,12 @@
 
         let features = null;
 
-        // بيانات الطبقة البصرية المستخرجة من الذكاء الاصطناعي لتطبيقها فوق الوجه
+        // طبقة الإرشادات البصرية من الذكاء الاصطناعي منسوبة لإحداثيات الوجه الفعلية (Local Face Space)
         let aiVisualOverlay = {
             visible: true,
-            lightArrow: null, // { fromX, fromY, toX, toY, label } (نسب مئوية 0..100)
-            shadowZones: [],  // [{ x, y, rx, ry, label }]
-            corrections: []   // [{ x, y, text }]
+            lightDir: null,   // { angleDeg, label }
+            shadowZones: [],  // [{ part: 'cheek_left'|'cheek_right'|'nose_base'|'jaw'|'eye_socket_left'|'eye_socket_right'|'forehead_side', label }]
+            corrections: []   // [{ part: 'left_eye'|'right_eye'|'nose'|'mouth'|'jaw'|'brow', text }]
         };
 
         let dragTarget = null;
@@ -723,7 +722,6 @@
         let initialViewScale = 1;
         let lastPinchCenter = null;
 
-        // تحميل مفتاح Gemini API والموديل المحفوظ
         window.addEventListener('DOMContentLoaded', () => {
             const savedKey = localStorage.getItem('loomis_gemini_api_key');
             if (savedKey) {
@@ -848,68 +846,33 @@
             return `المقياس: ${scaleText} | الطول: ${faceH} | العرض: ${faceW} (${faceRatio}) | العين: ${eyesLen} | بين العينين: ${interEye} | الأنف: ${noseW} | الفم: ${mouthW} | الأثلاث: (${t1} / ${t2} / ${t3})`;
         }
 
-        // تطبيق مخرجات الذكاء الاصطناعي الهندسية والبصرية مباشرة على الوجه والشبكة
+        // تطبيق مخرجات الذكاء الاصطناعي مربوطة بإحداثيات الوجه التشريحية الفعلية (بدون تخريب مكان الشبكة)
         function applyAiVisualData(aiJson) {
             if (!aiJson) return;
-            const w = canvas.width;
-            const h = canvas.height;
 
-            // 1. تحديث وضعية الشبكة وزاوية الميلان وإحداثيات الجمجمة إذا أرجعها النموذج
-            if (aiJson.grid && !isLocked) {
-                const g = aiJson.grid;
-                if (typeof g.mode === 'string' && ['front', 'threeQuarter', 'side'].includes(g.mode)) {
-                    currentMode = g.mode;
-                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                    const idx = g.mode === 'front' ? 0 : (g.mode === 'threeQuarter' ? 1 : 2);
-                    if (document.querySelectorAll('.tab-btn')[idx]) {
-                        document.querySelectorAll('.tab-btn')[idx].classList.add('active');
-                    }
-                }
-                if (typeof g.cxPct === 'number') state.cx = (g.cxPct / 100) * w;
-                if (typeof g.cyPct === 'number') state.cy = (g.cyPct / 100) * h;
-                if (typeof g.radiusPct === 'number') {
-                    state.radius = Math.round((g.radiusPct / 100) * Math.min(w, h));
-                    radiusRange.value = state.radius;
-                    document.getElementById('radiusVal').textContent = state.radius;
-                }
-                if (typeof g.angleDeg === 'number') {
-                    state.angle = Math.max(-60, Math.min(60, Math.round(g.angleDeg)));
-                    angleRange.value = state.angle;
-                    document.getElementById('angleVal').textContent = state.angle + '°';
-                }
-
-                // تحديث مواضع الخطوط الأفقية (نسب مئوية من نصف القطر)
-                const r = state.radius;
-                if (typeof g.hairFactor === 'number') state.yOffsets.hair = -r * Math.abs(g.hairFactor);
-                if (typeof g.browFactor === 'number') state.yOffsets.brow = r * g.browFactor;
-                if (typeof g.noseFactor === 'number') state.yOffsets.nose = r * g.noseFactor;
-                if (typeof g.chinFactor === 'number') state.yOffsets.chin = r * Math.abs(g.chinFactor);
-
-                state.bounds.topY = state.yOffsets.hair - r * 0.2;
-                state.bounds.bottomY = state.yOffsets.chin;
-                state.bounds.leftX = -r * 0.85;
-                state.bounds.rightX = r * 0.85;
+            // 1. اتجاه الضوء فقط
+            if (aiJson.lightDir && typeof aiJson.lightDir.angleDeg === 'number') {
+                aiVisualOverlay.lightDir = aiJson.lightDir;
             }
 
-            // 2. تحديث خريطة الإضاءة والظل العميق (Shading Overlay)
-            if (aiJson.lightArrow) {
-                aiVisualOverlay.lightArrow = aiJson.lightArrow;
-            }
+            // 2. مناطق الظل المربوطة بأجزاء الوجه التشريحية الفعلية
             if (Array.isArray(aiJson.shadowZones)) {
                 aiVisualOverlay.shadowZones = aiJson.shadowZones;
             }
 
-            // 3. تحديث مؤشرات التصحيح على الوجه (Corrections)
+            // 3. مؤشرات التصحيح المربوطة بأجزاء الوجه الفعلية
             if (Array.isArray(aiJson.corrections)) {
                 aiVisualOverlay.corrections = aiJson.corrections;
             }
 
-            aiVisualOverlay.visible = true;
-            const layerBtn = document.getElementById('btnAiLayer');
-            layerBtn.style.display = 'flex';
-            layerBtn.classList.add('active');
-
-            document.getElementById('applyCanvasBtn').classList.add('show');
+            const hasVisuals = aiVisualOverlay.lightDir || aiVisualOverlay.shadowZones.length > 0 || aiVisualOverlay.corrections.length > 0;
+            if (hasVisuals) {
+                aiVisualOverlay.visible = true;
+                const layerBtn = document.getElementById('btnAiLayer');
+                layerBtn.style.display = 'flex';
+                layerBtn.classList.add('active');
+                document.getElementById('applyCanvasBtn').classList.add('show');
+            }
             redraw();
         }
 
@@ -937,45 +900,34 @@
             }
 
             applyBtn.classList.remove('show');
-            resultBox.innerHTML = `<div class="ai-loading">⏳ جاري التحليل وتجهيز التطبيق البصري بواسطة (${modelName})...</div>`;
+            resultBox.innerHTML = `<div class="ai-loading">⏳ جاري التحليل بواسطة (${modelName})...</div>`;
 
             const refBase64 = getResizedBase64(currentImage, 512);
             const gridOverlayBase64 = getResizedBase64(canvas, 512);
             const stats = buildCurrentMeasurementsSummary();
 
             const jsonSchemaInstruction = `
-أجب بصيغة JSON صالحة فقط (بدون أي علامات markdown مثل \`\`\`json) تحتوي على الحقول التالية:
+أجب بصيغة JSON صالحة فقط (بدون markdown) تحتوي على الحقول التالية:
 {
   "explanation": "شرح عربي مختصر وواضح ومباشر للرسام في نقاط مرقمة",
-  "grid": {
-    "mode": "front أو threeQuarter أو side حسب زاوية الرأس في الصورة",
-    "cxPct": رقم من 20 إلى 80 يمثل النسبة المئوية الأفقية لمركز كرة الجمجمة في الصورة,
-    "cyPct": رقم من 20 إلى 80 يمثل النسبة المئوية العمودية لمركز كرة الجمجمة في الصورة,
-    "radiusPct": رقم من 15 إلى 45 يمثل نصف قطر كرة لوميس كنسبة من أصغر بعد للصورة,
-    "angleDeg": رقم من -45 إلى 45 يمثل زاوية ميلان الرأس بالدرجات,
-    "hairFactor": رقم مثل 1.15,
-    "browFactor": رقم مثل -0.25,
-    "noseFactor": رقم مثل 0.55,
-    "chinFactor": رقم مثل 1.35
-  },
-  "lightArrow": { "fromX": رقم_0_100, "fromY": رقم_0_100, "toX": رقم_0_100, "toY": رقم_0_100, "label": "اتجاه الضوء" },
+  "lightDir": { "angleDeg": رقم_من_0_إلى_360_يمثل_اتجاه_قدوم_الضوء, "label": "وصف قصير لمصدر الضوء مثل: علوي يمين" },
   "shadowZones": [
-    { "x": رقم_0_100, "y": رقم_0_100, "rx": رقم_3_15, "ry": رقم_3_15, "label": "اسم منطقة الظل" }
+    { "part": "اختر بدقة من القائمة: cheek_left | cheek_right | nose_base | jaw_bottom | eye_socket_left | eye_socket_right | forehead_left | forehead_right", "label": "وصف قصير للظل" }
   ],
   "corrections": [
-    { "x": رقم_0_100, "y": رقم_0_100, "text": "ملاحظة التصحيح القصيرة" }
+    { "part": "اختر بدقة من القائمة: left_eye | right_eye | nose | mouth | jaw | brow", "text": "ملاحظة التصحيح القصيرة" }
   ]
 }`;
 
             let taskGoal = '';
             if (taskType === 'blueprint') {
-                taskGoal = `حلل هذا الوجه وفق تقنية أندرو لوميس والقياسات الحالية (${stats}). اضبط قيم grid بدقة لتنطبق كرة لوميس وخطوط الحواجب والأنف والذقن على الوجه في الصورة، واكتب خطة الرسم بالسنتيمتر في explanation. اجعل shadowZones و corrections مصفوفات فارغة.`;
+                taskGoal = `أنت أستاذ أكاديمي في تقنية أندرو لوميس. بناءً على الصورة وهذه القياسات المحسوبة بدقة (${stats})، اكتب خطة رسم هندسية مرقمة بالسنتيمتر للرسام في explanation (قطر الكرة، مواقع الأثلاث، وأبعاد العين والفم والأنف). اجعل lightDir=null و shadowZones=[] و corrections=[].`;
             } else if (taskType === 'shading') {
-                taskGoal = `حلل الإضاءة ومناطق الظل العميق (Core Shadows) في الصورة. حدد اتجاه الضوء في lightArrow، وحدد أهم 3 إلى 4 مناطق ظل على الوجه (مثل أسفل عظم الخد، أسفل الأنف، تجويف العين، أسفل الفك) بإحداثياتها المئوية في shadowZones لترسم فوق الوجه مباشرة، واشرحها في explanation.`;
+                taskGoal = `حلل الإضاءة ومناطق الظل العميق (Core Shadows) في هذه الصورة. حدد زاوية قدوم الضوء في lightDir، واختر من القائمة المحددة أهم مناطق الظل الحقيقية الموجودة في الصورة في shadowZones ليرسمها التطبيق فوق تلك الأجزاء التشريحية بدقة، واشرح كتل الضوء والظل في explanation.`;
             } else if (taskType === 'tilt') {
-                taskGoal = `قارن الصورة الأصلية بالصورة الثانية التي تحتوي على الشبكة الحالية (بزاوية ${state.angle}°). صحح إحداثيات grid (cxPct, cyPct, radiusPct, angleDeg, mode) لتنطبق كرة لوميس بدقة تامة على منظور الرأس، واشرح التعديل في explanation.`;
+                taskGoal = `انظر للصورة الأولى (الأصلية) والثانية (شبكة لوميس المطبقة عليها حالياً بزاوية ${state.angle}°). اشرح للرسام في explanation زاوية دوران الرأس (Yaw/Pitch) ومدى دقة تطابق الشبكة الحالية أو أي تعديل يدوي بسيط ينصحه به. اجعل lightDir=null و shadowZones=[] و corrections=[].`;
             } else if (taskType === 'compare') {
-                taskGoal = `قارن الصورة المرجعية الأولى برسمة المستخدم الثانية. حدد أهم 3 مواضع تحتاج لتصحيح النسب على الصورة المرجعية وضع إحداثياتها المئوية وتعليمات التصحيح في corrections، واشرح الفروقات في explanation.`;
+                taskGoal = `قارن الصورة المرجعية الأولى برسمة المستخدم الثانية. حدد الأجزاء التي تحتاج تصحيحاً من القائمة المحددة في corrections مع ذكر مقدار التعديل، واشرح الفروقات في explanation.`;
             }
 
             const fullPrompt = `${taskGoal}\n\n${jsonSchemaInstruction}`;
@@ -1021,15 +973,13 @@
                     const cleanJsonStr = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
                     const parsed = JSON.parse(cleanJsonStr);
 
-                    // مسح الطبقات السابقة قبل تطبيق الطبقة الجديدة
-                    aiVisualOverlay.lightArrow = null;
+                    aiVisualOverlay.lightDir = null;
                     aiVisualOverlay.shadowZones = [];
                     aiVisualOverlay.corrections = [];
 
                     applyAiVisualData(parsed);
-                    resultBox.textContent = `✅ تم تطبيق التحليل بصرياً على اللوحة!\n\n${parsed.explanation || ''}`;
+                    resultBox.textContent = parsed.explanation || 'تم التحليل بنجاح.';
                 } catch (parseErr) {
-                    // في حال عاد الرد كنص عادي غير JSON
                     resultBox.textContent = rawText || 'لم يتم استلام رد، حاول مجدداً.';
                 }
             } catch (err) {
@@ -1132,15 +1082,27 @@
                     noseLeft, noseRight
                 };
 
+                // ضبط مركز الكرة وحجمها وزاويتها بدقة لتنطبق على الجمجمة الفعلية
+                const faceCenterX = (leftFaceEdge.x + rightFaceEdge.x) / 2;
+                const browCenterY = browPt.y;
+                const faceWidthPx = dist(leftFaceEdge, rightFaceEdge);
+
                 const eyeAngleRad = Math.atan2(rightEyeOuter.y - leftEyeOuter.y, rightEyeOuter.x - leftEyeOuter.x);
                 const eyeAngleDeg = Math.round(eyeAngleRad * 180 / Math.PI);
-                if (!isLocked && Math.abs(eyeAngleDeg) <= 60) {
-                    state.angle = eyeAngleDeg;
-                    angleRange.value = eyeAngleDeg;
-                    document.getElementById('angleVal').textContent = eyeAngleDeg + '°';
-                }
 
                 if (!isLocked) {
+                    state.cx = faceCenterX;
+                    state.cy = browCenterY + faceWidthPx * 0.12;
+                    state.radius = Math.round(faceWidthPx * 0.62);
+                    radiusRange.value = state.radius;
+                    document.getElementById('radiusVal').textContent = state.radius;
+
+                    if (Math.abs(eyeAngleDeg) <= 60) {
+                        state.angle = eyeAngleDeg;
+                        angleRange.value = eyeAngleDeg;
+                        document.getElementById('angleVal').textContent = eyeAngleDeg + '°';
+                    }
+
                     const localTop = toLocalGridSpace(topHead.x, topHead.y);
                     const localChin = toLocalGridSpace(chinPt.x, chinPt.y);
                     const localLeft = toLocalGridSpace(leftFaceEdge.x, leftFaceEdge.y);
@@ -1332,12 +1294,12 @@
             angleRange.value = 0;
             document.getElementById('angleVal').textContent = '0°';
             hasDetectedOnce = false;
-            aiVisualOverlay.lightArrow = null;
+            aiVisualOverlay.lightDir = null;
             aiVisualOverlay.shadowZones = [];
             aiVisualOverlay.corrections = [];
             document.getElementById('btnAiLayer').style.display = 'none';
 
-            if (currentMode === 'anatomy') {
+            if (currentImage) {
                 runAutoFeatureDetection();
             } else {
                 createDefaultFeaturesFromGrid();
@@ -1605,32 +1567,63 @@
                 drawInteractiveAnatomy(pxToCm);
             }
 
-            // رسم الطبقة البصرية المستخرجة من الذكاء الاصطناعي فوق الوجه
+            // رسم خريطة الضوء والظل والتصحيح فوق إحداثيات الوجه التشريحية الفعلية
             if (aiVisualOverlay.visible) {
-                drawAiVisualOverlay();
+                drawAiVisualOverlayOnFace();
             }
 
             ctx.restore();
             updateMeasurements(pxToCm);
         }
 
-        function drawAiVisualOverlay() {
-            const w = canvas.width;
-            const h = canvas.height;
-            const resFactor = Math.max(1, w / 600);
+        // خريطة الإحداثيات التشريحية المربوطة بالوجه الفعلي (تضمن عدم خروج الرسومات عن مكانها أبداً)
+        function getAnatomicalRegionCoords(partName) {
+            const r = state.radius;
+            const { hair, brow, nose, chin } = state.yOffsets;
+            const midEyeY = brow + (nose - brow) * 0.28;
+            const mouthY = nose + (chin - nose) * 0.35;
+
+            const regions = {
+                'cheek_left':       { lx: -r * 0.48, ly: (midEyeY + nose) / 2, rx: r * 0.22, ry: r * 0.28 },
+                'cheek_right':      { lx:  r * 0.48, ly: (midEyeY + nose) / 2, rx: r * 0.22, ry: r * 0.28 },
+                'nose_base':        { lx: 0,         ly: nose + r * 0.05,      rx: r * 0.24, ry: r * 0.12 },
+                'jaw_bottom':       { lx: 0,         ly: chin - r * 0.12,      rx: r * 0.42, ry: r * 0.15 },
+                'eye_socket_left':  { lx: -r * 0.32, ly: midEyeY,              rx: r * 0.20, ry: r * 0.14 },
+                'eye_socket_right': { lx:  r * 0.32, ly: midEyeY,              rx: r * 0.20, ry: r * 0.14 },
+                'forehead_left':    { lx: -r * 0.35, ly: (hair + brow) / 2,    rx: r * 0.25, ry: r * 0.22 },
+                'forehead_right':   { lx:  r * 0.35, ly: (hair + brow) / 2,    rx: r * 0.25, ry: r * 0.22 },
+                'left_eye':         { lx: -r * 0.32, ly: midEyeY,              rx: r * 0.18, ry: r * 0.12 },
+                'right_eye':        { lx:  r * 0.32, ly: midEyeY,              rx: r * 0.18, ry: r * 0.12 },
+                'nose':             { lx: 0,         ly: (brow + nose) / 2,    rx: r * 0.18, ry: r * 0.25 },
+                'mouth':            { lx: 0,         ly: mouthY,               rx: r * 0.28, ry: r * 0.14 },
+                'jaw':              { lx: 0,         ly: (nose + chin) / 2,    rx: r * 0.45, ry: r * 0.25 },
+                'brow':             { lx: 0,         ly: brow,                 rx: r * 0.50, ry: r * 0.10 }
+            };
+            return regions[partName] || { lx: 0, ly: 0, rx: r * 0.2, ry: r * 0.2 };
+        }
+
+        function drawAiVisualOverlayOnFace() {
+            const resFactor = Math.max(1, canvas.width / 600);
             const lw = (3 * resFactor) / Math.sqrt(view.scale);
+            const r = state.radius;
 
             ctx.save();
+            ctx.translate(state.cx, state.cy);
+            ctx.rotate(state.angle * Math.PI / 180);
             ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
             ctx.shadowBlur = 5 * resFactor;
 
-            // 1. رسم سهم اتجاه الضوء
-            if (aiVisualOverlay.lightArrow) {
-                const la = aiVisualOverlay.lightArrow;
-                const x1 = (la.fromX / 100) * w;
-                const y1 = (la.fromY / 100) * h;
-                const x2 = (la.toX / 100) * w;
-                const y2 = (la.toY / 100) * h;
+            // 1. سهم اتجاه الضوء خارج إطار الكرة متجهاً نحو مركز الوجه
+            if (aiVisualOverlay.lightDir) {
+                const ld = aiVisualOverlay.lightDir;
+                const rad = (ld.angleDeg || 45) * Math.PI / 180;
+                const startDist = r * 1.65;
+                const endDist = r * 1.05;
+
+                const x1 = Math.cos(rad) * startDist;
+                const y1 = -Math.sin(rad) * startDist;
+                const x2 = Math.cos(rad) * endDist;
+                const y2 = -Math.sin(rad) * endDist;
 
                 ctx.strokeStyle = '#FFD700';
                 ctx.fillStyle = '#FFD700';
@@ -1641,62 +1634,54 @@
                 ctx.lineTo(x2, y2);
                 ctx.stroke();
 
-                // رأس السهم
-                const angle = Math.atan2(y2 - y1, x2 - x1);
+                const arrowAng = Math.atan2(y2 - y1, x2 - x1);
                 const headLen = 14 * resFactor;
                 ctx.beginPath();
                 ctx.moveTo(x2, y2);
-                ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
-                ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
+                ctx.lineTo(x2 - headLen * Math.cos(arrowAng - Math.PI / 6), y2 - headLen * Math.sin(arrowAng - Math.PI / 6));
+                ctx.lineTo(x2 - headLen * Math.cos(arrowAng + Math.PI / 6), y2 - headLen * Math.sin(arrowAng + Math.PI / 6));
                 ctx.closePath();
                 ctx.fill();
 
-                drawLabelBadge(`☀️ ${la.label || 'مصدر الضوء'}`, x1, y1 - 14 * resFactor, 'rgba(0,0,0,0.85)', '#FFD700', resFactor);
+                drawLabelBadge(`☀️ ${ld.label || 'اتجاه الضوء'}`, x1, y1 - 14 * resFactor, 'rgba(0,0,0,0.88)', '#FFD700', resFactor);
             }
 
-            // 2. رسم مناطق الظل العميق (Core Shadows)
+            // 2. مناطق الظل العميق فوق أجزاء الوجه الحقيقية
             if (aiVisualOverlay.shadowZones && aiVisualOverlay.shadowZones.length > 0) {
                 aiVisualOverlay.shadowZones.forEach(sz => {
-                    const cx = (sz.x / 100) * w;
-                    const cy = (sz.y / 100) * h;
-                    const rx = ((sz.rx || 7) / 100) * w;
-                    const ry = ((sz.ry || 7) / 100) * h;
-
+                    const reg = getAnatomicalRegionCoords(sz.part);
                     ctx.save();
                     ctx.strokeStyle = '#4FACFE';
-                    ctx.fillStyle = 'rgba(79, 172, 254, 0.22)';
+                    ctx.fillStyle = 'rgba(79, 172, 254, 0.25)';
                     ctx.lineWidth = lw;
                     ctx.setLineDash([6 * resFactor, 4 * resFactor]);
 
                     ctx.beginPath();
-                    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+                    ctx.ellipse(reg.lx, reg.ly, reg.rx, reg.ry, 0, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.stroke();
                     ctx.restore();
 
                     if (sz.label) {
-                        drawLabelBadge(`🌗 ${sz.label}`, cx, cy, 'rgba(0,0,0,0.85)', '#4FACFE', resFactor);
+                        drawLabelBadge(`🌗 ${sz.label}`, reg.lx, reg.ly, 'rgba(0,0,0,0.88)', '#4FACFE', resFactor);
                     }
                 });
             }
 
-            // 3. رسم مؤشرات التصحيح الموضعية (عند مقارنة الرسمة بالأصل)
+            // 3. مؤشرات التصحيح الموضعية
             if (aiVisualOverlay.corrections && aiVisualOverlay.corrections.length > 0) {
                 aiVisualOverlay.corrections.forEach((corr, idx) => {
-                    const cx = (corr.x / 100) * w;
-                    const cy = (corr.y / 100) * h;
-                    const r = 16 * resFactor;
-
+                    const reg = getAnatomicalRegionCoords(corr.part);
                     ctx.strokeStyle = '#FF3366';
                     ctx.fillStyle = 'rgba(255, 51, 102, 0.25)';
                     ctx.lineWidth = lw * 1.2;
 
                     ctx.beginPath();
-                    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                    ctx.ellipse(reg.lx, reg.ly, reg.rx, reg.ry, 0, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.stroke();
 
-                    drawLabelBadge(`⚠️ ${idx + 1}: ${corr.text}`, cx, cy - r - 12 * resFactor, 'rgba(20,0,0,0.9)', '#FF6B8B', resFactor);
+                    drawLabelBadge(`⚠️ ${idx + 1}: ${corr.text}`, reg.lx, reg.ly - reg.ry - 12 * resFactor, 'rgba(20,0,0,0.9)', '#FF6B8B', resFactor);
                 });
             }
 
