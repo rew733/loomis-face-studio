@@ -614,7 +614,7 @@
         </div>
 
         <div class="plumb-report-box" id="plumbReportBox">
-            اسحب الدائرة السماوية (أو البرتقالية) فوق أي معلم في الوجه لرؤية المحاذاة والمسافة بين النقطتين بالسنتيمتر.
+            يمكنك سحب خطوط الشاقول من أي مكان على امتدادها (من أطراف الشاشة) أو من المركز حتى لا يغطي إصبعك نقطة التصويب.
         </div>
     </div>
 
@@ -736,7 +736,7 @@
             </select>
         </div>
 
-        <div class="hint">💡 مركز الشاقول مفرغ لرؤية النقطة بوضوح تام؛ فعّل "شاقول 2" لقياس المسافة المباشرة بين أي نقطتين</div>
+        <div class="hint">💡 اسحب أي خط من خطوط الشاقول من طرف الشاشة لتحريكه دون تغطية العين أو الأنف بإصبعك</div>
     </div>
 
     <!-- نافذة المرشد التشريحي الذكي Gemini AI -->
@@ -973,7 +973,7 @@
             plumbPt.snappedName = null;
             if (!plumbState.snapEnabled || landmarksList.length === 0) return;
 
-            const snapRadius = Math.max(18, canvas.width * 0.025) / view.scale;
+            const snapRadius = Math.max(16, canvas.width * 0.022) / view.scale;
             let closest = null;
             let minD = snapRadius;
 
@@ -1720,18 +1720,47 @@
             };
         }
 
+        // حساب المسافة العمودية من نقطة اللمس إلى خطي الشاقول (للسحب من أي مكان على طول الخط)
+        function hitTestPlumb(pos, plumbPt, axisDeg, centerTol, lineTol) {
+            const dCenter = dist(pos, plumbPt);
+            if (dCenter < centerTol) {
+                return 'both';
+            }
+            const rad = axisDeg * Math.PI / 180;
+            const dx = pos.x - plumbPt.x;
+            const dy = pos.y - plumbPt.y;
+            const u = dx * Math.cos(rad) + dy * Math.sin(rad);  // البعد عن الخط العمودي
+            const v = -dx * Math.sin(rad) + dy * Math.cos(rad); // البعد عن الخط الأفقي
+
+            if (Math.abs(u) < lineTol && Math.abs(v) >= centerTol * 0.7) {
+                return 'vLine'; // لمس الخط العمودي لتحريكه يميناً ويساراً
+            }
+            if (Math.abs(v) < lineTol && Math.abs(u) >= centerTol * 0.7) {
+                return 'hLine'; // لمس الخط الأفقي لتحريكه أعلى وأسفل
+            }
+            return null;
+        }
+
         function handleStart(clientX, clientY) {
             const pos = screenToImagePos(clientX, clientY);
-            const ptHitThreshold = Math.max(32, canvas.width * 0.045) / view.scale;
+            const ptHitThreshold = Math.max(28, canvas.width * 0.04) / view.scale;
+            const plumbLineTol = Math.max(26, canvas.width * 0.038) / view.scale;
 
+            // 1. أولوية لمس الشاقول (من المركز أو من أي مكان على الخط العمودي أو الأفقي)
             if (plumbState.active) {
-                if (plumbState.dual && dist(pos, plumbState.p2) < ptHitThreshold) {
-                    dragTarget = 'plumb:2';
-                    plumbState.activeIndex = 1;
-                    return;
+                const axisDeg = plumbState.alignWithHead ? state.angle : 0;
+
+                if (plumbState.dual) {
+                    const hit2 = hitTestPlumb(pos, plumbState.p2, axisDeg, ptHitThreshold, plumbLineTol);
+                    if (hit2) {
+                        dragTarget = `plumb:2:${hit2}`;
+                        plumbState.activeIndex = 1;
+                        return;
+                    }
                 }
-                if (dist(pos, plumbState.p1) < ptHitThreshold) {
-                    dragTarget = 'plumb:1';
+                const hit1 = hitTestPlumb(pos, plumbState.p1, axisDeg, ptHitThreshold, plumbLineTol);
+                if (hit1) {
+                    dragTarget = `plumb:1:${hit1}`;
                     plumbState.activeIndex = 0;
                     return;
                 }
@@ -1739,6 +1768,7 @@
 
             if (isLocked || !isGridVisible) return;
 
+            // 2. نقاط الملامح في تبويب نسب الملامح
             if (currentMode === 'anatomy' && features) {
                 const featureKeys = [
                     'leftEyeOuter', 'leftEyeInner',
@@ -1764,6 +1794,7 @@
             const local = toLocalGridSpace(pos.x, pos.y);
             const lineHitThreshold = Math.max(26, canvas.width * 0.04) / view.scale;
 
+            // 3. إطار الطول والعرض الأرجواني
             if (currentMode === 'anatomy') {
                 if (Math.abs(local.y - state.bounds.topY) < lineHitThreshold && Math.abs(local.x) < state.radius * 2) {
                     dragTarget = 'bound:topY';
@@ -1783,6 +1814,7 @@
                 }
             }
 
+            // 4. الخطوط الأفقية الأربعة
             const lines = ['hair', 'brow', 'nose', 'chin'];
             for (let key of lines) {
                 if (Math.abs(local.y - state.yOffsets[key]) < lineHitThreshold && Math.abs(local.x) < state.radius * 1.8) {
@@ -1799,16 +1831,35 @@
             if (!dragTarget) return;
             const pos = screenToImagePos(clientX, clientY);
 
-            if (dragTarget === 'plumb:1') {
-                plumbState.p1.x = pos.x;
-                plumbState.p1.y = pos.y;
-                applyMagneticSnap(plumbState.p1);
-                redraw();
-                return;
-            } else if (dragTarget === 'plumb:2') {
-                plumbState.p2.x = pos.x;
-                plumbState.p2.y = pos.y;
-                applyMagneticSnap(plumbState.p2);
+            if (dragTarget.startsWith('plumb:')) {
+                const parts = dragTarget.split(':');
+                const pIdx = parts[1];
+                const mode = parts[2]; // 'both', 'vLine', 'hLine'
+                const targetPt = pIdx === '2' ? plumbState.p2 : plumbState.p1;
+                const axisDeg = plumbState.alignWithHead ? state.angle : 0;
+                const rad = axisDeg * Math.PI / 180;
+
+                if (mode === 'both') {
+                    targetPt.x = pos.x;
+                    targetPt.y = pos.y;
+                    applyMagneticSnap(targetPt);
+                } else if (mode === 'vLine') {
+                    // تحريك الخط العمودي فقط على طول المحور المتعامد معه
+                    const dx = pos.x - targetPt.x;
+                    const dy = pos.y - targetPt.y;
+                    const uShift = dx * Math.cos(rad) + dy * Math.sin(rad);
+                    targetPt.x += uShift * Math.cos(rad);
+                    targetPt.y += uShift * Math.sin(rad);
+                    targetPt.snappedName = null;
+                } else if (mode === 'hLine') {
+                    // تحريك الخط الأفقي فقط على طول المحور المتعامد معه
+                    const dx = pos.x - targetPt.x;
+                    const dy = pos.y - targetPt.y;
+                    const vShift = -dx * Math.sin(rad) + dy * Math.cos(rad);
+                    targetPt.x += -vShift * Math.sin(rad);
+                    targetPt.y += vShift * Math.cos(rad);
+                    targetPt.snappedName = null;
+                }
                 redraw();
                 return;
             }
@@ -1985,11 +2036,9 @@
             }
         }
 
-        // رسم الشاقول بمركز مفرغ تماماً وصغير حتى لا يحجب التفاصيل الدقيقة تحت التقاطع
         function drawSinglePlumb(pt, color, numLabel, axisDeg, pxToCm, resFactor) {
             const span = Math.max(canvas.width, canvas.height) * 1.5;
             const lw = (1.8 * resFactor) / Math.sqrt(view.scale);
-            // تصغير حلقة التصويب وجعلها مفرغة تماماً بدون أي تعبئة داكنة
             const handleR = (7.5 * resFactor) / Math.sqrt(view.scale);
             const cmStepPx = 1 / Math.max(0.001, pxToCm);
 
@@ -2024,7 +2073,7 @@
                 ctx.stroke();
             }
 
-            // حلقة خارجية رفيعة ومفرغة تماماً (بدون تعبئة تحجب الرؤية)
+            // حلقة خارجية رفيعة ومفرغة تماماً
             ctx.beginPath();
             ctx.arc(0, 0, handleR, 0, Math.PI * 2);
             ctx.stroke();
@@ -2036,13 +2085,11 @@
 
             ctx.restore();
 
-            // شارة الاسم بعيدة قليلاً عن المركز حتى لا تغطي منطقة التصويب
             const badgeText = pt.snappedName ? `🧲 ${pt.snappedName}` : `نقطة ${numLabel}`;
             const offsetTop = (numLabel === '1') ? -22 : 22;
             drawLabelBadge(badgeText, pt.x, pt.y + (offsetTop * resFactor / Math.sqrt(view.scale)), 'rgba(0,0,0,0.82)', color, resFactor);
         }
 
-        // رسم الخط القُطري المباشر والمسافة الأفقية والعمودية بين النقطتين بالسنتيمتر
         function drawDualPlumbBridge(p1, p2, axisDeg, pxToCm, resFactor) {
             const rad = axisDeg * Math.PI / 180;
             const dxWorld = p2.x - p1.x;
@@ -2054,7 +2101,6 @@
             const cornerX = p1.x + uDiff * Math.cos(rad);
             const cornerY = p1.y + uDiff * Math.sin(rad);
 
-            // 1. الخط القُطري المباشر بين النقطتين (1 و 2)
             ctx.save();
             ctx.strokeStyle = '#00FF88';
             ctx.lineWidth = (2.4 * resFactor) / Math.sqrt(view.scale);
@@ -2063,7 +2109,6 @@
             ctx.lineTo(p2.x, p2.y);
             ctx.stroke();
 
-            // 2. خطوط الزاوية القائمة (الأفقي والعمودي) بخط متقطع خفيف
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
             ctx.lineWidth = (1.5 * resFactor) / Math.sqrt(view.scale);
             ctx.setLineDash([5 * resFactor, 4 * resFactor]);
@@ -2078,7 +2123,6 @@
             const dxCm = (Math.abs(uDiff) * pxToCm).toFixed(2);
             const dyCm = (Math.abs(vDiff) * pxToCm).toFixed(2);
 
-            // شارة المسافة المباشرة بين النقطتين في منتصف الخط الواصل بينهما
             if (dist(p1, p2) > 12) {
                 drawLabelBadge(`📏 ${directCm} سم`, (p1.x + p2.x) / 2, (p1.y + p2.y) / 2, 'rgba(0, 30, 15, 0.92)', '#00FF88', resFactor);
             }
