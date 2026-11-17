@@ -201,19 +201,23 @@
         }
         .plumb-dual-stats {
             display: none;
-            grid-template-columns: 1fr 1fr;
-            gap: 6px;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 5px;
             margin-bottom: 8px;
         }
         .plumb-dual-stats.show { display: grid; }
         .plumb-stat-box {
             background: #1b2631;
             border-right: 3px solid #ff9100;
-            padding: 6px 8px;
+            padding: 6px 7px;
             border-radius: 5px;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .plumb-stat-box.direct {
+            border-right-color: #00ff88;
+            background: #152b24;
         }
         .plumb-report-box {
             background: #0f151b;
@@ -586,27 +590,31 @@
         <canvas id="output_canvas" width="720" height="960"></canvas>
     </div>
 
-    <!-- بطاقة الشاقول الذكي المزدوج والمغناطيس التشريحي -->
+    <!-- بطاقة الشاقول الذكي المزدوج وقياس المسافة بين النقطتين -->
     <div class="plumb-card" id="plumbCard">
         <div class="plumb-controls-row">
-            <button class="plumb-pill-btn" id="btnDualPlumb" onclick="toggleSecondPlumb()">➕ إضافة شاقول 2 (برتقالي)</button>
+            <button class="plumb-pill-btn" id="btnDualPlumb" onclick="toggleSecondPlumb()">➕ إضافة شاقول 2 (قياس بين نقطتين)</button>
             <button class="plumb-pill-btn" id="btnPlumbAxis" onclick="togglePlumbAxis()">📐 أرضي (0° / 90°)</button>
             <button class="plumb-pill-btn" id="btnPlumbSnap" onclick="togglePlumbSnap()">🧲 المغناطيس: مفعّل</button>
         </div>
 
         <div class="plumb-dual-stats" id="plumbDualStats">
-            <div class="plumb-stat-box">
-                <span style="color:#ccc;">المسافة الأفقية (ΔX):</span>
-                <span style="color:#ff9100; font-weight:bold; direction:ltr;" id="plumbDxVal">0.0 سم</span>
+            <div class="plumb-stat-box direct">
+                <span style="color:#a7ffeb; font-size:10px;">المسافة المباشرة:</span>
+                <span style="color:#00ff88; font-weight:bold; font-size:13px; direction:ltr;" id="plumbDirectVal">0.0 سم</span>
             </div>
             <div class="plumb-stat-box">
-                <span style="color:#ccc;">المسافة العمودية (ΔY):</span>
-                <span style="color:#ff9100; font-weight:bold; direction:ltr;" id="plumbDyVal">0.0 سم</span>
+                <span style="color:#ccc; font-size:10px;">الأفقية (ΔX):</span>
+                <span style="color:#ff9100; font-weight:bold; font-size:12px; direction:ltr;" id="plumbDxVal">0.0 سم</span>
+            </div>
+            <div class="plumb-stat-box">
+                <span style="color:#ccc; font-size:10px;">العمودية (ΔY):</span>
+                <span style="color:#ffd700; font-weight:bold; font-size:12px; direction:ltr;" id="plumbDyVal">0.0 سم</span>
             </div>
         </div>
 
         <div class="plumb-report-box" id="plumbReportBox">
-            اسحب الدائرة السماوية (أو البرتقالية) فوق أي معلم في الوجه لرؤية المحاذاة العمودية والأفقية الفورية بالسنتيمتر.
+            اسحب الدائرة السماوية (أو البرتقالية) فوق أي معلم في الوجه لرؤية المحاذاة والمسافة بين النقطتين بالسنتيمتر.
         </div>
     </div>
 
@@ -728,7 +736,7 @@
             </select>
         </div>
 
-        <div class="hint">💡 اضغط على "👁️ الشبكة" لإخفاء دائرة لوميس وخطوطها مؤقتاً أثناء استخدام الشاقول</div>
+        <div class="hint">💡 مركز الشاقول مفرغ لرؤية النقطة بوضوح تام؛ فعّل "شاقول 2" لقياس المسافة المباشرة بين أي نقطتين</div>
     </div>
 
     <!-- نافذة المرشد التشريحي الذكي Gemini AI -->
@@ -845,7 +853,6 @@
         let initialViewScale = 1;
         let lastPinchCenter = null;
 
-        // زر إخفاء وإظهار دائرة لوميس وخطوطها
         function toggleGridVisibility() {
             isGridVisible = !isGridVisible;
             const btn = document.getElementById('btnGridToggle');
@@ -859,7 +866,7 @@
             redraw();
         }
 
-        // --- دوال أداة الشاقول الذكي المزدوج ---
+        // --- دوال أداة الشاقول الذكي المزدوج وقياس المسافة بين النقطتين ---
         function togglePlumbTool() {
             plumbState.active = !plumbState.active;
             const btn = document.getElementById('btnPlumbToggle');
@@ -893,7 +900,7 @@
                 plumbState.p2.y = state.cy + state.radius * 0.35;
                 applyMagneticSnap(plumbState.p2);
             } else {
-                btn.textContent = '➕ إضافة شاقول 2 (برتقالي)';
+                btn.textContent = '➕ إضافة شاقول 2 (قياس بين نقطتين)';
                 btn.classList.remove('active-orange');
                 statsBox.classList.remove('show');
             }
@@ -1005,9 +1012,11 @@
             if (plumbState.dual) {
                 const proj1 = projectAlongPlumbAxis(plumbState.p1, axisDeg);
                 const proj2 = projectAlongPlumbAxis(plumbState.p2, axisDeg);
+                const directCm = (dist(plumbState.p1, plumbState.p2) * pxToCm).toFixed(2);
                 const dxCm = (Math.abs(proj2.u - proj1.u) * pxToCm).toFixed(2);
                 const dyCm = (Math.abs(proj2.v - proj1.v) * pxToCm).toFixed(2);
 
+                document.getElementById('plumbDirectVal').textContent = `${directCm} سم`;
                 document.getElementById('plumbDxVal').textContent = `${dxCm} سم`;
                 document.getElementById('plumbDyVal').textContent = `${dyCm} سم`;
             }
@@ -1715,7 +1724,6 @@
             const pos = screenToImagePos(clientX, clientY);
             const ptHitThreshold = Math.max(32, canvas.width * 0.045) / view.scale;
 
-            // 1. أولوية لمس مقبض الشاقول الأول أو الثاني
             if (plumbState.active) {
                 if (plumbState.dual && dist(pos, plumbState.p2) < ptHitThreshold) {
                     dragTarget = 'plumb:2';
@@ -1731,7 +1739,6 @@
 
             if (isLocked || !isGridVisible) return;
 
-            // 2. نقاط الملامح في تبويب نسب الملامح
             if (currentMode === 'anatomy' && features) {
                 const featureKeys = [
                     'leftEyeOuter', 'leftEyeInner',
@@ -1757,7 +1764,6 @@
             const local = toLocalGridSpace(pos.x, pos.y);
             const lineHitThreshold = Math.max(26, canvas.width * 0.04) / view.scale;
 
-            // 3. إطار الطول والعرض الأرجواني
             if (currentMode === 'anatomy') {
                 if (Math.abs(local.y - state.bounds.topY) < lineHitThreshold && Math.abs(local.x) < state.radius * 2) {
                     dragTarget = 'bound:topY';
@@ -1777,7 +1783,6 @@
                 }
             }
 
-            // 4. الخطوط الأفقية الأربعة
             const lines = ['hair', 'brow', 'nose', 'chin'];
             for (let key of lines) {
                 if (Math.abs(local.y - state.yOffsets[key]) < lineHitThreshold && Math.abs(local.x) < state.radius * 1.8) {
@@ -1937,7 +1942,6 @@
 
             const pxToCm = getPrecisePxToCm();
 
-            // رسم دائرة لوميس وخطوطها فقط إذا كانت ظاهرة (غير مخفية)
             if (isGridVisible) {
                 drawGrid(pxToCm);
                 if (currentMode === 'anatomy' && features) {
@@ -1964,10 +1968,10 @@
 
             if (plumbState.snapEnabled && landmarksList.length > 0) {
                 ctx.save();
-                ctx.fillStyle = 'rgba(0, 229, 255, 0.55)';
+                ctx.fillStyle = 'rgba(0, 229, 255, 0.45)';
                 landmarksList.forEach(lm => {
                     ctx.beginPath();
-                    ctx.arc(lm.x, lm.y, 3.2 * resFactor / Math.sqrt(view.scale), 0, Math.PI * 2);
+                    ctx.arc(lm.x, lm.y, 2.5 * resFactor / Math.sqrt(view.scale), 0, Math.PI * 2);
                     ctx.fill();
                 });
                 ctx.restore();
@@ -1981,22 +1985,25 @@
             }
         }
 
+        // رسم الشاقول بمركز مفرغ تماماً وصغير حتى لا يحجب التفاصيل الدقيقة تحت التقاطع
         function drawSinglePlumb(pt, color, numLabel, axisDeg, pxToCm, resFactor) {
             const span = Math.max(canvas.width, canvas.height) * 1.5;
-            const lw = (2.2 * resFactor) / Math.sqrt(view.scale);
-            const handleR = (14 * resFactor) / Math.sqrt(view.scale);
+            const lw = (1.8 * resFactor) / Math.sqrt(view.scale);
+            // تصغير حلقة التصويب وجعلها مفرغة تماماً بدون أي تعبئة داكنة
+            const handleR = (7.5 * resFactor) / Math.sqrt(view.scale);
             const cmStepPx = 1 / Math.max(0.001, pxToCm);
 
             ctx.save();
             ctx.translate(pt.x, pt.y);
             ctx.rotate(axisDeg * Math.PI / 180);
 
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-            ctx.shadowBlur = 4 * resFactor;
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+            ctx.shadowBlur = 3 * resFactor;
             ctx.strokeStyle = color;
             ctx.fillStyle = color;
             ctx.lineWidth = lw;
 
+            // خطا التقاطع
             ctx.beginPath();
             ctx.moveTo(0, -span);
             ctx.lineTo(0, span);
@@ -2004,8 +2011,9 @@
             ctx.lineTo(span, 0);
             ctx.stroke();
 
+            // شرطات السنتيمتر
             if (cmStepPx > 12) {
-                const tickLen = 5 * resFactor / Math.sqrt(view.scale);
+                const tickLen = 4 * resFactor / Math.sqrt(view.scale);
                 ctx.beginPath();
                 for (let d = cmStepPx; d < span * 0.6; d += cmStepPx) {
                     ctx.moveTo(-tickLen, d); ctx.lineTo(tickLen, d);
@@ -2016,23 +2024,25 @@
                 ctx.stroke();
             }
 
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            // حلقة خارجية رفيعة ومفرغة تماماً (بدون تعبئة تحجب الرؤية)
             ctx.beginPath();
             ctx.arc(0, 0, handleR, 0, Math.PI * 2);
-            ctx.fill();
             ctx.stroke();
 
-            ctx.fillStyle = color;
+            // نقطة مركزية دقيقة جداً للتصويب
             ctx.beginPath();
-            ctx.arc(0, 0, 3 * resFactor / Math.sqrt(view.scale), 0, Math.PI * 2);
+            ctx.arc(0, 0, 1.5 * resFactor / Math.sqrt(view.scale), 0, Math.PI * 2);
             ctx.fill();
 
             ctx.restore();
 
-            const badgeText = pt.snappedName ? `🧲 ${pt.snappedName}` : `شاقول ${numLabel}`;
-            drawLabelBadge(badgeText, pt.x, pt.y - 24 * resFactor / Math.sqrt(view.scale), 'rgba(0,0,0,0.88)', color, resFactor);
+            // شارة الاسم بعيدة قليلاً عن المركز حتى لا تغطي منطقة التصويب
+            const badgeText = pt.snappedName ? `🧲 ${pt.snappedName}` : `نقطة ${numLabel}`;
+            const offsetTop = (numLabel === '1') ? -22 : 22;
+            drawLabelBadge(badgeText, pt.x, pt.y + (offsetTop * resFactor / Math.sqrt(view.scale)), 'rgba(0,0,0,0.82)', color, resFactor);
         }
 
+        // رسم الخط القُطري المباشر والمسافة الأفقية والعمودية بين النقطتين بالسنتيمتر
         function drawDualPlumbBridge(p1, p2, axisDeg, pxToCm, resFactor) {
             const rad = axisDeg * Math.PI / 180;
             const dxWorld = p2.x - p1.x;
@@ -2044,11 +2054,19 @@
             const cornerX = p1.x + uDiff * Math.cos(rad);
             const cornerY = p1.y + uDiff * Math.sin(rad);
 
+            // 1. الخط القُطري المباشر بين النقطتين (1 و 2)
             ctx.save();
-            ctx.strokeStyle = '#FFFFFF';
-            ctx.lineWidth = (2 * resFactor) / Math.sqrt(view.scale);
-            ctx.setLineDash([6 * resFactor, 4 * resFactor]);
+            ctx.strokeStyle = '#00FF88';
+            ctx.lineWidth = (2.4 * resFactor) / Math.sqrt(view.scale);
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
 
+            // 2. خطوط الزاوية القائمة (الأفقي والعمودي) بخط متقطع خفيف
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+            ctx.lineWidth = (1.5 * resFactor) / Math.sqrt(view.scale);
+            ctx.setLineDash([5 * resFactor, 4 * resFactor]);
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
             ctx.lineTo(cornerX, cornerY);
@@ -2056,14 +2074,19 @@
             ctx.stroke();
             ctx.restore();
 
+            const directCm = (dist(p1, p2) * pxToCm).toFixed(2);
             const dxCm = (Math.abs(uDiff) * pxToCm).toFixed(2);
             const dyCm = (Math.abs(vDiff) * pxToCm).toFixed(2);
 
-            if (Math.abs(uDiff) > 15) {
-                drawLabelBadge(`↔ ${dxCm} سم`, (p1.x + cornerX) / 2, (p1.y + cornerY) / 2 - 14 * resFactor, 'rgba(0,0,0,0.9)', '#00FF88', resFactor);
+            // شارة المسافة المباشرة بين النقطتين في منتصف الخط الواصل بينهما
+            if (dist(p1, p2) > 12) {
+                drawLabelBadge(`📏 ${directCm} سم`, (p1.x + p2.x) / 2, (p1.y + p2.y) / 2, 'rgba(0, 30, 15, 0.92)', '#00FF88', resFactor);
             }
-            if (Math.abs(vDiff) > 15) {
-                drawLabelBadge(`↕ ${dyCm} سم`, (cornerX + p2.x) / 2 + 32 * resFactor, (cornerY + p2.y) / 2, 'rgba(0,0,0,0.9)', '#FFD700', resFactor);
+            if (Math.abs(uDiff) > 25) {
+                drawLabelBadge(`↔ ${dxCm} سم`, (p1.x + cornerX) / 2, (p1.y + cornerY) / 2 - 14 * resFactor, 'rgba(0,0,0,0.85)', '#FF9100', resFactor);
+            }
+            if (Math.abs(vDiff) > 25) {
+                drawLabelBadge(`↕ ${dyCm} سم`, (cornerX + p2.x) / 2 + 30 * resFactor, (cornerY + p2.y) / 2, 'rgba(0,0,0,0.85)', '#FFD700', resFactor);
             }
         }
 
@@ -2176,12 +2199,12 @@
         }
 
         function drawLabelBadge(text, x, y, bgColor, textColor, resFactor) {
-            const fontSize = Math.round((12 * resFactor) / Math.sqrt(view.scale));
+            const fontSize = Math.round((11 * resFactor) / Math.sqrt(view.scale));
             ctx.save();
             ctx.font = `bold ${fontSize}px Tahoma`;
             const metrics = ctx.measureText(text);
             const padX = 5 * resFactor / Math.sqrt(view.scale);
-            const padY = 3 * resFactor / Math.sqrt(view.scale);
+            const padY = 2.5 * resFactor / Math.sqrt(view.scale);
             const w = metrics.width + padX * 2;
             const h = fontSize + padY * 2;
 
