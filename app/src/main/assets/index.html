@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Loomis Face Studio - القياس التشريحي التفاعلي</title>
+    <title>Loomis Face Studio - القياس التشريحي المتكامل</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
@@ -176,9 +176,10 @@
         .section-subtitle {
             color: #00ffff;
             font-weight: bold;
-            margin: 6px 0 4px 0;
+            margin: 8px 0 4px 0;
             font-size: 11px;
         }
+        .section-subtitle.magenta { color: #ff55ff; }
         .prop-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -199,10 +200,12 @@
             border-right: 3px solid #ffd700;
         }
         .prop-item.cyan { border-right-color: #00ffff; }
+        .prop-item.magenta { border-right-color: #ff55ff; }
         .prop-label { color: #ccc; font-size: 10px; }
         .prop-val { color: #ffd700; font-weight: bold; font-size: 12px; direction: ltr; text-align: right; }
         .prop-sub { color: #999; font-size: 10px; }
         .prop-item.cyan .prop-val { color: #00ffff; }
+        .prop-item.magenta .prop-val { color: #ff55ff; }
 
         .controls {
             margin-top: 8px;
@@ -277,7 +280,7 @@
 </head>
 <body>
 
-    <header>Loomis Face Studio - القياس التشريحي التفاعلي</header>
+    <header>Loomis Face Studio - القياس التشريحي المتكامل</header>
 
     <div class="tabs">
         <button class="tab-btn active" onclick="setMode('front', this)">أمامي (Front)</button>
@@ -298,7 +301,7 @@
             </div>
         </div>
 
-        <div class="detect-banner" id="detectBanner">جاري رصد النقاط التشريحية للعينين والفم...</div>
+        <div class="detect-banner" id="detectBanner">جاري رصد النقاط التشريحية للوجه والملامح...</div>
         <canvas id="output_canvas" width="720" height="960"></canvas>
     </div>
 
@@ -315,7 +318,26 @@
             </select>
         </div>
 
-        <div class="section-subtitle">أبعاد الملامح (قابلة للسحب والتعديل اليدوي مباشرة على الصورة):</div>
+        <div class="section-subtitle magenta">إطار قياس الوجه الكلي (اسحب الخطوط الأرجوانية لتحديد الطول والعرض):</div>
+        <div class="prop-grid-3">
+            <div class="prop-item magenta">
+                <span class="prop-label">الطول الكلي للوجه:</span>
+                <span class="prop-val" id="m_faceH">0.0 سم</span>
+                <span class="prop-sub">بين الخطين الأفقيين</span>
+            </div>
+            <div class="prop-item magenta">
+                <span class="prop-label">العرض الكلي للوجه:</span>
+                <span class="prop-val" id="m_faceW">0.0 سم</span>
+                <span class="prop-sub">بين الخطين العموديين</span>
+            </div>
+            <div class="prop-item magenta">
+                <span class="prop-label">نسبة الطول للعرض:</span>
+                <span class="prop-val" id="m_faceRatio">1.40 : 1</span>
+                <span class="prop-sub" id="m_facePct">العرض 71% من الطول</span>
+            </div>
+        </div>
+
+        <div class="section-subtitle">أبعاد الملامح الدقيقة (قابلة للسحب والتعديل اليدوي):</div>
         <div class="prop-grid">
             <div class="prop-item cyan">
                 <span class="prop-label">طول العين (يمنى / يسرى):</span>
@@ -399,7 +421,7 @@
             </select>
         </div>
 
-        <div class="hint">💡 في تبويب نسب الملامح: يمكنك سحب أي نقطة على العين أو الفم أو الأنف لضبطها بيدك بدقة 100%</div>
+        <div class="hint">💡 في تبويب نسب الملامح: اسحب الخطين الأفقيين والعموديين الأرجوانيين لقياس طول وعرض الوجه بدقة</div>
     </div>
 
     <script>
@@ -428,13 +450,19 @@
                 brow: -60,
                 nose: 90,
                 chin: 240
+            },
+            // إطار قياس الطول والعرض الكلي للوجه (خطان أفقيان وخطان عموديان)
+            bounds: {
+                topY: -260,
+                bottomY: 250,
+                leftX: -170,
+                rightX: 170
             }
         };
 
-        // نقاط الملامح القابلة للتعديل اليدوي والرصد الآلي
         let features = null;
 
-        let dragTarget = null; // 'center', 'hair', 'brow', 'nose', 'chin', أو اسم نقطة ملامح
+        let dragTarget = null;
         let dragStart = { x: 0, y: 0 };
         let initialPinchDist = null;
         let initialViewScale = 1;
@@ -491,7 +519,6 @@
                 const w = canvas.width;
                 const h = canvas.height;
 
-                // استخدام الزاوية الخارجية الحقيقية للعين (33 و 263) والمدمع السطحي الدقيق (133 و 362)
                 const leftEyeOuter = { x: lm[33].x * w, y: lm[33].y * h };
                 const leftEyeInner = { x: lm[133].x * w, y: lm[133].y * h };
 
@@ -501,7 +528,6 @@
                 const mouthLeft = { x: lm[61].x * w, y: lm[61].y * h };
                 const mouthRight = { x: lm[291].x * w, y: lm[291].y * h };
 
-                // استخدام فتحات الأنف الجانبية الدقيقة (129 و 358)
                 const noseLeft = { x: lm[129].x * w, y: lm[129].y * h };
                 const noseRight = { x: lm[358].x * w, y: lm[358].y * h };
 
@@ -509,6 +535,10 @@
                 const topHead = { x: lm[10].x * w, y: lm[10].y * h };
                 const chinPt = { x: lm[152].x * w, y: lm[152].y * h };
                 const browPt = { x: lm[9].x * w, y: lm[9].y * h };
+
+                // حدود الوجه الجانبية (عظام الوجنتين والصدغين 234 و 454)
+                const leftFaceEdge = { x: lm[234].x * w, y: lm[234].y * h };
+                const rightFaceEdge = { x: lm[454].x * w, y: lm[454].y * h };
 
                 features = {
                     leftEyeOuter, leftEyeInner,
@@ -526,10 +556,22 @@
                 }
 
                 if (!isLocked) {
+                    const localTop = toLocalGridSpace(topHead.x, topHead.y);
+                    const localChin = toLocalGridSpace(chinPt.x, chinPt.y);
+                    const localLeft = toLocalGridSpace(leftFaceEdge.x, leftFaceEdge.y);
+                    const localRight = toLocalGridSpace(rightFaceEdge.x, rightFaceEdge.y);
+
                     state.yOffsets.brow = toLocalGridSpace(browPt.x, browPt.y).y;
                     state.yOffsets.nose = toLocalGridSpace(noseBase.x, noseBase.y).y;
-                    state.yOffsets.chin = toLocalGridSpace(chinPt.x, chinPt.y).y;
-                    state.yOffsets.hair = toLocalGridSpace(topHead.x, topHead.y).y;
+                    state.yOffsets.chin = localChin.y;
+                    state.yOffsets.hair = localTop.y;
+
+                    // ضبط إطار الطول والعرض الكلي تلقائياً
+                    const faceSpanY = localChin.y - localTop.y;
+                    state.bounds.topY = localTop.y - faceSpanY * 0.14; // قمة الجمجمة
+                    state.bounds.bottomY = localChin.y;
+                    state.bounds.leftX = localLeft.x;
+                    state.bounds.rightX = localRight.x;
                 }
 
                 redraw();
@@ -574,6 +616,12 @@
             state.yOffsets.brow *= ratio;
             state.yOffsets.nose *= ratio;
             state.yOffsets.chin *= ratio;
+
+            state.bounds.topY *= ratio;
+            state.bounds.bottomY *= ratio;
+            state.bounds.leftX *= ratio;
+            state.bounds.rightX *= ratio;
+
             document.getElementById('radiusVal').textContent = state.radius;
             redraw();
         });
@@ -665,6 +713,12 @@
                 nose: r * 0.55,
                 chin: r * 1.35
             };
+            state.bounds = {
+                topY: -r * 1.35,
+                bottomY: r * 1.35,
+                leftX: -r * 0.95,
+                rightX: r * 0.95
+            };
             state.angle = 0;
             angleRange.value = 0;
             document.getElementById('angleVal').textContent = '0°';
@@ -748,7 +802,7 @@
             const pos = screenToImagePos(clientX, clientY);
             const ptHitThreshold = Math.max(28, canvas.width * 0.04) / view.scale;
 
-            // 1. إذا كنا في تبويب نسب الملامح، نتحقق أولاً من لمس أي نقطة على العين أو الفم أو الأنف لتعديلها يدوياً
+            // 1. في تبويب نسب الملامح: التحقق من نقاط الملامح (العين، الأنف، الفم)
             if (currentMode === 'anatomy' && features) {
                 const featureKeys = [
                     'leftEyeOuter', 'leftEyeInner',
@@ -771,9 +825,30 @@
                 }
             }
 
-            // 2. التحقق من لمس الخطوط الأفقية الأربعة
             const local = toLocalGridSpace(pos.x, pos.y);
-            const lineHitThreshold = Math.max(30, canvas.width * 0.045) / view.scale;
+            const lineHitThreshold = Math.max(26, canvas.width * 0.04) / view.scale;
+
+            // 2. التحقق من خطي الطول (الأفقيين) وخطي العرض (العموديين) لإطار الوجه الكلي
+            if (currentMode === 'anatomy') {
+                if (Math.abs(local.y - state.bounds.topY) < lineHitThreshold && Math.abs(local.x) < state.radius * 2) {
+                    dragTarget = 'bound:topY';
+                    return;
+                }
+                if (Math.abs(local.y - state.bounds.bottomY) < lineHitThreshold && Math.abs(local.x) < state.radius * 2) {
+                    dragTarget = 'bound:bottomY';
+                    return;
+                }
+                if (Math.abs(local.x - state.bounds.leftX) < lineHitThreshold && Math.abs(local.y) < state.radius * 2) {
+                    dragTarget = 'bound:leftX';
+                    return;
+                }
+                if (Math.abs(local.x - state.bounds.rightX) < lineHitThreshold && Math.abs(local.y) < state.radius * 2) {
+                    dragTarget = 'bound:rightX';
+                    return;
+                }
+            }
+
+            // 3. التحقق من الخطوط الأفقية الأربعة لتقنية لوميس
             const lines = ['hair', 'brow', 'nose', 'chin'];
             for (let key of lines) {
                 if (Math.abs(local.y - state.yOffsets[key]) < lineHitThreshold && Math.abs(local.x) < state.radius * 1.8) {
@@ -782,7 +857,7 @@
                 }
             }
 
-            // 3. تحريك الشبكة بالكامل
+            // 4. تحريك الشبكة بالكامل
             dragTarget = 'center';
             dragStart = { x: pos.x - state.cx, y: pos.y - state.cy };
         }
@@ -794,12 +869,19 @@
             if (dragTarget.startsWith('feat:')) {
                 const key = dragTarget.split(':')[1];
                 features[key] = { x: pos.x, y: pos.y };
+            } else if (dragTarget.startsWith('bound:')) {
+                const bKey = dragTarget.split(':')[1];
+                const localNow = toLocalGridSpace(pos.x, pos.y);
+                if (bKey === 'topY' || bKey === 'bottomY') {
+                    state.bounds[bKey] = localNow.y;
+                } else {
+                    state.bounds[bKey] = localNow.x;
+                }
             } else if (dragTarget === 'center') {
                 const dx = (pos.x - dragStart.x) - state.cx;
                 const dy = (pos.y - dragStart.y) - state.cy;
                 state.cx += dx;
                 state.cy += dy;
-                // تحريك نقاط الملامح مع الشبكة إذا لم تكن مرصودة من صورة ثابتة
                 if (features && !currentImage) {
                     for (let k in features) {
                         features[k].x += dx;
@@ -870,8 +952,8 @@
 
         function getPrecisePxToCm() {
             const scaleVal = document.getElementById('headHeightScale').value;
-            const faceThreeThirdsPx = Math.abs(state.yOffsets.chin - state.yOffsets.hair);
-            const fullHeadHeightPx = Math.max(100, faceThreeThirdsPx * 1.12);
+            // الاعتماد على الطول الفعلي المحدد بين خطي الطول (topY و bottomY) كمرجع أساسي لطول الرأس
+            const totalHeadPx = Math.max(80, Math.abs(state.bounds.bottomY - state.bounds.topY));
 
             if (scaleVal === 'screen') {
                 const rect = canvas.getBoundingClientRect();
@@ -880,7 +962,7 @@
                 return displayedScale / cssPxPerCm;
             } else {
                 const targetHeadCm = parseFloat(scaleVal) || 18.0;
-                return targetHeadCm / fullHeadHeightPx;
+                return targetHeadCm / totalHeadPx;
             }
         }
 
@@ -950,7 +1032,7 @@
             ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
             ctx.shadowBlur = 4 * resFactor;
 
-            // 1. العينان (خط القياس المستقيم من المدمع إلى الزاوية الخارجية + قوس العين)
+            // 1. العينان
             ctx.strokeStyle = '#00FFFF';
             ctx.fillStyle = '#00FFFF';
             ctx.lineWidth = lw;
@@ -1016,7 +1098,6 @@
             const len = dist(p1, p2);
             const ang = Math.atan2(p2.y - p1.y, p2.x - p1.x);
 
-            // رسم إطار بيضاوي مرن يطابق زاوية وطول العين
             ctx.save();
             ctx.translate(midX, midY);
             ctx.rotate(ang);
@@ -1025,13 +1106,11 @@
             ctx.stroke();
             ctx.restore();
 
-            // خط القياس المستقيم من المدمع إلى اللحاظ
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
             ctx.lineTo(p2.x, p2.y);
             ctx.stroke();
 
-            // مقابض السحب الدائرية
             [p1, p2].forEach(pt => {
                 ctx.beginPath();
                 ctx.arc(pt.x, pt.y, ptR, 0, Math.PI * 2);
@@ -1128,7 +1207,10 @@
             drawAdjustableLine(nose, lineSpan, 'الأنف', lw, fontSize, resFactor);
             drawAdjustableLine(chin, lineSpan, 'الذقن', lw, fontSize, resFactor);
 
+            // رسم إطار قياس الطول والعرض الكلي للوجه (خطان أفقيان وخطان عموديان) في تبويب نسب الملامح
             if (currentMode === 'anatomy') {
+                drawFaceDimensionFrame(pxToCm, lw, resFactor);
+
                 const t1Cm = (Math.abs(brow - hair) * pxToCm).toFixed(1);
                 const t2Cm = (Math.abs(nose - brow) * pxToCm).toFixed(1);
                 const t3Cm = (Math.abs(chin - nose) * pxToCm).toFixed(1);
@@ -1142,6 +1224,68 @@
             ctx.beginPath();
             ctx.arc(0, 0, 7 * resFactor, 0, Math.PI * 2);
             ctx.fill();
+
+            ctx.restore();
+        }
+
+        // رسم الخطين الأفقيين (الطول) والخطين العموديين (العرض) القابلين للسحب
+        function drawFaceDimensionFrame(pxToCm, lw, resFactor) {
+            const { topY, bottomY, leftX, rightX } = state.bounds;
+            const hSpan = Math.max(Math.abs(leftX), Math.abs(rightX)) + 45 * resFactor;
+            const vTop = Math.min(topY, bottomY) - 35 * resFactor;
+            const vBot = Math.max(topY, bottomY) + 35 * resFactor;
+            const handleR = 6.5 * resFactor / Math.sqrt(view.scale);
+
+            ctx.save();
+            ctx.strokeStyle = '#FF55FF';
+            ctx.fillStyle = '#FF55FF';
+            ctx.lineWidth = lw * 0.9;
+            ctx.setLineDash([10 * resFactor, 6 * resFactor]);
+
+            // 1. الخطان الأفقيان (الطول: قمة الرأس وأسفل الذقن)
+            [topY, bottomY].forEach(y => {
+                ctx.beginPath();
+                ctx.moveTo(-hSpan, y);
+                ctx.lineTo(hSpan, y);
+                ctx.stroke();
+
+                if (!isLocked) {
+                    ctx.save();
+                    ctx.setLineDash([]);
+                    ctx.beginPath();
+                    ctx.arc(-hSpan, y, handleR, 0, Math.PI * 2);
+                    ctx.arc(hSpan, y, handleR, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            });
+
+            // 2. الخطان العموديان (العرض: يمين ويسار الوجه)
+            [leftX, rightX].forEach(x => {
+                ctx.beginPath();
+                ctx.moveTo(x, vTop);
+                ctx.lineTo(x, vBot);
+                ctx.stroke();
+
+                if (!isLocked) {
+                    ctx.save();
+                    ctx.setLineDash([]);
+                    ctx.beginPath();
+                    ctx.arc(x, vTop, handleR, 0, Math.PI * 2);
+                    ctx.arc(x, vBot, handleR, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            });
+
+            ctx.setLineDash([]);
+
+            // شارات العرض والطول المباشرة على الإطار
+            const totalHCm = (Math.abs(bottomY - topY) * pxToCm).toFixed(1);
+            const totalWCm = (Math.abs(rightX - leftX) * pxToCm).toFixed(1);
+
+            drawLabelBadge(`العرض: ${totalWCm} سم`, (leftX + rightX) / 2, vTop - 16 * resFactor, 'rgba(0,0,0,0.85)', '#FF55FF', resFactor);
+            drawLabelBadge(`الطول: ${totalHCm} سم`, -hSpan - 42 * resFactor, (topY + bottomY) / 2, 'rgba(0,0,0,0.85)', '#FF55FF', resFactor);
 
             ctx.restore();
         }
@@ -1185,6 +1329,21 @@
         }
 
         function updateMeasurements(pxToCm) {
+            // حساب الطول والعرض الكلي للوجه ونسبتهما
+            const faceHPx = Math.max(1, Math.abs(state.bounds.bottomY - state.bounds.topY));
+            const faceWPx = Math.max(1, Math.abs(state.bounds.rightX - state.bounds.leftX));
+
+            const faceHCm = (faceHPx * pxToCm).toFixed(1);
+            const faceWCm = (faceWPx * pxToCm).toFixed(1);
+            const hwRatio = (faceHPx / faceWPx).toFixed(2);
+            const wPct = Math.round((faceWPx / faceHPx) * 100);
+
+            document.getElementById('m_faceH').textContent = `${faceHCm} سم`;
+            document.getElementById('m_faceW').textContent = `${faceWCm} سم`;
+            document.getElementById('m_faceRatio').textContent = `${hwRatio} : 1`;
+            document.getElementById('m_facePct').textContent = `العرض ${wPct}% من الطول`;
+
+            // حساب الأثلاث الثلاثة
             const d1 = Math.abs(state.yOffsets.brow - state.yOffsets.hair);
             const d2 = Math.abs(state.yOffsets.nose - state.yOffsets.brow);
             const d3 = Math.abs(state.yOffsets.chin - state.yOffsets.nose);
@@ -1198,6 +1357,7 @@
             document.getElementById('m_t2Pct').textContent = Math.round((d2 / totalD) * 100) + '% من الوجه';
             document.getElementById('m_t3Pct').textContent = Math.round((d3 / totalD) * 100) + '% من الوجه';
 
+            // حساب أبعاد الملامح
             if (features) {
                 const f = features;
                 const leftEyePx = dist(f.leftEyeOuter, f.leftEyeInner);
