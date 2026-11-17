@@ -570,13 +570,14 @@
         <div class="floating-toolbar">
             <div class="tool-group">
                 <button class="float-btn" id="btnPlumbToggle" onclick="togglePlumbTool()">➕ الشاقول</button>
+                <button class="float-btn active" id="btnGridToggle" onclick="toggleGridVisibility()">👁️ الشبكة</button>
                 <button class="float-btn ai-btn" onclick="openAiModal()">🤖 المرشد</button>
                 <button class="float-btn" id="btnAiLayer" onclick="toggleAiOverlay()" style="display:none;">✨ AI</button>
-                <button class="float-btn" id="btnFullscreen" onclick="toggleFullscreen()">⛶</button>
-                <button class="float-btn" id="btnLock" onclick="toggleLock()">🔓</button>
             </div>
             <div class="tool-group">
+                <button class="float-btn" id="btnLock" onclick="toggleLock()">🔓</button>
                 <button class="float-btn" id="btnGrayscale" onclick="toggleGrayscale()">◐</button>
+                <button class="float-btn" id="btnFullscreen" onclick="toggleFullscreen()">⛶</button>
                 <button class="float-btn" id="btnZoomReset" onclick="resetZoom()">100%</button>
             </div>
         </div>
@@ -727,7 +728,7 @@
             </select>
         </div>
 
-        <div class="hint">💡 اضغط على "➕ الشاقول" لفحص المحاذاة العمودية والأفقية والمقارنة المزدوجة بالسنتيمتر</div>
+        <div class="hint">💡 اضغط على "👁️ الشبكة" لإخفاء دائرة لوميس وخطوطها مؤقتاً أثناء استخدام الشاقول</div>
     </div>
 
     <!-- نافذة المرشد التشريحي الذكي Gemini AI -->
@@ -792,6 +793,7 @@
         let lineOpacity = 1.0;
         let baseThickness = 4;
 
+        let isGridVisible = true;
         let isLocked = false;
         let isGrayscale = false;
         let hasDetectedOnce = false;
@@ -818,15 +820,12 @@
         };
 
         let features = null;
-
-        // النقاط التشريحية الحية للمغناطيس الذكي في أداة الشاقول
         let landmarksList = [];
 
-        // حالة أداة الشاقول الذكي المزدوج (Dual Plumb Lines + Anatomical Snap)
         let plumbState = {
             active: false,
             dual: false,
-            alignWithHead: false, // false = أرضي (0/90)، true = مائل مع زاوية الرأس
+            alignWithHead: false,
             snapEnabled: true,
             activeIndex: 0,
             p1: { x: 310, y: 400, snappedName: null },
@@ -846,6 +845,20 @@
         let initialViewScale = 1;
         let lastPinchCenter = null;
 
+        // زر إخفاء وإظهار دائرة لوميس وخطوطها
+        function toggleGridVisibility() {
+            isGridVisible = !isGridVisible;
+            const btn = document.getElementById('btnGridToggle');
+            if (isGridVisible) {
+                btn.textContent = '👁️ الشبكة';
+                btn.classList.add('active');
+            } else {
+                btn.textContent = '🙈 الشبكة';
+                btn.classList.remove('active');
+            }
+            redraw();
+        }
+
         // --- دوال أداة الشاقول الذكي المزدوج ---
         function togglePlumbTool() {
             plumbState.active = !plumbState.active;
@@ -855,7 +868,6 @@
             if (plumbState.active) {
                 btn.classList.add('plumb-active');
                 card.classList.add('show');
-                // تمركز مبدئي حول الوجه
                 plumbState.p1.x = state.cx - state.radius * 0.32;
                 plumbState.p1.y = state.cy - state.radius * 0.1;
                 plumbState.p2.x = state.cx + state.radius * 0.32;
@@ -937,7 +949,6 @@
                 );
             }
 
-            // إضافة ذروة الذقن ومنتصف الحاجبين من الشبكة
             const rad = state.angle * Math.PI / 180;
             const toWorld = (lx, ly) => ({
                 x: state.cx + (lx * Math.cos(rad) - ly * Math.sin(rad)),
@@ -977,8 +988,8 @@
         function projectAlongPlumbAxis(pt, axisDeg) {
             const rad = axisDeg * Math.PI / 180;
             return {
-                u: pt.x * Math.cos(rad) + pt.y * Math.sin(rad),  // الإحداثي العمودي على خط الشاقول الرأسي
-                v: -pt.x * Math.sin(rad) + pt.y * Math.cos(rad)  // الإحداثي العمودي على خط الشاقول الأفقي
+                u: pt.x * Math.cos(rad) + pt.y * Math.sin(rad),
+                v: -pt.x * Math.sin(rad) + pt.y * Math.cos(rad)
             };
         }
 
@@ -991,7 +1002,6 @@
                 btnAxis.textContent = `🧭 مائل مع الرأس (${state.angle}°)`;
             }
 
-            // 1. تحديث قياس الشاقول المزدوج إن كان مفعلاً
             if (plumbState.dual) {
                 const proj1 = projectAlongPlumbAxis(plumbState.p1, axisDeg);
                 const proj2 = projectAlongPlumbAxis(plumbState.p2, axisDeg);
@@ -1002,7 +1012,6 @@
                 document.getElementById('plumbDyVal').textContent = `${dyCm} سم`;
             }
 
-            // 2. تحليل المحاذاة الفوري للشاقول النشط مع بقية معالم الوجه
             const activePt = plumbState.activeIndex === 1 && plumbState.dual ? plumbState.p2 : plumbState.p1;
             const isSecond = plumbState.activeIndex === 1 && plumbState.dual;
             const badgeClass = isSecond ? 'snap-badge orange' : 'snap-badge';
@@ -1706,7 +1715,7 @@
             const pos = screenToImagePos(clientX, clientY);
             const ptHitThreshold = Math.max(32, canvas.width * 0.045) / view.scale;
 
-            // 1. أولوية لمس مقبض الشاقول الأول أو الثاني (يعمل حتى لو كانت الشبكة مقفلة!)
+            // 1. أولوية لمس مقبض الشاقول الأول أو الثاني
             if (plumbState.active) {
                 if (plumbState.dual && dist(pos, plumbState.p2) < ptHitThreshold) {
                     dragTarget = 'plumb:2';
@@ -1720,7 +1729,7 @@
                 }
             }
 
-            if (isLocked) return;
+            if (isLocked || !isGridVisible) return;
 
             // 2. نقاط الملامح في تبويب نسب الملامح
             if (currentMode === 'anatomy' && features) {
@@ -1799,7 +1808,7 @@
                 return;
             }
 
-            if (isLocked) return;
+            if (isLocked || !isGridVisible) return;
 
             if (dragTarget.startsWith('feat:')) {
                 const key = dragTarget.split(':')[1];
@@ -1927,17 +1936,19 @@
             }
 
             const pxToCm = getPrecisePxToCm();
-            drawGrid(pxToCm);
 
-            if (currentMode === 'anatomy' && features) {
-                drawInteractiveAnatomy(pxToCm);
+            // رسم دائرة لوميس وخطوطها فقط إذا كانت ظاهرة (غير مخفية)
+            if (isGridVisible) {
+                drawGrid(pxToCm);
+                if (currentMode === 'anatomy' && features) {
+                    drawInteractiveAnatomy(pxToCm);
+                }
             }
 
             if (aiVisualOverlay.visible) {
                 drawAiVisualOverlayOnFace();
             }
 
-            // رسم أداة الشاقول الذكي المزدوج (Dual Plumb Lines + CM Ticks + Snap)
             if (plumbState.active) {
                 drawPlumbLinesOverlay(pxToCm);
             }
@@ -1947,12 +1958,10 @@
             updatePlumbAnalysisReport(pxToCm);
         }
 
-        // رسم الشاقول الأول والثاني والمسافة الفاصلة بينهما بالسنتيمتر
         function drawPlumbLinesOverlay(pxToCm) {
             const resFactor = Math.max(1, canvas.width / 600);
             const axisDeg = plumbState.alignWithHead ? state.angle : 0;
 
-            // رسم نقاط المغناطيس التشريحي الخفيفة عند تفعيل المغناطيس لتسهيل الاستهداف
             if (plumbState.snapEnabled && landmarksList.length > 0) {
                 ctx.save();
                 ctx.fillStyle = 'rgba(0, 229, 255, 0.55)';
@@ -1988,7 +1997,6 @@
             ctx.fillStyle = color;
             ctx.lineWidth = lw;
 
-            // الخط العمودي والأفقي الممتدان
             ctx.beginPath();
             ctx.moveTo(0, -span);
             ctx.lineTo(0, span);
@@ -1996,7 +2004,6 @@
             ctx.lineTo(span, 0);
             ctx.stroke();
 
-            // شرطات السنتيمتر على ذراعي الشاقول
             if (cmStepPx > 12) {
                 const tickLen = 5 * resFactor / Math.sqrt(view.scale);
                 ctx.beginPath();
@@ -2009,14 +2016,12 @@
                 ctx.stroke();
             }
 
-            // حلقة المقبض المركزي للسحب بالإصبع
             ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
             ctx.beginPath();
             ctx.arc(0, 0, handleR, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
 
-            // نقطة التقاطع الدقيقة في المركز
             ctx.fillStyle = color;
             ctx.beginPath();
             ctx.arc(0, 0, 3 * resFactor / Math.sqrt(view.scale), 0, Math.PI * 2);
@@ -2024,12 +2029,10 @@
 
             ctx.restore();
 
-            // شارة اسم المعلم الملتقط بالمغناطيس أو رقم الشاقول
             const badgeText = pt.snappedName ? `🧲 ${pt.snappedName}` : `شاقول ${numLabel}`;
             drawLabelBadge(badgeText, pt.x, pt.y - 24 * resFactor / Math.sqrt(view.scale), 'rgba(0,0,0,0.88)', color, resFactor);
         }
 
-        // رسم جسر القياس الأفقي والعمودي بين الشاقول السماوي والبرتقالي بالسنتيمتر
         function drawDualPlumbBridge(p1, p2, axisDeg, pxToCm, resFactor) {
             const rad = axisDeg * Math.PI / 180;
             const dxWorld = p2.x - p1.x;
@@ -2038,7 +2041,6 @@
             const uDiff = dxWorld * Math.cos(rad) + dyWorld * Math.sin(rad);
             const vDiff = -dxWorld * Math.sin(rad) + dyWorld * Math.cos(rad);
 
-            // نقطة الزاوية القائمة على خط الشاقول الأول
             const cornerX = p1.x + uDiff * Math.cos(rad);
             const cornerY = p1.y + uDiff * Math.sin(rad);
 
