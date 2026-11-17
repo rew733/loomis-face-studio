@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Loomis Face Studio - الاستوديو التشريحي الذكي</title>
+    <title>Loomis Face Studio - الاستوديو التشريحي والشاقول الذكي</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
@@ -70,7 +70,8 @@
         body.fullscreen-mode header,
         body.fullscreen-mode .tabs,
         body.fullscreen-mode .controls,
-        body.fullscreen-mode .proportions-card {
+        body.fullscreen-mode .proportions-card,
+        body.fullscreen-mode .plumb-card {
             display: none !important;
         }
         body.fullscreen-mode { padding-bottom: 0; }
@@ -91,7 +92,7 @@
 
         .floating-toolbar {
             position: absolute;
-            top: 10px; left: 10px; right: 10px;
+            top: 8px; left: 8px; right: 8px;
             display: flex;
             justify-content: space-between;
             pointer-events: none;
@@ -101,27 +102,33 @@
         }
         .tool-group {
             display: flex;
-            gap: 5px;
+            gap: 4px;
             pointer-events: auto;
+            flex-wrap: wrap;
         }
         .float-btn {
             background: rgba(20, 20, 20, 0.88);
             color: #fff;
             border: 1px solid #444;
-            padding: 7px 9px;
-            border-radius: 8px;
+            padding: 6px 8px;
+            border-radius: 7px;
             font-size: 11px;
             font-weight: bold;
             cursor: pointer;
             backdrop-filter: blur(4px);
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 3px;
         }
         .float-btn.active {
             background: #ffd700;
             color: #000;
             border-color: #ffd700;
+        }
+        .float-btn.plumb-active {
+            background: #00e5ff;
+            color: #000;
+            border-color: #00e5ff;
         }
         .float-btn.locked {
             background: #e74c3c;
@@ -149,6 +156,85 @@
             white-space: nowrap;
             z-index: 10;
         }
+
+        /* بطاقة الشاقول الذكي المزدوج والمغناطيس التشريحي */
+        .plumb-card {
+            display: none;
+            width: 96%;
+            max-width: 480px;
+            background: #141c24;
+            border: 1px solid #00e5ff;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 8px;
+            font-size: 11px;
+        }
+        .plumb-card.show { display: block; }
+        .plumb-controls-row {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .plumb-pill-btn {
+            flex: 1;
+            min-width: 100px;
+            background: #1f2b38;
+            color: #e0f7fa;
+            border: 1px solid #37474f;
+            padding: 7px 6px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+        }
+        .plumb-pill-btn.active-orange {
+            background: #ff9100;
+            color: #000;
+            border-color: #ff9100;
+        }
+        .plumb-pill-btn.active-cyan {
+            background: #00e5ff;
+            color: #000;
+            border-color: #00e5ff;
+        }
+        .plumb-dual-stats {
+            display: none;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+        .plumb-dual-stats.show { display: grid; }
+        .plumb-stat-box {
+            background: #1b2631;
+            border-right: 3px solid #ff9100;
+            padding: 6px 8px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .plumb-report-box {
+            background: #0f151b;
+            border: 1px solid #263238;
+            border-radius: 6px;
+            padding: 8px;
+            line-height: 1.6;
+            color: #eceff1;
+            font-size: 11px;
+        }
+        .snap-badge {
+            display: inline-block;
+            background: #00e5ff;
+            color: #000;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 10px;
+            margin-left: 4px;
+        }
+        .snap-badge.orange { background: #ff9100; }
 
         .proportions-card {
             display: none;
@@ -471,7 +557,7 @@
 </head>
 <body>
 
-    <header>Loomis Face Studio - الاستوديو التشريحي الذكي</header>
+    <header>Loomis Face Studio - الاستوديو التشريحي والشاقول الذكي</header>
 
     <div class="tabs">
         <button class="tab-btn active" onclick="setMode('front', this)">أمامي (Front)</button>
@@ -483,19 +569,44 @@
     <div class="container" id="canvasContainer">
         <div class="floating-toolbar">
             <div class="tool-group">
-                <button class="float-btn ai-btn" onclick="openAiModal()">🤖 المرشد الذكي</button>
-                <button class="float-btn" id="btnAiLayer" onclick="toggleAiOverlay()" style="display:none;">✨ طبقة AI</button>
-                <button class="float-btn" id="btnFullscreen" onclick="toggleFullscreen()">⛶ ملء الشاشة</button>
-                <button class="float-btn" id="btnLock" onclick="toggleLock()">🔓 مفتوح</button>
+                <button class="float-btn" id="btnPlumbToggle" onclick="togglePlumbTool()">➕ الشاقول</button>
+                <button class="float-btn ai-btn" onclick="openAiModal()">🤖 المرشد</button>
+                <button class="float-btn" id="btnAiLayer" onclick="toggleAiOverlay()" style="display:none;">✨ AI</button>
+                <button class="float-btn" id="btnFullscreen" onclick="toggleFullscreen()">⛶</button>
+                <button class="float-btn" id="btnLock" onclick="toggleLock()">🔓</button>
             </div>
             <div class="tool-group">
-                <button class="float-btn" id="btnGrayscale" onclick="toggleGrayscale()">◐ ظل ونور</button>
-                <button class="float-btn" id="btnZoomReset" onclick="resetZoom()">🔍 100%</button>
+                <button class="float-btn" id="btnGrayscale" onclick="toggleGrayscale()">◐</button>
+                <button class="float-btn" id="btnZoomReset" onclick="resetZoom()">100%</button>
             </div>
         </div>
 
         <div class="detect-banner" id="detectBanner">جاري رصد المعالم التشريحية بدقة...</div>
         <canvas id="output_canvas" width="720" height="960"></canvas>
+    </div>
+
+    <!-- بطاقة الشاقول الذكي المزدوج والمغناطيس التشريحي -->
+    <div class="plumb-card" id="plumbCard">
+        <div class="plumb-controls-row">
+            <button class="plumb-pill-btn" id="btnDualPlumb" onclick="toggleSecondPlumb()">➕ إضافة شاقول 2 (برتقالي)</button>
+            <button class="plumb-pill-btn" id="btnPlumbAxis" onclick="togglePlumbAxis()">📐 أرضي (0° / 90°)</button>
+            <button class="plumb-pill-btn" id="btnPlumbSnap" onclick="togglePlumbSnap()">🧲 المغناطيس: مفعّل</button>
+        </div>
+
+        <div class="plumb-dual-stats" id="plumbDualStats">
+            <div class="plumb-stat-box">
+                <span style="color:#ccc;">المسافة الأفقية (ΔX):</span>
+                <span style="color:#ff9100; font-weight:bold; direction:ltr;" id="plumbDxVal">0.0 سم</span>
+            </div>
+            <div class="plumb-stat-box">
+                <span style="color:#ccc;">المسافة العمودية (ΔY):</span>
+                <span style="color:#ff9100; font-weight:bold; direction:ltr;" id="plumbDyVal">0.0 سم</span>
+            </div>
+        </div>
+
+        <div class="plumb-report-box" id="plumbReportBox">
+            اسحب الدائرة السماوية (أو البرتقالية) فوق أي معلم في الوجه لرؤية المحاذاة العمودية والأفقية الفورية بالسنتيمتر.
+        </div>
     </div>
 
     <!-- بطاقة القياسات التشريحية المعايرة بالسنتيمتر -->
@@ -616,7 +727,7 @@
             </select>
         </div>
 
-        <div class="hint">💡 الشبكة تنطبق تلقائياً بالرصد التشريحي، و"المرشد الذكي" يرسم الظلال وخطط التظليل فوقها بدقة</div>
+        <div class="hint">💡 اضغط على "➕ الشاقول" لفحص المحاذاة العمودية والأفقية والمقارنة المزدوجة بالسنتيمتر</div>
     </div>
 
     <!-- نافذة المرشد التشريحي الذكي Gemini AI -->
@@ -708,12 +819,25 @@
 
         let features = null;
 
-        // طبقة الإرشادات البصرية من الذكاء الاصطناعي منسوبة لإحداثيات الوجه الفعلية (Local Face Space)
+        // النقاط التشريحية الحية للمغناطيس الذكي في أداة الشاقول
+        let landmarksList = [];
+
+        // حالة أداة الشاقول الذكي المزدوج (Dual Plumb Lines + Anatomical Snap)
+        let plumbState = {
+            active: false,
+            dual: false,
+            alignWithHead: false, // false = أرضي (0/90)، true = مائل مع زاوية الرأس
+            snapEnabled: true,
+            activeIndex: 0,
+            p1: { x: 310, y: 400, snappedName: null },
+            p2: { x: 410, y: 480, snappedName: null }
+        };
+
         let aiVisualOverlay = {
             visible: true,
-            lightDir: null,   // { angleDeg, label }
-            shadowZones: [],  // [{ part: 'cheek_left'|'cheek_right'|'nose_base'|'jaw'|'eye_socket_left'|'eye_socket_right'|'forehead_side', label }]
-            corrections: []   // [{ part: 'left_eye'|'right_eye'|'nose'|'mouth'|'jaw'|'brow', text }]
+            lightDir: null,
+            shadowZones: [],
+            corrections: []
         };
 
         let dragTarget = null;
@@ -722,6 +846,215 @@
         let initialViewScale = 1;
         let lastPinchCenter = null;
 
+        // --- دوال أداة الشاقول الذكي المزدوج ---
+        function togglePlumbTool() {
+            plumbState.active = !plumbState.active;
+            const btn = document.getElementById('btnPlumbToggle');
+            const card = document.getElementById('plumbCard');
+
+            if (plumbState.active) {
+                btn.classList.add('plumb-active');
+                card.classList.add('show');
+                // تمركز مبدئي حول الوجه
+                plumbState.p1.x = state.cx - state.radius * 0.32;
+                plumbState.p1.y = state.cy - state.radius * 0.1;
+                plumbState.p2.x = state.cx + state.radius * 0.32;
+                plumbState.p2.y = state.cy + state.radius * 0.45;
+                applyMagneticSnap(plumbState.p1);
+                if (plumbState.dual) applyMagneticSnap(plumbState.p2);
+            } else {
+                btn.classList.remove('plumb-active');
+                card.classList.remove('show');
+            }
+            redraw();
+        }
+
+        function toggleSecondPlumb() {
+            plumbState.dual = !plumbState.dual;
+            const btn = document.getElementById('btnDualPlumb');
+            const statsBox = document.getElementById('plumbDualStats');
+            if (plumbState.dual) {
+                btn.textContent = '✕ إخفاء شاقول 2';
+                btn.classList.add('active-orange');
+                statsBox.classList.add('show');
+                plumbState.p2.x = state.cx + state.radius * 0.35;
+                plumbState.p2.y = state.cy + state.radius * 0.35;
+                applyMagneticSnap(plumbState.p2);
+            } else {
+                btn.textContent = '➕ إضافة شاقول 2 (برتقالي)';
+                btn.classList.remove('active-orange');
+                statsBox.classList.remove('show');
+            }
+            redraw();
+        }
+
+        function togglePlumbAxis() {
+            plumbState.alignWithHead = !plumbState.alignWithHead;
+            const btn = document.getElementById('btnPlumbAxis');
+            if (plumbState.alignWithHead) {
+                btn.textContent = `🧭 مائل مع الرأس (${state.angle}°)`;
+                btn.classList.add('active-cyan');
+            } else {
+                btn.textContent = '📐 أرضي (0° / 90°)';
+                btn.classList.remove('active-cyan');
+            }
+            redraw();
+        }
+
+        function togglePlumbSnap() {
+            plumbState.snapEnabled = !plumbState.snapEnabled;
+            const btn = document.getElementById('btnPlumbSnap');
+            btn.textContent = plumbState.snapEnabled ? '🧲 المغناطيس: مفعّل' : '🧲 المغناطيس: متوقف';
+            if (!plumbState.snapEnabled) {
+                plumbState.p1.snappedName = null;
+                plumbState.p2.snappedName = null;
+            }
+            redraw();
+        }
+
+        function buildAnatomicalLandmarksList() {
+            landmarksList = [];
+            if (features) {
+                const f = features;
+                const leftPupil = { x: (f.leftEyeOuter.x + f.leftEyeInner.x) / 2, y: (f.leftEyeOuter.y + f.leftEyeInner.y) / 2 };
+                const rightPupil = { x: (f.rightEyeInner.x + f.rightEyeOuter.x) / 2, y: (f.rightEyeInner.y + f.rightEyeOuter.y) / 2 };
+                const mouthCenter = { x: (f.mouthLeft.x + f.mouthRight.x) / 2, y: (f.mouthLeft.y + f.mouthRight.y) / 2 };
+                const noseTip = { x: (f.noseLeft.x + f.noseRight.x) / 2, y: (f.noseLeft.y + f.noseRight.y) / 2 };
+
+                landmarksList.push(
+                    { name: 'بؤبؤ العين اليسرى', x: leftPupil.x, y: leftPupil.y },
+                    { name: 'مدمع العين اليسرى', x: f.leftEyeInner.x, y: f.leftEyeInner.y },
+                    { name: 'طرف العين اليسرى الخارجي', x: f.leftEyeOuter.x, y: f.leftEyeOuter.y },
+                    { name: 'بؤبؤ العين اليمنى', x: rightPupil.x, y: rightPupil.y },
+                    { name: 'مدمع العين اليمنى', x: f.rightEyeInner.x, y: f.rightEyeInner.y },
+                    { name: 'طرف العين اليمنى الخارجي', x: f.rightEyeOuter.x, y: f.rightEyeOuter.y },
+                    { name: 'جناح الأنف الأيسر', x: f.noseLeft.x, y: f.noseLeft.y },
+                    { name: 'جناح الأنف الأيمن', x: f.noseRight.x, y: f.noseRight.y },
+                    { name: 'قاعدة الأنف', x: noseTip.x, y: noseTip.y },
+                    { name: 'زاوية الفم اليسرى', x: f.mouthLeft.x, y: f.mouthLeft.y },
+                    { name: 'زاوية الفم اليمنى', x: f.mouthRight.x, y: f.mouthRight.y },
+                    { name: 'منتصف الشفاه', x: mouthCenter.x, y: mouthCenter.y }
+                );
+            }
+
+            // إضافة ذروة الذقن ومنتصف الحاجبين من الشبكة
+            const rad = state.angle * Math.PI / 180;
+            const toWorld = (lx, ly) => ({
+                x: state.cx + (lx * Math.cos(rad) - ly * Math.sin(rad)),
+                y: state.cy + (lx * Math.sin(rad) + ly * Math.cos(rad))
+            });
+            const chinWorld = toWorld(0, state.yOffsets.chin);
+            const browWorld = toWorld(0, state.yOffsets.brow);
+            landmarksList.push(
+                { name: 'ذروة الذقن', x: chinWorld.x, y: chinWorld.y },
+                { name: 'منتصف الحاجبين', x: browWorld.x, y: browWorld.y }
+            );
+        }
+
+        function applyMagneticSnap(plumbPt) {
+            plumbPt.snappedName = null;
+            if (!plumbState.snapEnabled || landmarksList.length === 0) return;
+
+            const snapRadius = Math.max(18, canvas.width * 0.025) / view.scale;
+            let closest = null;
+            let minD = snapRadius;
+
+            for (let lm of landmarksList) {
+                const d = dist(plumbPt, lm);
+                if (d < minD) {
+                    minD = d;
+                    closest = lm;
+                }
+            }
+
+            if (closest) {
+                plumbPt.x = closest.x;
+                plumbPt.y = closest.y;
+                plumbPt.snappedName = closest.name;
+            }
+        }
+
+        function projectAlongPlumbAxis(pt, axisDeg) {
+            const rad = axisDeg * Math.PI / 180;
+            return {
+                u: pt.x * Math.cos(rad) + pt.y * Math.sin(rad),  // الإحداثي العمودي على خط الشاقول الرأسي
+                v: -pt.x * Math.sin(rad) + pt.y * Math.cos(rad)  // الإحداثي العمودي على خط الشاقول الأفقي
+            };
+        }
+
+        function updatePlumbAnalysisReport(pxToCm) {
+            if (!plumbState.active) return;
+
+            const axisDeg = plumbState.alignWithHead ? state.angle : 0;
+            const btnAxis = document.getElementById('btnPlumbAxis');
+            if (plumbState.alignWithHead) {
+                btnAxis.textContent = `🧭 مائل مع الرأس (${state.angle}°)`;
+            }
+
+            // 1. تحديث قياس الشاقول المزدوج إن كان مفعلاً
+            if (plumbState.dual) {
+                const proj1 = projectAlongPlumbAxis(plumbState.p1, axisDeg);
+                const proj2 = projectAlongPlumbAxis(plumbState.p2, axisDeg);
+                const dxCm = (Math.abs(proj2.u - proj1.u) * pxToCm).toFixed(2);
+                const dyCm = (Math.abs(proj2.v - proj1.v) * pxToCm).toFixed(2);
+
+                document.getElementById('plumbDxVal').textContent = `${dxCm} سم`;
+                document.getElementById('plumbDyVal').textContent = `${dyCm} سم`;
+            }
+
+            // 2. تحليل المحاذاة الفوري للشاقول النشط مع بقية معالم الوجه
+            const activePt = plumbState.activeIndex === 1 && plumbState.dual ? plumbState.p2 : plumbState.p1;
+            const isSecond = plumbState.activeIndex === 1 && plumbState.dual;
+            const badgeClass = isSecond ? 'snap-badge orange' : 'snap-badge';
+            const titleName = activePt.snappedName || (isSecond ? 'الشاقول البرتقالي (2)' : 'الشاقول السماوي (1)');
+
+            const pProj = projectAlongPlumbAxis(activePt, axisDeg);
+            const vMatches = [];
+            const hMatches = [];
+            const nearVerticalNotes = [];
+
+            for (let lm of landmarksList) {
+                if (lm.name === activePt.snappedName) continue;
+                const lmProj = projectAlongPlumbAxis(lm, axisDeg);
+                const diffXCm = (lmProj.u - pProj.u) * pxToCm;
+                const diffYCm = (lmProj.v - pProj.v) * pxToCm;
+
+                if (Math.abs(diffXCm) <= 0.12) {
+                    vMatches.push(lm.name);
+                } else if (Math.abs(diffXCm) <= 0.65 && nearVerticalNotes.length < 2) {
+                    const dir = diffXCm > 0 ? 'يمين' : 'يسار';
+                    nearVerticalNotes.push(`يبعد ${Math.abs(diffXCm).toFixed(1)} سم ${dir} (${lm.name})`);
+                }
+
+                if (Math.abs(diffYCm) <= 0.12) {
+                    hMatches.push(lm.name);
+                }
+            }
+
+            let html = `<div><span class="${badgeClass}">${titleName}</span></div>`;
+            html += `<div style="margin-top:4px;">• <b>الخط العمودي:</b> `;
+            if (vMatches.length > 0) {
+                html += `<span style="color:#00ff88;">يمر مباشرة بـ (${vMatches.join('، ')})</span>`;
+            } else {
+                html += `لا يمر بمعلم مطابق تماماً`;
+            }
+            if (nearVerticalNotes.length > 0) {
+                html += ` — <span style="color:#ffd700;">${nearVerticalNotes.join('، ')}</span>`;
+            }
+            html += `</div>`;
+
+            html += `<div>• <b>الخط الأفقي:</b> `;
+            if (hMatches.length > 0) {
+                html += `<span style="color:#00e5ff;">على استقامة واحدة مع (${hMatches.join('، ')})</span>`;
+            } else {
+                html += `مستوى أفقي مستقل`;
+            }
+            html += `</div>`;
+
+            document.getElementById('plumbReportBox').innerHTML = html;
+        }
+
+        // --- إعدادات المرشد الذكي Gemini AI ---
         window.addEventListener('DOMContentLoaded', () => {
             const savedKey = localStorage.getItem('loomis_gemini_api_key');
             if (savedKey) {
@@ -846,21 +1179,14 @@
             return `المقياس: ${scaleText} | الطول: ${faceH} | العرض: ${faceW} (${faceRatio}) | العين: ${eyesLen} | بين العينين: ${interEye} | الأنف: ${noseW} | الفم: ${mouthW} | الأثلاث: (${t1} / ${t2} / ${t3})`;
         }
 
-        // تطبيق مخرجات الذكاء الاصطناعي مربوطة بإحداثيات الوجه التشريحية الفعلية (بدون تخريب مكان الشبكة)
         function applyAiVisualData(aiJson) {
             if (!aiJson) return;
-
-            // 1. اتجاه الضوء فقط
             if (aiJson.lightDir && typeof aiJson.lightDir.angleDeg === 'number') {
                 aiVisualOverlay.lightDir = aiJson.lightDir;
             }
-
-            // 2. مناطق الظل المربوطة بأجزاء الوجه التشريحية الفعلية
             if (Array.isArray(aiJson.shadowZones)) {
                 aiVisualOverlay.shadowZones = aiJson.shadowZones;
             }
-
-            // 3. مؤشرات التصحيح المربوطة بأجزاء الوجه الفعلية
             if (Array.isArray(aiJson.corrections)) {
                 aiVisualOverlay.corrections = aiJson.corrections;
             }
@@ -1046,6 +1372,7 @@
                 mouthLeft: toWorld(-eyeW * 0.75, mouthY),
                 mouthRight: toWorld(eyeW * 0.75, mouthY)
             };
+            buildAnatomicalLandmarksList();
         }
 
         function onFaceMeshResults(results) {
@@ -1082,7 +1409,6 @@
                     noseLeft, noseRight
                 };
 
-                // ضبط مركز الكرة وحجمها وزاويتها بدقة لتنطبق على الجمجمة الفعلية
                 const faceCenterX = (leftFaceEdge.x + rightFaceEdge.x) / 2;
                 const browCenterY = browPt.y;
                 const faceWidthPx = dist(leftFaceEdge, rightFaceEdge);
@@ -1120,6 +1446,7 @@
                     state.bounds.rightX = localRight.x;
                 }
 
+                buildAnatomicalLandmarksList();
                 hasDetectedOnce = true;
                 redraw();
             } else {
@@ -1191,6 +1518,7 @@
             }
 
             document.getElementById('radiusVal').textContent = state.radius;
+            buildAnatomicalLandmarksList();
             redraw();
         });
 
@@ -1198,6 +1526,7 @@
             if (isLocked) return;
             state.angle = parseInt(e.target.value);
             document.getElementById('angleVal').textContent = state.angle + '°';
+            buildAnatomicalLandmarksList();
             redraw();
         });
 
@@ -1222,10 +1551,10 @@
             document.body.classList.toggle('fullscreen-mode');
             const btn = document.getElementById('btnFullscreen');
             if (document.body.classList.contains('fullscreen-mode')) {
-                btn.textContent = '✕ خروج';
+                btn.textContent = '✕';
                 btn.classList.add('active');
             } else {
-                btn.textContent = '⛶ ملء الشاشة';
+                btn.textContent = '⛶';
                 btn.classList.remove('active');
             }
             redraw();
@@ -1235,10 +1564,10 @@
             isLocked = !isLocked;
             const btn = document.getElementById('btnLock');
             if (isLocked) {
-                btn.textContent = '🔒 مقفل';
+                btn.textContent = '🔒';
                 btn.classList.add('locked');
             } else {
-                btn.textContent = '🔓 مفتوح';
+                btn.textContent = '🔓';
                 btn.classList.remove('locked');
             }
             redraw();
@@ -1254,7 +1583,7 @@
             view.scale = 1;
             view.offsetX = 0;
             view.offsetY = 0;
-            document.getElementById('btnZoomReset').textContent = '🔍 100%';
+            document.getElementById('btnZoomReset').textContent = '100%';
             redraw();
         }
 
@@ -1374,10 +1703,26 @@
         }
 
         function handleStart(clientX, clientY) {
-            if (isLocked) return;
             const pos = screenToImagePos(clientX, clientY);
-            const ptHitThreshold = Math.max(28, canvas.width * 0.04) / view.scale;
+            const ptHitThreshold = Math.max(32, canvas.width * 0.045) / view.scale;
 
+            // 1. أولوية لمس مقبض الشاقول الأول أو الثاني (يعمل حتى لو كانت الشبكة مقفلة!)
+            if (plumbState.active) {
+                if (plumbState.dual && dist(pos, plumbState.p2) < ptHitThreshold) {
+                    dragTarget = 'plumb:2';
+                    plumbState.activeIndex = 1;
+                    return;
+                }
+                if (dist(pos, plumbState.p1) < ptHitThreshold) {
+                    dragTarget = 'plumb:1';
+                    plumbState.activeIndex = 0;
+                    return;
+                }
+            }
+
+            if (isLocked) return;
+
+            // 2. نقاط الملامح في تبويب نسب الملامح
             if (currentMode === 'anatomy' && features) {
                 const featureKeys = [
                     'leftEyeOuter', 'leftEyeInner',
@@ -1403,6 +1748,7 @@
             const local = toLocalGridSpace(pos.x, pos.y);
             const lineHitThreshold = Math.max(26, canvas.width * 0.04) / view.scale;
 
+            // 3. إطار الطول والعرض الأرجواني
             if (currentMode === 'anatomy') {
                 if (Math.abs(local.y - state.bounds.topY) < lineHitThreshold && Math.abs(local.x) < state.radius * 2) {
                     dragTarget = 'bound:topY';
@@ -1422,6 +1768,7 @@
                 }
             }
 
+            // 4. الخطوط الأفقية الأربعة
             const lines = ['hair', 'brow', 'nose', 'chin'];
             for (let key of lines) {
                 if (Math.abs(local.y - state.yOffsets[key]) < lineHitThreshold && Math.abs(local.x) < state.radius * 1.8) {
@@ -1435,12 +1782,29 @@
         }
 
         function handleMove(clientX, clientY) {
-            if (isLocked || !dragTarget) return;
+            if (!dragTarget) return;
             const pos = screenToImagePos(clientX, clientY);
+
+            if (dragTarget === 'plumb:1') {
+                plumbState.p1.x = pos.x;
+                plumbState.p1.y = pos.y;
+                applyMagneticSnap(plumbState.p1);
+                redraw();
+                return;
+            } else if (dragTarget === 'plumb:2') {
+                plumbState.p2.x = pos.x;
+                plumbState.p2.y = pos.y;
+                applyMagneticSnap(plumbState.p2);
+                redraw();
+                return;
+            }
+
+            if (isLocked) return;
 
             if (dragTarget.startsWith('feat:')) {
                 const key = dragTarget.split(':')[1];
                 features[key] = { x: pos.x, y: pos.y };
+                buildAnatomicalLandmarksList();
             } else if (dragTarget.startsWith('bound:')) {
                 const bKey = dragTarget.split(':')[1];
                 const localNow = toLocalGridSpace(pos.x, pos.y);
@@ -1460,9 +1824,11 @@
                         features[k].y += dy;
                     }
                 }
+                buildAnatomicalLandmarksList();
             } else {
                 const localNow = toLocalGridSpace(pos.x, pos.y);
                 state.yOffsets[dragTarget] = localNow.y;
+                buildAnatomicalLandmarksList();
             }
             redraw();
         }
@@ -1505,7 +1871,7 @@
                 }
                 lastPinchCenter = center;
                 view.scale = newScale;
-                document.getElementById('btnZoomReset').textContent = `🔍 ${Math.round(view.scale * 100)}%`;
+                document.getElementById('btnZoomReset').textContent = `${Math.round(view.scale * 100)}%`;
                 redraw();
             }
         }, { passive: false });
@@ -1567,16 +1933,138 @@
                 drawInteractiveAnatomy(pxToCm);
             }
 
-            // رسم خريطة الضوء والظل والتصحيح فوق إحداثيات الوجه التشريحية الفعلية
             if (aiVisualOverlay.visible) {
                 drawAiVisualOverlayOnFace();
             }
 
+            // رسم أداة الشاقول الذكي المزدوج (Dual Plumb Lines + CM Ticks + Snap)
+            if (plumbState.active) {
+                drawPlumbLinesOverlay(pxToCm);
+            }
+
             ctx.restore();
             updateMeasurements(pxToCm);
+            updatePlumbAnalysisReport(pxToCm);
         }
 
-        // خريطة الإحداثيات التشريحية المربوطة بالوجه الفعلي (تضمن عدم خروج الرسومات عن مكانها أبداً)
+        // رسم الشاقول الأول والثاني والمسافة الفاصلة بينهما بالسنتيمتر
+        function drawPlumbLinesOverlay(pxToCm) {
+            const resFactor = Math.max(1, canvas.width / 600);
+            const axisDeg = plumbState.alignWithHead ? state.angle : 0;
+
+            // رسم نقاط المغناطيس التشريحي الخفيفة عند تفعيل المغناطيس لتسهيل الاستهداف
+            if (plumbState.snapEnabled && landmarksList.length > 0) {
+                ctx.save();
+                ctx.fillStyle = 'rgba(0, 229, 255, 0.55)';
+                landmarksList.forEach(lm => {
+                    ctx.beginPath();
+                    ctx.arc(lm.x, lm.y, 3.2 * resFactor / Math.sqrt(view.scale), 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                ctx.restore();
+            }
+
+            drawSinglePlumb(plumbState.p1, '#00E5FF', '1', axisDeg, pxToCm, resFactor);
+
+            if (plumbState.dual) {
+                drawSinglePlumb(plumbState.p2, '#FF9100', '2', axisDeg, pxToCm, resFactor);
+                drawDualPlumbBridge(plumbState.p1, plumbState.p2, axisDeg, pxToCm, resFactor);
+            }
+        }
+
+        function drawSinglePlumb(pt, color, numLabel, axisDeg, pxToCm, resFactor) {
+            const span = Math.max(canvas.width, canvas.height) * 1.5;
+            const lw = (2.2 * resFactor) / Math.sqrt(view.scale);
+            const handleR = (14 * resFactor) / Math.sqrt(view.scale);
+            const cmStepPx = 1 / Math.max(0.001, pxToCm);
+
+            ctx.save();
+            ctx.translate(pt.x, pt.y);
+            ctx.rotate(axisDeg * Math.PI / 180);
+
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+            ctx.shadowBlur = 4 * resFactor;
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = lw;
+
+            // الخط العمودي والأفقي الممتدان
+            ctx.beginPath();
+            ctx.moveTo(0, -span);
+            ctx.lineTo(0, span);
+            ctx.moveTo(-span, 0);
+            ctx.lineTo(span, 0);
+            ctx.stroke();
+
+            // شرطات السنتيمتر على ذراعي الشاقول
+            if (cmStepPx > 12) {
+                const tickLen = 5 * resFactor / Math.sqrt(view.scale);
+                ctx.beginPath();
+                for (let d = cmStepPx; d < span * 0.6; d += cmStepPx) {
+                    ctx.moveTo(-tickLen, d); ctx.lineTo(tickLen, d);
+                    ctx.moveTo(-tickLen, -d); ctx.lineTo(tickLen, -d);
+                    ctx.moveTo(d, -tickLen); ctx.lineTo(d, tickLen);
+                    ctx.moveTo(-d, -tickLen); ctx.lineTo(-d, tickLen);
+                }
+                ctx.stroke();
+            }
+
+            // حلقة المقبض المركزي للسحب بالإصبع
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.beginPath();
+            ctx.arc(0, 0, handleR, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // نقطة التقاطع الدقيقة في المركز
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(0, 0, 3 * resFactor / Math.sqrt(view.scale), 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+
+            // شارة اسم المعلم الملتقط بالمغناطيس أو رقم الشاقول
+            const badgeText = pt.snappedName ? `🧲 ${pt.snappedName}` : `شاقول ${numLabel}`;
+            drawLabelBadge(badgeText, pt.x, pt.y - 24 * resFactor / Math.sqrt(view.scale), 'rgba(0,0,0,0.88)', color, resFactor);
+        }
+
+        // رسم جسر القياس الأفقي والعمودي بين الشاقول السماوي والبرتقالي بالسنتيمتر
+        function drawDualPlumbBridge(p1, p2, axisDeg, pxToCm, resFactor) {
+            const rad = axisDeg * Math.PI / 180;
+            const dxWorld = p2.x - p1.x;
+            const dyWorld = p2.y - p1.y;
+
+            const uDiff = dxWorld * Math.cos(rad) + dyWorld * Math.sin(rad);
+            const vDiff = -dxWorld * Math.sin(rad) + dyWorld * Math.cos(rad);
+
+            // نقطة الزاوية القائمة على خط الشاقول الأول
+            const cornerX = p1.x + uDiff * Math.cos(rad);
+            const cornerY = p1.y + uDiff * Math.sin(rad);
+
+            ctx.save();
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = (2 * resFactor) / Math.sqrt(view.scale);
+            ctx.setLineDash([6 * resFactor, 4 * resFactor]);
+
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(cornerX, cornerY);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+            ctx.restore();
+
+            const dxCm = (Math.abs(uDiff) * pxToCm).toFixed(2);
+            const dyCm = (Math.abs(vDiff) * pxToCm).toFixed(2);
+
+            if (Math.abs(uDiff) > 15) {
+                drawLabelBadge(`↔ ${dxCm} سم`, (p1.x + cornerX) / 2, (p1.y + cornerY) / 2 - 14 * resFactor, 'rgba(0,0,0,0.9)', '#00FF88', resFactor);
+            }
+            if (Math.abs(vDiff) > 15) {
+                drawLabelBadge(`↕ ${dyCm} سم`, (cornerX + p2.x) / 2 + 32 * resFactor, (cornerY + p2.y) / 2, 'rgba(0,0,0,0.9)', '#FFD700', resFactor);
+            }
+        }
+
         function getAnatomicalRegionCoords(partName) {
             const r = state.radius;
             const { hair, brow, nose, chin } = state.yOffsets;
@@ -1613,7 +2101,6 @@
             ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
             ctx.shadowBlur = 5 * resFactor;
 
-            // 1. سهم اتجاه الضوء خارج إطار الكرة متجهاً نحو مركز الوجه
             if (aiVisualOverlay.lightDir) {
                 const ld = aiVisualOverlay.lightDir;
                 const rad = (ld.angleDeg || 45) * Math.PI / 180;
@@ -1646,7 +2133,6 @@
                 drawLabelBadge(`☀️ ${ld.label || 'اتجاه الضوء'}`, x1, y1 - 14 * resFactor, 'rgba(0,0,0,0.88)', '#FFD700', resFactor);
             }
 
-            // 2. مناطق الظل العميق فوق أجزاء الوجه الحقيقية
             if (aiVisualOverlay.shadowZones && aiVisualOverlay.shadowZones.length > 0) {
                 aiVisualOverlay.shadowZones.forEach(sz => {
                     const reg = getAnatomicalRegionCoords(sz.part);
@@ -1668,7 +2154,6 @@
                 });
             }
 
-            // 3. مؤشرات التصحيح الموضعية
             if (aiVisualOverlay.corrections && aiVisualOverlay.corrections.length > 0) {
                 aiVisualOverlay.corrections.forEach((corr, idx) => {
                     const reg = getAnatomicalRegionCoords(corr.part);
