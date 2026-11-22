@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Loomis Face Studio - الاستوديو التشريحي الذكي</title>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <title>Loomis Face Studio - الاستوديو التشريحي ثلاثي الأبعاد</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body {
@@ -59,6 +58,7 @@
             color: #000;
             border-color: #00ff88;
         }
+        /* شريط زوايا الرأس ثلاثية الأبعاد (Yaw / Pitch / Roll) */
         .pose-strip {
             display: flex;
             width: 96%;
@@ -162,6 +162,11 @@
             color: #000;
             border-color: #00e5ff;
         }
+        .float-btn.shading-active {
+            background: #38bdf8;
+            color: #000;
+            border-color: #7dd3fc;
+        }
         .float-btn.plumb-active {
             background: #00e5ff;
             color: #000;
@@ -195,6 +200,24 @@
         }
         .lineart-bar.show { display: flex; }
 
+        .shading-bar {
+            display: none;
+            position: absolute;
+            bottom: 10px;
+            left: 12px;
+            right: 12px;
+            background: rgba(15, 23, 42, 0.94);
+            border: 1px solid #38bdf8;
+            border-radius: 8px;
+            padding: 6px 10px;
+            z-index: 12;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+        }
+        .shading-bar.show { display: flex; }
+
         .detect-banner {
             position: absolute;
             bottom: 10px;
@@ -211,6 +234,7 @@
             z-index: 10;
         }
 
+        /* بطاقة المسطرتين المتوازيتين */
         .ruler-card {
             display: none;
             width: 96%;
@@ -261,6 +285,7 @@
             direction: ltr;
         }
 
+        /* بطاقة الشاقول الذكي المزدوج */
         .plumb-card {
             display: none;
             width: 96%;
@@ -690,7 +715,7 @@
 </head>
 <body>
 
-    <header>Loomis Face Studio - الاستوديو التشريحي الذكي</header>
+    <header>Loomis Face Studio - الاستوديو التشريحي ثلاثي الأبعاد</header>
 
     <div class="tabs">
         <button class="tab-btn active" id="tabFront" onclick="setMode('front', this)">أمامي (Front)</button>
@@ -700,6 +725,7 @@
         <button class="tab-btn ruler-tab" id="tabRuler" onclick="setMode('ruler', this)">📏 مسطرة</button>
     </div>
 
+    <!-- شريط زوايا الرأس ثلاثية الأبعاد الحية -->
     <div class="pose-strip">
         <div class="pose-chip">الالتفات (Yaw): <span id="poseYawVal">0°</span></div>
         <div class="pose-chip">الارتفاع (Pitch): <span id="posePitchVal">0°</span></div>
@@ -709,6 +735,7 @@
     <div class="container" id="canvasContainer">
         <div class="floating-toolbar">
             <div class="tool-group">
+                <button class="float-btn" id="btnShadingGuide" onclick="toggleShadingGuide()">🌗 خريطة الظل</button>
                 <button class="float-btn" id="btnLineart" onclick="toggleLineartMode()">✏️ كنتور</button>
                 <button class="float-btn" id="btnPlumbToggle" onclick="togglePlumbTool()">➕ شاقول</button>
                 <button class="float-btn active" id="btnGridToggle" onclick="toggleGridVisibility()">👁️ شبكة</button>
@@ -723,16 +750,22 @@
             </div>
         </div>
 
+        <div class="shading-bar" id="shadingBar">
+            <span style="color:#7dd3fc; font-weight:bold;">توزيع التظليل (4 درجات):</span>
+            <span id="shadingRatioText" style="color:#ffd700; font-weight:bold; direction:ltr;">ظل: 0% | نور: 0%</span>
+        </div>
+
         <div class="lineart-bar" id="lineartBar">
             <span style="color:#00e5ff; font-weight:bold; white-space:nowrap;">✏️ حدة الخطوط:</span>
             <input type="range" id="lineartSensitivity" min="15" max="120" value="42" oninput="rebuildLineartCache()">
             <span id="lineartVal" style="color:#ffd700; font-weight:bold;">42</span>
         </div>
 
-        <div class="detect-banner" id="detectBanner">جاري رصد المعالم التشريحية...</div>
+        <div class="detect-banner" id="detectBanner">جاري تشغيل FaceLandmarker ثلاثي الأبعاد...</div>
         <canvas id="output_canvas" width="720" height="960"></canvas>
     </div>
 
+    <!-- بطاقة المسطرتين المتوازيتين -->
     <div class="ruler-card" id="rulerCard">
         <div class="ruler-top-row">
             <button class="ruler-mode-btn active" id="btnRulerHoriz" onclick="setRulerOrientation('horizontal')">↕ خطان أفقيان (قياس الارتفاع)</button>
@@ -751,6 +784,7 @@
         </div>
     </div>
 
+    <!-- بطاقة الشاقول الذكي المزدوج -->
     <div class="plumb-card" id="plumbCard">
         <div class="plumb-controls-row">
             <button class="plumb-pill-btn" id="btnDualPlumb" onclick="toggleSecondPlumb()">➕ إضافة شاقول 2 (قياس بين نقطتين)</button>
@@ -778,8 +812,9 @@
         </div>
     </div>
 
+    <!-- بطاقة القياسات التشريحية المعايرة بالسنتيمتر -->
     <div class="proportions-card" id="propCard">
-        <button class="recalc-btn" onclick="recalculateAllMeasurements()">🔄 إعادة رصد الزوايا والنسب الآن</button>
+        <button class="recalc-btn" onclick="recalculateAllMeasurements()">🔄 إعادة رصد الزوايا ثلاثية الأبعاد والنسب</button>
 
         <div class="paper-row">
             <span style="color:#ffd700; font-weight:bold;">طول الرأس الكامل على كراستك:</span>
@@ -895,9 +930,10 @@
             </select>
         </div>
 
-        <div class="hint">💡 الشاشة تعمل الآن بوضع مستقر وفوري دون توقف</div>
+        <div class="hint">💡 اضغط "🌗 خريطة الظل" لتوضيح كتل الظل والنور (4 درجات) دون التأثير على قياس الأبعاد</div>
     </div>
 
+    <!-- نافذة المرشد الذكي (Gemini + Hugging Face Qwen2.5-VL) -->
     <div class="ai-modal" id="aiModal">
         <div class="ai-dialog">
             <div class="ai-header">
@@ -973,7 +1009,9 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
+
         const canvas = document.getElementById('output_canvas');
         const ctx = canvas.getContext('2d');
         const detectBanner = document.getElementById('detectBanner');
@@ -981,6 +1019,10 @@
         let currentImage = null;
         let lineartCanvasCache = null;
         let isLineartMode = false;
+
+        // أداة فهم التظليل (4-Value Shading Map)
+        let shadingCache = null;
+        let isShadingGuideActive = false;
 
         let currentMode = 'front';
         let lineColor = '#FFD700';
@@ -995,7 +1037,12 @@
         let activeAiProvider = 'gemini';
         let view = { scale: 1, offsetX: 0, offsetY: 0 };
 
-        let headPose3D = { yaw: 0, pitch: 0, roll: 0 };
+        // زوايا الدوران ثلاثية الأبعاد المستخرجة من مصفوفة FaceLandmarker 3D
+        let headPose3D = {
+            yaw: 0,   // الالتفات يميناً (+) أو يساراً (-)
+            pitch: 0, // النظر للأعلى (+) أو للأسفل (-)
+            roll: 0   // ميلان الرأس على الكتف
+        };
 
         let state = {
             cx: 360,
@@ -1003,16 +1050,16 @@
             radius: 180,
             angle: 0,
             yOffsets: {
-                hair: -180,
-                brow: -45,
-                nose: 75,
-                chin: 195
+                hair: -220,
+                brow: -60,
+                nose: 90,
+                chin: 240
             },
             bounds: {
-                topY: -210,
-                bottomY: 205,
-                leftX: -145,
-                rightX: 145
+                topY: -260,
+                bottomY: 250,
+                leftX: -170,
+                rightX: 170
             }
         };
 
@@ -1049,18 +1096,175 @@
         let initialViewScale = 1;
         let lastPinchCenter = null;
 
+        // --- أداة فهم التظليل (4-Value Shading Map) ---
+        window.toggleShadingGuide = function() {
+            if (!currentImage) {
+                alert('يرجى رفع صورة الوجه أولاً لتوليد خريطة الظل والنور.');
+                return;
+            }
+            isShadingGuideActive = !isShadingGuideActive;
+            if (isShadingGuideActive) {
+                isLineartMode = false;
+                document.getElementById('btnLineart').classList.remove('lineart-active');
+                document.getElementById('lineartBar').classList.remove('show');
+            }
+            document.getElementById('btnShadingGuide').classList.toggle('shading-active', isShadingGuideActive);
+            document.getElementById('shadingBar').classList.toggle('show', isShadingGuideActive);
+
+            if (isShadingGuideActive && !shadingCache) {
+                buildShadingGuideCache();
+            } else {
+                redraw();
+            }
+        };
+
+        function buildShadingGuideCache() {
+            if (!currentImage) return;
+            const maxSide = 720;
+            let w = currentImage.width;
+            let h = currentImage.height;
+            if (w > maxSide || h > maxSide) {
+                if (w > h) {
+                    h = Math.round(h * (maxSide / w));
+                    w = maxSide;
+                } else {
+                    w = Math.round(w * (maxSide / h));
+                    h = maxSide;
+                }
+            }
+
+            const offCanvas = document.createElement('canvas');
+            offCanvas.width = w;
+            offCanvas.height = h;
+            const oCtx = offCanvas.getContext('2d');
+            oCtx.drawImage(currentImage, 0, 0, w, h);
+
+            const imgData = oCtx.getImageData(0, 0, w, h);
+            const data = imgData.data;
+            const totalPixels = w * h;
+            const lum = new Float32Array(totalPixels);
+
+            for (let i = 0; i < totalPixels; i++) {
+                const idx = i * 4;
+                lum[i] = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+            }
+
+            const smooth = new Float32Array(totalPixels);
+            for (let y = 1; y < h - 1; y++) {
+                for (let x = 1; x < w - 1; x++) {
+                    const p = y * w + x;
+                    smooth[p] = (
+                        lum[p - w - 1] + lum[p - w] + lum[p - w + 1] +
+                        lum[p - 1] + 2 * lum[p] + lum[p + 1] +
+                        lum[p + w - 1] + lum[p + w] + lum[p + w + 1]
+                    ) / 10;
+                }
+            }
+
+            let shadowCount = 0;
+
+            for (let i = 0; i < totalPixels; i++) {
+                const v = smooth[i];
+                let tone;
+                if (v < 70) {
+                    tone = 52;
+                    shadowCount++;
+                } else if (v < 125) {
+                    tone = 112;
+                    shadowCount++;
+                } else if (v < 180) {
+                    tone = 178;
+                } else {
+                    tone = 242;
+                }
+
+                const idx = i * 4;
+                data[idx] = tone;
+                data[idx + 1] = tone;
+                data[idx + 2] = tone;
+            }
+
+            oCtx.putImageData(imgData, 0, 0);
+            shadingCache = offCanvas;
+
+            const shadowPct = Math.round((shadowCount / totalPixels) * 100);
+            const lightPct = 100 - shadowPct;
+            document.getElementById('shadingRatioText').textContent = `ظل: ${shadowPct}% | نور: ${lightPct}%`;
+            redraw();
+        }
+
+        // --- تهيئة محرك MediaPipe FaceLandmarker 3D الرسمي ---
+        let faceLandmarker = null;
+        let isLandmarkerReady = false;
+
+        async function initFaceLandmarker3D() {
+            try {
+                const vision = await FilesetResolver.forVisionTasks(
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
+                );
+                faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+                    baseOptions: {
+                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+                        delegate: "CPU"
+                    },
+                    outputFaceBlendshapes: false,
+                    outputFacialTransformationMatrixes: true,
+                    runningMode: "IMAGE",
+                    numFaces: 1
+                });
+                isLandmarkerReady = true;
+                if (currentImage && !hasDetectedOnce) {
+                    runAutoFeatureDetection();
+                }
+            } catch (e) {
+                console.warn("FaceLandmarker init warning:", e);
+            }
+        }
+        initFaceLandmarker3D();
+
+        function extractEulerFromMatrix(matrixData) {
+            const m00 = matrixData[0], m01 = matrixData[4], m02 = matrixData[8];
+            const m10 = matrixData[1], m11 = matrixData[5], m12 = matrixData[9];
+            const m20 = matrixData[2], m21 = matrixData[6], m22 = matrixData[10];
+
+            const sy = Math.hypot(m00, m10);
+            const singular = sy < 1e-6;
+            let pitchRad, yawRad, rollRad;
+
+            if (!singular) {
+                pitchRad = Math.atan2(m21, m22);
+                yawRad = Math.atan2(-m20, sy);
+                rollRad = Math.atan2(m10, m00);
+            } else {
+                pitchRad = Math.atan2(-m12, m11);
+                yawRad = Math.atan2(-m20, sy);
+                rollRad = 0;
+            }
+
+            return {
+                yaw: Math.round(yawRad * 180 / Math.PI),
+                pitch: Math.round(pitchRad * 180 / Math.PI),
+                roll: Math.round(rollRad * 180 / Math.PI)
+            };
+        }
+
         function updatePoseStripUI() {
             document.getElementById('poseYawVal').textContent = `${headPose3D.yaw}°`;
             document.getElementById('posePitchVal').textContent = `${headPose3D.pitch}°`;
             document.getElementById('poseRollVal').textContent = `${headPose3D.roll}°`;
         }
 
-        function toggleLineartMode() {
+        window.toggleLineartMode = function() {
             if (!currentImage) {
                 alert('يرجى رفع صورة الوجه أولاً لاستخراج خطوط الكنتور.');
                 return;
             }
             isLineartMode = !isLineartMode;
+            if (isLineartMode) {
+                isShadingGuideActive = false;
+                document.getElementById('btnShadingGuide').classList.remove('shading-active');
+                document.getElementById('shadingBar').classList.remove('show');
+            }
             document.getElementById('btnLineart').classList.toggle('lineart-active', isLineartMode);
             document.getElementById('lineartBar').classList.toggle('show', isLineartMode);
 
@@ -1069,9 +1273,9 @@
             } else {
                 redraw();
             }
-        }
+        };
 
-        function rebuildLineartCache() {
+        window.rebuildLineartCache = function() {
             if (!currentImage) return;
             const thresholdVal = parseInt(document.getElementById('lineartSensitivity').value);
             document.getElementById('lineartVal').textContent = thresholdVal;
@@ -1144,9 +1348,9 @@
             oCtx.putImageData(outData, 0, 0);
             lineartCanvasCache = offCanvas;
             redraw();
-        }
+        };
 
-        function setRulerOrientation(orient) {
+        window.setRulerOrientation = function(orient) {
             parallelRuler.orientation = orient;
             document.getElementById('btnRulerHoriz').classList.toggle('active', orient === 'horizontal');
             document.getElementById('btnRulerVert').classList.toggle('active', orient === 'vertical');
@@ -1162,9 +1366,9 @@
                 parallelRuler.line2 = state.cx + state.radius * 0.55;
             }
             redraw();
-        }
+        };
 
-        function toggleRulerTilt() {
+        window.toggleRulerTilt = function() {
             parallelRuler.alignWithHead = !parallelRuler.alignWithHead;
             const btn = document.getElementById('btnRulerTilt');
             if (parallelRuler.alignWithHead) {
@@ -1175,9 +1379,9 @@
                 btn.classList.remove('active');
             }
             redraw();
-        }
+        };
 
-        function resetParallelRulers() {
+        window.resetParallelRulers = function() {
             if (parallelRuler.orientation === 'horizontal') {
                 parallelRuler.line1 = state.cy + state.yOffsets.nose;
                 parallelRuler.line2 = state.cy + state.yOffsets.chin;
@@ -1186,7 +1390,7 @@
                 parallelRuler.line2 = state.cx + state.radius * 0.55;
             }
             redraw();
-        }
+        };
 
         function toRulerAxisSpace(px, py) {
             const deg = parallelRuler.alignWithHead ? state.angle : 0;
@@ -1321,7 +1525,7 @@
             ctx.fill();
         }
 
-        function toggleGridVisibility() {
+        window.toggleGridVisibility = function() {
             isGridVisible = !isGridVisible;
             const btn = document.getElementById('btnGridToggle');
             if (isGridVisible) {
@@ -1332,9 +1536,9 @@
                 btn.classList.remove('active');
             }
             redraw();
-        }
+        };
 
-        function togglePlumbTool() {
+        window.togglePlumbTool = function() {
             plumbState.active = !plumbState.active;
             const btn = document.getElementById('btnPlumbToggle');
             const card = document.getElementById('plumbCard');
@@ -1353,9 +1557,9 @@
                 card.classList.remove('show');
             }
             redraw();
-        }
+        };
 
-        function toggleSecondPlumb() {
+        window.toggleSecondPlumb = function() {
             plumbState.dual = !plumbState.dual;
             const btn = document.getElementById('btnDualPlumb');
             const statsBox = document.getElementById('plumbDualStats');
@@ -1372,9 +1576,9 @@
                 statsBox.classList.remove('show');
             }
             redraw();
-        }
+        };
 
-        function togglePlumbAxis() {
+        window.togglePlumbAxis = function() {
             plumbState.alignWithHead = !plumbState.alignWithHead;
             const btn = document.getElementById('btnPlumbAxis');
             if (plumbState.alignWithHead) {
@@ -1385,9 +1589,9 @@
                 btn.classList.remove('active-cyan');
             }
             redraw();
-        }
+        };
 
-        function togglePlumbSnap() {
+        window.togglePlumbSnap = function() {
             plumbState.snapEnabled = !plumbState.snapEnabled;
             const btn = document.getElementById('btnPlumbSnap');
             btn.textContent = plumbState.snapEnabled ? '🧲 المغناطيس: مفعّل' : '🧲 المغناطيس: متوقف';
@@ -1396,7 +1600,7 @@
                 plumbState.p2.snappedName = null;
             }
             redraw();
-        }
+        };
 
         function buildAnatomicalLandmarksList() {
             landmarksList = [];
@@ -1539,6 +1743,7 @@
             document.getElementById('plumbReportBox').innerHTML = html;
         }
 
+        // --- إعدادات المرشد الذكي المزدوج (Gemini + Hugging Face) ---
         window.addEventListener('DOMContentLoaded', () => {
             const savedProvider = localStorage.getItem('loomis_ai_provider') || 'gemini';
             selectAiProvider(savedProvider);
@@ -1578,12 +1783,9 @@
             }
             if (savedCustomHf) document.getElementById('customHfModelInput').value = savedCustomHf;
             onHfModelSelectChange();
-
-            createDefaultFeaturesFromGrid();
-            redraw();
         });
 
-        function selectAiProvider(prov) {
+        window.selectAiProvider = function(prov) {
             activeAiProvider = prov;
             localStorage.setItem('loomis_ai_provider', prov);
 
@@ -1603,17 +1805,17 @@
                 hfBox.style.display = 'none';
                 gemBox.style.display = 'flex';
             }
-        }
+        };
 
-        function onModelSelectChange() {
+        window.onModelSelectChange = function() {
             const selectVal = document.getElementById('geminiModelSelect').value;
             document.getElementById('customModelBox').classList.toggle('show', selectVal === 'custom');
-        }
+        };
 
-        function onHfModelSelectChange() {
+        window.onHfModelSelectChange = function() {
             const selectVal = document.getElementById('hfModelSelect').value;
             document.getElementById('customHfModelBox').classList.toggle('show', selectVal === 'custom');
-        }
+        };
 
         function getSelectedGeminiModel() {
             const selectVal = document.getElementById('geminiModelSelect').value;
@@ -1631,7 +1833,7 @@
             return selectVal;
         }
 
-        function saveAiSettings() {
+        window.saveAiSettings = function() {
             if (activeAiProvider === 'huggingface') {
                 const hfToken = document.getElementById('hfTokenInput').value.trim();
                 const hfSel = document.getElementById('hfModelSelect').value;
@@ -1657,30 +1859,30 @@
                 if (customVal) localStorage.setItem('loomis_gemini_custom_model', customVal);
                 alert(`تم حفظ مفتاح Gemini والنموذج (${getSelectedGeminiModel()}) بنجاح!`);
             }
-        }
+        };
 
-        function openAiModal() {
+        window.openAiModal = function() {
             document.getElementById('aiModal').classList.add('open');
-        }
+        };
 
-        function closeAiModal() {
+        window.closeAiModal = function() {
             document.getElementById('aiModal').classList.remove('open');
             redraw();
-        }
+        };
 
-        function toggleAiOverlay() {
+        window.toggleAiOverlay = function() {
             aiVisualOverlay.visible = !aiVisualOverlay.visible;
             const btn = document.getElementById('btnAiLayer');
             btn.classList.toggle('active', aiVisualOverlay.visible);
             redraw();
-        }
+        };
 
-        function toggleSketchCompare(btn) {
+        window.toggleSketchCompare = function(btn) {
             document.querySelectorAll('.ai-task-btn').forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
             document.getElementById('sketchUploadBox').classList.add('show');
             document.getElementById('aiResultBox').textContent = 'اختر صورة رسمتك من الزر أعلاه ليقارنها الذكاء الاصطناعي بالصورة الأصلية.';
-        }
+        };
 
         function getResizedBase64(imgSource, maxDim = 512) {
             const tempCanvas = document.createElement('canvas');
@@ -1715,7 +1917,7 @@
             const t2 = document.getElementById('m_t2').textContent;
             const t3 = document.getElementById('m_t3').textContent;
 
-            return `المقياس: ${scaleText} | الزوايا: (Yaw: ${headPose3D.yaw}°, Pitch: ${headPose3D.pitch}°, Roll: ${headPose3D.roll}°) | الطول: ${faceH} | العرض: ${faceW} (${faceRatio}) | العين: ${eyesLen} | بين العينين: ${interEye} | الأنف: ${noseW} | الفم: ${mouthW} | الأثلاث: (${t1} / ${t2} / ${t3})`;
+            return `المقياس: ${scaleText} | زوايا الرأس 3D: (Yaw: ${headPose3D.yaw}°, Pitch: ${headPose3D.pitch}°, Roll: ${headPose3D.roll}°) | الطول: ${faceH} | العرض: ${faceW} (${faceRatio}) | العين: ${eyesLen} | بين العينين: ${interEye} | الأنف: ${noseW} | الفم: ${mouthW} | الأثلاث: (${t1} / ${t2} / ${t3})`;
         }
 
         function applyAiVisualData(aiJson) {
@@ -1741,13 +1943,13 @@
             redraw();
         }
 
-        function runAiAnalysis(taskType, btn, sketchBase64 = null) {
+        window.runAiAnalysis = function(taskType, btn, sketchBase64 = null) {
             if (activeAiProvider === 'huggingface') {
                 askHuggingFace(taskType, btn, sketchBase64);
             } else {
                 askGemini(taskType, btn, sketchBase64);
             }
-        }
+        };
 
         function buildTaskPrompt(taskType) {
             const stats = buildCurrentMeasurementsSummary();
@@ -1766,11 +1968,11 @@
 
             let taskGoal = '';
             if (taskType === 'blueprint') {
-                taskGoal = `أنت أستاذ أكاديمي في تقنية أندرو لوميس. بناءً على الصورة وهذه القياسات المحسوبة بدقة (${stats})، اكتب خطة رسم هندسية مرقمة بالسنتيمتر للرسام في explanation (قطر الكرة، مواقع الأثلاث، وأبعاد العين والفم والأنف). اجعل lightDir=null و shadowZones=[] و corrections=[].`;
+                taskGoal = `أنت أستاذ أكاديمي في تقنية أندرو لوميس. بناءً على الصورة وهذه القياسات ثلاثية الأبعاد المحسوبة بدقة (${stats})، اكتب خطة رسم هندسية مرقمة بالسنتيمتر للرسام في explanation (قطر الكرة، وضعية القطع الجانبي بناءً على زاوية Yaw، مواقع الأثلاث، وأبعاد العين والفم والأنف). اجعل lightDir=null و shadowZones=[] و corrections=[].`;
             } else if (taskType === 'shading') {
                 taskGoal = `حلل الإضاءة ومناطق الظل العميق (Core Shadows) في هذه الصورة. حدد زاوية قدوم الضوء في lightDir، واختر من القائمة المحددة أهم مناطق الظل الحقيقية الموجودة في الصورة في shadowZones ليرسمها التطبيق فوق تلك الأجزاء التشريحية بدقة، واشرح كتل الضوء والظل في explanation.`;
             } else if (taskType === 'tilt') {
-                taskGoal = `انظر للصورة الأولى (الأصلية) والثانية (شبكة لوميس المطبقة عليها حالياً بزاوية ${state.angle}°). اشرح للرسام في explanation زاوية دوران الرأس (Yaw/Pitch) ومدى دقة تطابق الشبكة الحالية أو أي تعديل يدوي بسيط ينصحه به. اجعل lightDir=null و shadowZones=[] و corrections=[].`;
+                taskGoal = `انظر للصورة الأولى (الأصلية) والثانية (شبكة لوميس المطبقة عليها بزوايا Yaw=${headPose3D.yaw}°, Pitch=${headPose3D.pitch}°, Roll=${headPose3D.roll}°). اشرح للرسام في explanation كيف يرسم هذه الوضعية الفراغية للرأس وكيفية إمالة كرة لوميس وقطعيها الجانبيين. اجعل lightDir=null و shadowZones=[] و corrections=[].`;
             } else if (taskType === 'compare') {
                 taskGoal = `قارن الصورة المرجعية الأولى برسمة المستخدم الثانية. حدد الأجزاء التي تحتاج تصحيحاً من القائمة المحددة في corrections مع ذكر مقدار التعديل، واشرح الفروقات في explanation.`;
             }
@@ -1943,7 +2145,7 @@
             }
         }
 
-        function handleSketchUpload(event) {
+        window.handleSketchUpload = function(event) {
             const file = event.target.files[0];
             if (!file) return;
             const img = new Image();
@@ -1952,30 +2154,9 @@
                 runAiAnalysis('compare', null, sketchB64);
             };
             img.src = URL.createObjectURL(file);
-        }
+        };
 
-        // --- محرك MediaPipe FaceMesh المحلي المستقر ---
-        let faceMesh = null;
-        let isFaceMeshReady = false;
-
-        try {
-            if (typeof FaceMesh !== 'undefined') {
-                faceMesh = new FaceMesh({
-                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-                });
-                faceMesh.setOptions({
-                    maxNumFaces: 1,
-                    refineLandmarks: true,
-                    minDetectionConfidence: 0.4,
-                    minTrackingConfidence: 0.4
-                });
-                faceMesh.onResults(onFaceMeshResults);
-                isFaceMeshReady = true;
-            }
-        } catch (err) {
-            isFaceMeshReady = false;
-        }
-
+        // --- معالجة نتائج FaceLandmarker 3D وضبط شبكة لوميس والوضع التلقائي ---
         function createDefaultFeaturesFromGrid() {
             const r = state.radius;
             const faceWidth = r * 1.36;
@@ -2004,10 +2185,10 @@
             buildAnatomicalLandmarksList();
         }
 
-        function onFaceMeshResults(results) {
+        function processLandmarker3DResults(result) {
             detectBanner.style.display = 'none';
-            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0 && currentImage) {
-                const lm = results.multiFaceLandmarks[0];
+            if (result && result.faceLandmarks && result.faceLandmarks.length > 0 && currentImage) {
+                const lm = result.faceLandmarks[0];
                 const w = canvas.width;
                 const h = canvas.height;
 
@@ -2028,8 +2209,8 @@
                 const chinPt = { x: lm[152].x * w, y: lm[152].y * h };
                 const browPt = { x: lm[9].x * w, y: lm[9].y * h };
 
-                const leftCheek = { x: lm[234].x * w, y: lm[234].y * h };
-                const rightCheek = { x: lm[454].x * w, y: lm[454].y * h };
+                const leftFaceEdge = { x: lm[234].x * w, y: lm[234].y * h };
+                const rightFaceEdge = { x: lm[454].x * w, y: lm[454].y * h };
 
                 features = {
                     leftEyeOuter, leftEyeInner,
@@ -2038,54 +2219,56 @@
                     noseLeft, noseRight
                 };
 
-                const faceCenterX = (leftCheek.x + rightCheek.x) / 2;
-                const browCenterY = browPt.y;
-                const faceWidthPx = Math.max(20, dist(leftCheek, rightCheek));
-                const faceHeightPx = Math.max(20, dist(topHead, chinPt));
-
-                const eyeLineAngleDeg = Math.round(Math.atan2(rightEyeOuter.y - leftEyeOuter.y, rightEyeOuter.x - leftEyeOuter.x) * 180 / Math.PI);
-                const noseMidX = (noseLeft.x + noseRight.x) / 2;
-                const approxYaw = Math.max(-65, Math.min(65, Math.round(((noseMidX - faceCenterX) / (faceWidthPx * 0.5)) * 45)));
-                const approxPitch = Math.max(-45, Math.min(45, Math.round(((noseBase.y - browCenterY) / faceHeightPx - 0.35) * 90)));
-
-                headPose3D = {
-                    yaw: approxYaw,
-                    pitch: approxPitch,
-                    roll: eyeLineAngleDeg
-                };
+                if (result.facialTransformationMatrixes && result.facialTransformationMatrixes.length > 0) {
+                    const mat = result.facialTransformationMatrixes[0].data;
+                    headPose3D = extractEulerFromMatrix(mat);
+                } else {
+                    const eyeAngleRad = Math.atan2(rightEyeOuter.y - leftEyeOuter.y, rightEyeOuter.x - leftEyeOuter.x);
+                    headPose3D = { yaw: 0, pitch: 0, roll: Math.round(eyeAngleRad * 180 / Math.PI) };
+                }
                 updatePoseStripUI();
 
+                const faceCenterX = (leftFaceEdge.x + rightFaceEdge.x) / 2;
+                const browCenterY = browPt.y;
+                const faceWidthPx = dist(leftFaceEdge, rightFaceEdge);
+                const faceHeightPx = dist(topHead, chinPt);
+
                 if (!isLocked) {
-                    const calibratedRadius = Math.min(
-                        Math.max(40, Math.round(faceWidthPx * 0.48)),
-                        Math.round(Math.min(w, h) * 0.45)
-                    );
+                    const absYaw = Math.abs(headPose3D.yaw);
+                    if (currentMode === 'front' || currentMode === 'threeQuarter' || currentMode === 'side') {
+                        if (absYaw >= 52) {
+                            autoSwitchModeTab('side', document.getElementById('tabSide'));
+                        } else if (absYaw >= 12) {
+                            autoSwitchModeTab('threeQuarter', document.getElementById('tab3Q'));
+                        } else {
+                            autoSwitchModeTab('front', document.getElementById('tabFront'));
+                        }
+                    }
 
                     state.cx = faceCenterX;
-                    state.cy = browCenterY + calibratedRadius * 0.12;
-                    state.radius = calibratedRadius;
-
-                    radiusRange.max = Math.max(600, Math.round(Math.max(w, h) * 0.65));
+                    state.cy = browCenterY + faceHeightPx * 0.08;
+                    const effectiveSpan = Math.max(faceWidthPx, faceHeightPx * 0.76);
+                    state.radius = Math.round(effectiveSpan * 0.58);
                     radiusRange.value = state.radius;
                     document.getElementById('radiusVal').textContent = state.radius;
 
-                    const rollDeg = Math.max(-60, Math.min(60, eyeLineAngleDeg));
+                    const rollDeg = Math.max(-60, Math.min(60, headPose3D.roll));
                     state.angle = rollDeg;
                     angleRange.value = rollDeg;
                     document.getElementById('angleVal').textContent = rollDeg + '°';
 
                     const localTop = toLocalGridSpace(topHead.x, topHead.y);
                     const localChin = toLocalGridSpace(chinPt.x, chinPt.y);
-                    const localLeft = toLocalGridSpace(leftCheek.x, leftCheek.y);
-                    const localRight = toLocalGridSpace(rightCheek.x, rightCheek.y);
+                    const localLeft = toLocalGridSpace(leftFaceEdge.x, leftFaceEdge.y);
+                    const localRight = toLocalGridSpace(rightFaceEdge.x, rightFaceEdge.y);
 
                     state.yOffsets.brow = toLocalGridSpace(browPt.x, browPt.y).y;
                     state.yOffsets.nose = toLocalGridSpace(noseBase.x, noseBase.y).y;
                     state.yOffsets.chin = localChin.y;
                     state.yOffsets.hair = localTop.y;
 
-                    const faceSpanY = Math.max(40, localChin.y - localTop.y);
-                    state.bounds.topY = localTop.y - faceSpanY * 0.12;
+                    const faceSpanY = localChin.y - localTop.y;
+                    state.bounds.topY = localTop.y - faceSpanY * 0.14;
                     state.bounds.bottomY = localChin.y;
                     state.bounds.leftX = localLeft.x;
                     state.bounds.rightX = localRight.x;
@@ -2102,16 +2285,23 @@
             }
         }
 
+        function autoSwitchModeTab(mode, btn) {
+            currentMode = mode;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+        }
+
         async function runAutoFeatureDetection() {
             if (!currentImage) {
                 createDefaultFeaturesFromGrid();
                 redraw();
                 return;
             }
-            if (isFaceMeshReady && faceMesh) {
+            if (isLandmarkerReady && faceLandmarker) {
                 detectBanner.style.display = 'block';
                 try {
-                    await faceMesh.send({ image: currentImage });
+                    const result = faceLandmarker.detect(currentImage);
+                    processLandmarker3DResults(result);
                 } catch (err) {
                     detectBanner.style.display = 'none';
                     if (!features) createDefaultFeaturesFromGrid();
@@ -2123,7 +2313,7 @@
             }
         }
 
-        async function recalculateAllMeasurements() {
+        window.recalculateAllMeasurements = async function() {
             if (isLocked) {
                 alert('يرجى فتح القفل أولاً لتحديث القياسات.');
                 return;
@@ -2134,7 +2324,7 @@
                 createDefaultFeaturesFromGrid();
                 redraw();
             }
-        }
+        };
 
         const radiusRange = document.getElementById('radiusRange');
         const angleRange = document.getElementById('angleRange');
@@ -2194,7 +2384,7 @@
             redraw();
         });
 
-        function toggleFullscreen() {
+        window.toggleFullscreen = function() {
             document.body.classList.toggle('fullscreen-mode');
             const btn = document.getElementById('btnFullscreen');
             if (document.body.classList.contains('fullscreen-mode')) {
@@ -2205,9 +2395,9 @@
                 btn.classList.remove('active');
             }
             redraw();
-        }
+        };
 
-        function toggleLock() {
+        window.toggleLock = function() {
             isLocked = !isLocked;
             const btn = document.getElementById('btnLock');
             if (isLocked) {
@@ -2218,23 +2408,23 @@
                 btn.classList.remove('locked');
             }
             redraw();
-        }
+        };
 
-        function toggleGrayscale() {
+        window.toggleGrayscale = function() {
             isGrayscale = !isGrayscale;
             document.getElementById('btnGrayscale').classList.toggle('active', isGrayscale);
             redraw();
-        }
+        };
 
-        function resetZoom() {
+        window.resetZoom = function() {
             view.scale = 1;
             view.offsetX = 0;
             view.offsetY = 0;
             document.getElementById('btnZoomReset').textContent = '100%';
             redraw();
-        }
+        };
 
-        function setMode(mode, btn) {
+        window.setMode = function(mode, btn) {
             currentMode = mode;
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
@@ -2251,22 +2441,22 @@
                 resetParallelRulers();
             }
             redraw();
-        }
+        };
 
-        function resetLines() {
+        window.resetLines = function() {
             if (isLocked) return;
             const r = state.radius;
             state.yOffsets = {
-                hair: -r * 1.05,
+                hair: -r * 1.15,
                 brow: -r * 0.25,
-                nose: r * 0.45,
-                chin: r * 1.15
+                nose: r * 0.55,
+                chin: r * 1.35
             };
             state.bounds = {
-                topY: -r * 1.2,
-                bottomY: r * 1.15,
-                leftX: -r * 0.85,
-                rightX: r * 0.85
+                topY: -r * 1.35,
+                bottomY: r * 1.35,
+                leftX: -r * 0.95,
+                rightX: r * 0.95
             };
             state.angle = 0;
             headPose3D = { yaw: 0, pitch: 0, roll: 0 };
@@ -2286,7 +2476,7 @@
             }
             resetParallelRulers();
             redraw();
-        }
+        };
 
         document.getElementById('imageUpload').addEventListener('change', (e) => {
             const file = e.target.files[0];
@@ -2296,20 +2486,22 @@
             img.onload = () => {
                 currentImage = img;
                 lineartCanvasCache = null;
+                shadingCache = null;
                 features = null;
                 hasDetectedOnce = false;
-                canvas.width = img.width || 720;
-                canvas.height = img.height || 960;
+                canvas.width = img.width;
+                canvas.height = img.height;
 
-                state.cx = canvas.width / 2;
-                state.cy = canvas.height / 2.2;
-                state.radius = Math.round(Math.min(canvas.width, canvas.height) * 0.24);
+                state.cx = img.width / 2;
+                state.cy = img.height / 2.2;
+                state.radius = Math.round(Math.min(img.width, img.height) * 0.28);
 
-                radiusRange.max = Math.max(600, Math.round(Math.max(canvas.width, canvas.height) * 0.65));
+                radiusRange.max = Math.round(Math.max(img.width, img.height) * 0.65);
                 radiusRange.value = state.radius;
                 document.getElementById('radiusVal').textContent = state.radius;
 
                 if (isLineartMode) rebuildLineartCache();
+                if (isShadingGuideActive) buildShadingGuideCache();
                 resetZoom();
                 resetLines();
             };
@@ -2584,7 +2776,9 @@
             ctx.scale(view.scale, view.scale);
 
             if (currentImage) {
-                if (isLineartMode && lineartCanvasCache) {
+                if (isShadingGuideActive && shadingCache) {
+                    ctx.drawImage(shadingCache, 0, 0, canvas.width, canvas.height);
+                } else if (isLineartMode && lineartCanvasCache) {
                     ctx.drawImage(lineartCanvasCache, 0, 0, canvas.width, canvas.height);
                 } else {
                     if (isGrayscale) {
@@ -2966,6 +3160,7 @@
             });
         }
 
+        // رسم شبكة لوميس الديناميكية المستجيبة لزوايا Yaw و Pitch ثلاثية الأبعاد
         function drawGrid(pxToCm) {
             ctx.save();
             ctx.globalAlpha = lineOpacity;
@@ -2989,7 +3184,7 @@
             const r = state.radius;
             const { hair, brow, nose, chin } = state.yOffsets;
             const yawRatio = Math.max(-1, Math.min(1, headPose3D.yaw / 65));
-            const pitchCurve = (headPose3D.pitch / 45) * (r * 0.2);
+            const pitchCurve = (headPose3D.pitch / 45) * (r * 0.22);
 
             if (currentMode === 'front' || currentMode === 'anatomy') {
                 ctx.beginPath();
@@ -3004,8 +3199,8 @@
                 ctx.restore();
 
                 ctx.beginPath();
-                ctx.moveTo(0, hair - r * 0.15);
-                ctx.lineTo(0, chin + r * 0.15);
+                ctx.moveTo(0, hair - r * 0.2);
+                ctx.lineTo(0, chin + r * 0.2);
                 ctx.stroke();
 
                 ctx.beginPath();
@@ -3064,7 +3259,7 @@
                 ctx.stroke();
             }
 
-            const lineSpan = r * 1.35;
+            const lineSpan = r * 1.5;
             drawCurvedOrFlatLine(hair, lineSpan, pitchCurve * 0.6, 'الشعر', lw, fontSize, resFactor);
             drawCurvedOrFlatLine(brow, lineSpan, pitchCurve, 'الحواجب', lw, fontSize, resFactor);
             drawCurvedOrFlatLine(nose, lineSpan, pitchCurve * 0.7, 'الأنف', lw, fontSize, resFactor);
