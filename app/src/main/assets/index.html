@@ -877,7 +877,7 @@
             <span id="lineartVal" style="color:#ffd700; font-weight:bold;">42</span>
         </div>
 
-        <div class="detect-banner" id="detectBanner">جاري تحديث إحداثيات الصورة...</div>
+        <div class="detect-banner" id="detectBanner">جاري رصد المعالم ثلاثية الأبعاد...</div>
         <canvas id="output_canvas" width="720" height="960"></canvas>
     </div>
 
@@ -1236,6 +1236,63 @@
         let initialPinchDist = null;
         let initialViewScale = 1;
         let lastPinchCenter = null;
+
+        // --- تهيئة اختيارية آمنة لمحرك FaceLandmarker 3D دون تعطيل اللوحة أبداً ---
+        let faceLandmarker = null;
+        let isLandmarkerReady = false;
+
+        async function initFaceLandmarker3DSafe() {
+            try {
+                const visionMod = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs");
+                if (!visionMod || !visionMod.FilesetResolver || !visionMod.FaceLandmarker) return;
+                const vision = await visionMod.FilesetResolver.forVisionTasks(
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
+                );
+                faceLandmarker = await visionMod.FaceLandmarker.createFromOptions(vision, {
+                    baseOptions: {
+                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+                        delegate: "CPU"
+                    },
+                    outputFaceBlendshapes: false,
+                    outputFacialTransformationMatrixes: true,
+                    runningMode: "IMAGE",
+                    numFaces: 1
+                });
+                isLandmarkerReady = true;
+                if (currentImage) {
+                    runAutoFeatureDetection();
+                }
+            } catch (e) {
+                isLandmarkerReady = false;
+            }
+        }
+        initFaceLandmarker3DSafe();
+
+        function extractEulerFromMatrix(matrixData) {
+            const m00 = matrixData[0], m01 = matrixData[4], m02 = matrixData[8];
+            const m10 = matrixData[1], m11 = matrixData[5], m12 = matrixData[9];
+            const m20 = matrixData[2], m21 = matrixData[6], m22 = matrixData[10];
+
+            const sy = Math.hypot(m00, m10);
+            const singular = sy < 1e-6;
+            let pitchRad, yawRad, rollRad;
+
+            if (!singular) {
+                pitchRad = Math.atan2(m21, m22);
+                yawRad = Math.atan2(-m20, sy);
+                rollRad = Math.atan2(m10, m00);
+            } else {
+                pitchRad = Math.atan2(-m12, m11);
+                yawRad = Math.atan2(-m20, sy);
+                rollRad = 0;
+            }
+
+            return {
+                yaw: Math.round(yawRad * 180 / Math.PI),
+                pitch: Math.round(pitchRad * 180 / Math.PI),
+                roll: Math.round(rollRad * 180 / Math.PI)
+            };
+        }
 
         function toggleShadingGuide() {
             if (!currentImage) {
@@ -2061,9 +2118,7 @@
             } else if (taskType === 'compare') {
                 taskGoal = `قارن الصورة المرجعية الأولى برسمة المستخدم الثانية. حدد الأجزاء التي تحتاج تصحيحاً من القائمة المحددة في corrections مع ذكر مقدار التعديل، واشرح الفروقات في explanation.`;
             }
-            return `${taskGoal}
-
-${jsonSchemaInstruction}`;
+            return `${taskGoal}\n\n${jsonSchemaInstruction}`;
         }
 
         function handleAiJsonResponse(rawText, resultBox) {
@@ -2142,9 +2197,7 @@ ${jsonSchemaInstruction}`;
 
                 const data = await response.json();
                 if (data.error) {
-                    resultBox.textContent = `❌ خطأ من Gemini: ${data.error.message}
-
-💡 نصيحة: إذا نفدت الحصة، اضغط على زر "🤗 Hugging Face (Qwen2.5-VL)" في أعلى النافذة لإكمال التحليل فوراً.`;
+                    resultBox.textContent = `❌ خطأ من Gemini: ${data.error.message}\n\n💡 نصيحة: إذا نفدت الحصة، اضغط على زر "🤗 Hugging Face (Qwen2.5-VL)" في أعلى النافذة لإكمال التحليل فوراً.`;
                     return;
                 }
 
@@ -2154,8 +2207,7 @@ ${jsonSchemaInstruction}`;
                 clearTimeout(timeoutId);
                 resultBox.textContent = err.name === 'AbortError'
                     ? '⏱️ انتهت مهلة الانتظار (25 ثانية). جرب التبديل إلى Hugging Face أو أعد المحاولة.'
-                    : `❌ تعذر الاتصال بـ Gemini:
-${err.message}`;
+                    : `❌ تعذر الاتصال بـ Gemini:\n${err.message}`;
             }
         }
 
@@ -2221,8 +2273,7 @@ ${err.message}`;
                 const data = await response.json();
                 if (data.error) {
                     const errMsg = typeof data.error === 'string' ? data.error : (data.error.message || JSON.stringify(data.error));
-                    resultBox.textContent = `❌ خطأ من Hugging Face (${modelId}):
-${errMsg}`;
+                    resultBox.textContent = `❌ خطأ من Hugging Face (${modelId}):\n${errMsg}`;
                     return;
                 }
 
@@ -2232,8 +2283,7 @@ ${errMsg}`;
                 clearTimeout(timeoutId);
                 resultBox.textContent = err.name === 'AbortError'
                     ? '⏱️ انتهت مهلة الانتظار (30 ثانية) من خادم Hugging Face. حاول مرة أخرى.'
-                    : `❌ تعذر الاتصال بـ Hugging Face:
-${err.message}`;
+                    : `❌ تعذر الاتصال بـ Hugging Face:\n${err.message}`;
             }
         }
 
@@ -2284,6 +2334,122 @@ ${err.message}`;
             lastDetectedSource = currentImage ? 'إحداثيات الصورة المرفوعة' : 'افتراضي (قبل رفع صورة)';
             buildAnatomicalLandmarksList();
             updateActualCoordsPanel();
+        }
+
+        function processLandmarker3DResults(result) {
+            detectBanner.style.display = 'none';
+            if (result && result.faceLandmarks && result.faceLandmarks.length > 0 && currentImage) {
+                const lm = result.faceLandmarks[0];
+                const w = canvas.width;
+                const h = canvas.height;
+
+                const leftEyeOuter = { x: lm[33].x * w, y: lm[33].y * h };
+                const leftEyeInner = { x: lm[133].x * w, y: lm[133].y * h };
+
+                const rightEyeInner = { x: lm[362].x * w, y: lm[362].y * h };
+                const rightEyeOuter = { x: lm[263].x * w, y: lm[263].y * h };
+
+                const mouthLeft = { x: lm[61].x * w, y: lm[61].y * h };
+                const mouthRight = { x: lm[291].x * w, y: lm[291].y * h };
+
+                const noseLeft = { x: lm[129].x * w, y: lm[129].y * h };
+                const noseRight = { x: lm[358].x * w, y: lm[358].y * h };
+
+                const noseBase = { x: lm[2].x * w, y: lm[2].y * h };
+                const topHead = { x: lm[10].x * w, y: lm[10].y * h };
+                const chinPt = { x: lm[152].x * w, y: lm[152].y * h };
+                const browPt = { x: lm[9].x * w, y: lm[9].y * h };
+
+                const leftFaceEdge = { x: lm[234].x * w, y: lm[234].y * h };
+                const rightFaceEdge = { x: lm[454].x * w, y: lm[454].y * h };
+
+                features = {
+                    leftEyeOuter, leftEyeInner,
+                    rightEyeInner, rightEyeOuter,
+                    mouthLeft, mouthRight,
+                    noseLeft, noseRight
+                };
+
+                actualKeyPoints = {
+                    topHead: topHead,
+                    browCenter: browPt,
+                    noseBase: noseBase,
+                    chin: chinPt,
+                    leftCheek: leftFaceEdge,
+                    rightCheek: rightFaceEdge
+                };
+                lastDetectedSource = 'رصد فعلي حي (FaceLandmarker 3D)';
+
+                if (result.facialTransformationMatrixes && result.facialTransformationMatrixes.length > 0) {
+                    const mat = result.facialTransformationMatrixes[0].data;
+                    headPose3D = extractEulerFromMatrix(mat);
+                } else {
+                    const eyeAngleRad = Math.atan2(rightEyeOuter.y - leftEyeOuter.y, rightEyeOuter.x - leftEyeOuter.x);
+                    headPose3D = { yaw: 0, pitch: 0, roll: Math.round(eyeAngleRad * 180 / Math.PI) };
+                }
+                updatePoseStripUI();
+
+                const faceCenterX = (leftFaceEdge.x + rightFaceEdge.x) / 2;
+                const browCenterY = browPt.y;
+                const faceWidthPx = dist(leftFaceEdge, rightFaceEdge);
+                const faceHeightPx = dist(topHead, chinPt);
+
+                if (!isLocked) {
+                    const absYaw = Math.abs(headPose3D.yaw);
+                    if (currentMode === 'front' || currentMode === 'threeQuarter' || currentMode === 'side') {
+                        if (absYaw >= 52) {
+                            autoSwitchModeTab('side', document.getElementById('tabSide'));
+                        } else if (absYaw >= 12) {
+                            autoSwitchModeTab('threeQuarter', document.getElementById('tab3Q'));
+                        } else {
+                            autoSwitchModeTab('front', document.getElementById('tabFront'));
+                        }
+                    }
+
+                    state.cx = faceCenterX;
+                    state.cy = browCenterY + faceHeightPx * 0.08;
+                    const effectiveSpan = Math.max(faceWidthPx, faceHeightPx * 0.76);
+                    state.radius = Math.round(effectiveSpan * 0.58);
+                    radiusRange.value = state.radius;
+                    document.getElementById('radiusVal').textContent = state.radius;
+
+                    const rollDeg = Math.max(-60, Math.min(60, headPose3D.roll));
+                    state.angle = rollDeg;
+                    angleRange.value = rollDeg;
+                    document.getElementById('angleVal').textContent = rollDeg + '°';
+
+                    const localTop = toLocalGridSpace(topHead.x, topHead.y);
+                    const localChin = toLocalGridSpace(chinPt.x, chinPt.y);
+                    const localLeft = toLocalGridSpace(leftFaceEdge.x, leftFaceEdge.y);
+                    const localRight = toLocalGridSpace(rightFaceEdge.x, rightFaceEdge.y);
+
+                    state.yOffsets.brow = toLocalGridSpace(browPt.x, browPt.y).y;
+                    state.yOffsets.nose = toLocalGridSpace(noseBase.x, noseBase.y).y;
+                    state.yOffsets.chin = localChin.y;
+                    state.yOffsets.hair = localTop.y;
+
+                    const faceSpanY = localChin.y - localTop.y;
+                    state.bounds.topY = localTop.y - faceSpanY * 0.14;
+                    state.bounds.bottomY = localChin.y;
+                    state.bounds.leftX = localLeft.x;
+                    state.bounds.rightX = localRight.x;
+
+                    resetParallelRulers();
+                }
+
+                buildAnatomicalLandmarksList();
+                updateActualCoordsPanel();
+                hasDetectedOnce = true;
+                redraw();
+            } else {
+                computeImageCoordinatesFromCurrentImage();
+            }
+        }
+
+        function autoSwitchModeTab(mode, btn) {
+            currentMode = mode;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
         }
 
         function computeImageCoordinatesFromCurrentImage() {
@@ -2408,8 +2574,7 @@ ${err.message}`;
                     lines.push(`${cells[0].textContent}: ${cells[1].textContent} | ${cells[2].textContent}`);
                 }
             });
-            const text = lines.join('
-');
+            const text = lines.join('\n');
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(text).then(() => alert('تم نسخ إحداثيات الوجه الفعلية بنجاح!'));
             } else {
@@ -2418,6 +2583,21 @@ ${err.message}`;
         }
 
         async function runAutoFeatureDetection() {
+            if (!currentImage) {
+                createDefaultFeaturesFromGrid();
+                redraw();
+                return;
+            }
+            if (isLandmarkerReady && faceLandmarker) {
+                detectBanner.style.display = 'block';
+                try {
+                    const result = faceLandmarker.detect(currentImage);
+                    processLandmarker3DResults(result);
+                    return;
+                } catch (err) {
+                    detectBanner.style.display = 'none';
+                }
+            }
             computeImageCoordinatesFromCurrentImage();
         }
 
@@ -2427,7 +2607,7 @@ ${err.message}`;
                 return;
             }
             if (currentImage) {
-                computeImageCoordinatesFromCurrentImage();
+                await runAutoFeatureDetection();
             } else {
                 createDefaultFeaturesFromGrid();
                 redraw();
