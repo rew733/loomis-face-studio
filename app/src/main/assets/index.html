@@ -167,11 +167,6 @@
             color: #000;
             border-color: #00e5ff;
         }
-        .float-btn.planes-active {
-            background: #38bdf8;
-            color: #000;
-            border-color: #7dd3fc;
-        }
         .float-btn.locked {
             background: #e74c3c;
             color: #fff;
@@ -199,40 +194,6 @@
             font-size: 11px;
         }
         .lineart-bar.show { display: flex; }
-
-        /* شريط التحكم بطبقة الظل والنور والكتل الهندسية (Kaggle Planes / Depth Overlay) */
-        .planes-bar {
-            display: none;
-            position: absolute;
-            bottom: 52px;
-            left: 12px;
-            right: 12px;
-            background: rgba(18, 25, 36, 0.94);
-            border: 1px solid #38bdf8;
-            border-radius: 8px;
-            padding: 6px 10px;
-            z-index: 12;
-            align-items: center;
-            gap: 8px;
-            font-size: 11px;
-        }
-        .planes-bar.show { display: flex; }
-        .planes-mini-btn {
-            background: #1e293b;
-            color: #e2e8f0;
-            border: 1px solid #475569;
-            border-radius: 5px;
-            padding: 4px 7px;
-            font-size: 10px;
-            font-weight: bold;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-        .planes-mini-btn.active {
-            background: #38bdf8;
-            color: #000;
-            border-color: #38bdf8;
-        }
 
         .detect-banner {
             position: absolute;
@@ -751,7 +712,6 @@
     <div class="container" id="canvasContainer">
         <div class="floating-toolbar">
             <div class="tool-group">
-                <button class="float-btn" id="btnPlanesOverlay" onclick="triggerPlanesOverlay()">🌗 كتل/ظل</button>
                 <button class="float-btn" id="btnLineart" onclick="toggleLineartMode()">✏️ كنتور</button>
                 <button class="float-btn" id="btnPlumbToggle" onclick="togglePlumbTool()">➕ شاقول</button>
                 <button class="float-btn active" id="btnGridToggle" onclick="toggleGridVisibility()">👁️ شبكة</button>
@@ -764,17 +724,6 @@
                 <button class="float-btn" id="btnFullscreen" onclick="toggleFullscreen()">⛶</button>
                 <button class="float-btn" id="btnZoomReset" onclick="resetZoom()">100%</button>
             </div>
-        </div>
-        <input type="file" id="planesOverlayUpload" accept="image/*" style="display:none;" onchange="handlePlanesOverlayUpload(event)">
-
-        <!-- شريط التحكم بطبقة الظل والنور والكتل الهندسية للوجه (من Kaggle / Depth / Planes) -->
-        <div class="planes-bar" id="planesBar">
-            <button class="planes-mini-btn active" id="btnPlanesVis" onclick="togglePlanesVisibility()">👁️ الطبقة</button>
-            <span style="color:#7dd3fc; font-weight:bold; white-space:nowrap;">الشفافية:</span>
-            <input type="range" id="planesOpacityRange" min="0" max="100" value="55" oninput="updatePlanesOpacity(this.value)">
-            <span id="planesOpacityVal" style="color:#ffd700; font-weight:bold;">55%</span>
-            <button class="planes-mini-btn" onclick="document.getElementById('planesOverlayUpload').click()">📁 تغيير</button>
-            <button class="planes-mini-btn" onclick="clearPlanesOverlay()">✕</button>
         </div>
 
         <div class="lineart-bar" id="lineartBar">
@@ -1042,13 +991,6 @@
         let lineartCanvasCache = null;
         let isLineartMode = false;
 
-        // طبقة خريطة الظل والنور والكتل الهندسية للوجه (Planes / Depth Overlay من Kaggle)
-        let planesOverlay = {
-            img: null,
-            visible: false,
-            opacity: 0.55
-        };
-
         let currentMode = 'front';
         let lineColor = '#FFD700';
         let lineOpacity = 1.0;
@@ -1062,10 +1004,11 @@
         let activeAiProvider = 'gemini';
         let view = { scale: 1, offsetX: 0, offsetY: 0 };
 
+        // زوايا الدوران ثلاثية الأبعاد المستخرجة من مصفوفة FaceLandmarker 3D
         let headPose3D = {
-            yaw: 0,
-            pitch: 0,
-            roll: 0
+            yaw: 0,   // الالتفات يميناً (+) أو يساراً (-)
+            pitch: 0, // النظر للأعلى (+) أو للأسفل (-)
+            roll: 0   // ميلان الرأس على الكتف
         };
 
         let state = {
@@ -1120,54 +1063,6 @@
         let initialViewScale = 1;
         let lastPinchCenter = null;
 
-        // --- دوال طبقة الظل والنور والكتل الهندسية للوجه (Planes / Depth Overlay) ---
-        window.triggerPlanesOverlay = function() {
-            if (!planesOverlay.img) {
-                document.getElementById('planesOverlayUpload').click();
-            } else {
-                togglePlanesVisibility();
-            }
-        };
-
-        window.handlePlanesOverlayUpload = function(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const img = new Image();
-            img.onload = () => {
-                planesOverlay.img = img;
-                planesOverlay.visible = true;
-                document.getElementById('btnPlanesOverlay').classList.add('planes-active');
-                document.getElementById('planesBar').classList.add('show');
-                document.getElementById('btnPlanesVis').classList.add('active');
-                redraw();
-            };
-            img.src = URL.createObjectURL(file);
-            event.target.value = '';
-        };
-
-        window.togglePlanesVisibility = function() {
-            if (!planesOverlay.img) return;
-            planesOverlay.visible = !planesOverlay.visible;
-            document.getElementById('btnPlanesOverlay').classList.toggle('planes-active', planesOverlay.visible);
-            document.getElementById('btnPlanesVis').classList.toggle('active', planesOverlay.visible);
-            redraw();
-        };
-
-        window.updatePlanesOpacity = function(val) {
-            const pct = parseInt(val) || 0;
-            planesOverlay.opacity = pct / 100;
-            document.getElementById('planesOpacityVal').textContent = `${pct}%`;
-            redraw();
-        };
-
-        window.clearPlanesOverlay = function() {
-            planesOverlay.img = null;
-            planesOverlay.visible = false;
-            document.getElementById('btnPlanesOverlay').classList.remove('planes-active');
-            document.getElementById('planesBar').classList.remove('show');
-            redraw();
-        };
-
         // --- تهيئة محرك MediaPipe FaceLandmarker 3D الرسمي ---
         let faceLandmarker = null;
         let isLandmarkerReady = false;
@@ -1197,7 +1092,9 @@
         }
         initFaceLandmarker3D();
 
+        // استخراج زوايا Euler (Yaw, Pitch, Roll) من مصفوفة التحويل ثلاثية الأبعاد 4x4
         function extractEulerFromMatrix(matrixData) {
+            // مصفوفة Column-Major 4x4
             const m00 = matrixData[0], m01 = matrixData[4], m02 = matrixData[8];
             const m10 = matrixData[1], m11 = matrixData[5], m12 = matrixData[9];
             const m20 = matrixData[2], m21 = matrixData[6], m22 = matrixData[10];
@@ -1229,6 +1126,7 @@
             document.getElementById('poseRollVal').textContent = `${headPose3D.roll}°`;
         }
 
+        // --- أداة الكنتور (Lineart) ---
         window.toggleLineartMode = function() {
             if (!currentImage) {
                 alert('يرجى رفع صورة الوجه أولاً لاستخراج خطوط الكنتور.');
@@ -1320,6 +1218,7 @@
             redraw();
         };
 
+        // --- المسطرتان المتوازيتان ---
         window.setRulerOrientation = function(orient) {
             parallelRuler.orientation = orient;
             document.getElementById('btnRulerHoriz').classList.toggle('active', orient === 'horizontal');
@@ -1508,6 +1407,7 @@
             redraw();
         };
 
+        // --- الشاقول الذكي المزدوج ---
         window.togglePlumbTool = function() {
             plumbState.active = !plumbState.active;
             const btn = document.getElementById('btnPlumbToggle');
@@ -2189,6 +2089,7 @@
                     noseLeft, noseRight
                 };
 
+                // استخراج الزوايا ثلاثية الأبعاد من مصفوفة FaceLandmarker 3D
                 if (result.facialTransformationMatrixes && result.facialTransformationMatrixes.length > 0) {
                     const mat = result.facialTransformationMatrixes[0].data;
                     headPose3D = extractEulerFromMatrix(mat);
@@ -2204,6 +2105,7 @@
                 const faceHeightPx = dist(topHead, chinPt);
 
                 if (!isLocked) {
+                    // التبديل التلقائي لوضعية الرأس (Front / 3/4 / Profile) حسب زاوية Yaw الحقيقية
                     const absYaw = Math.abs(headPose3D.yaw);
                     if (currentMode === 'front' || currentMode === 'threeQuarter' || currentMode === 'side') {
                         if (absYaw >= 52) {
@@ -2217,6 +2119,7 @@
 
                     state.cx = faceCenterX;
                     state.cy = browCenterY + faceHeightPx * 0.08;
+                    // حساب نصف قطر الكرة بالاعتماد على البعد الأكبر لتعويض المنظور في الوضع الجانبي والثلاثي
                     const effectiveSpan = Math.max(faceWidthPx, faceHeightPx * 0.76);
                     state.radius = Math.round(effectiveSpan * 0.58);
                     radiusRange.value = state.radius;
@@ -2762,14 +2665,6 @@
                 ctx.fillText('اضغط "رفع صورة من الاستديو" للبدء', canvas.width / 2, canvas.height / 2);
             }
 
-            // رسم طبقة الظل والنور والكتل الهندسية للوجه (Planes / Depth Overlay)
-            if (planesOverlay.img && planesOverlay.visible && planesOverlay.opacity > 0) {
-                ctx.save();
-                ctx.globalAlpha = planesOverlay.opacity;
-                ctx.drawImage(planesOverlay.img, 0, 0, canvas.width, canvas.height);
-                ctx.restore();
-            }
-
             const pxToCm = getPrecisePxToCm();
 
             if (currentMode === 'ruler') {
@@ -3134,6 +3029,7 @@
             });
         }
 
+        // رسم شبكة لوميس الديناميكية المستجيبة لزوايا Yaw و Pitch ثلاثية الأبعاد
         function drawGrid(pxToCm) {
             ctx.save();
             ctx.globalAlpha = lineOpacity;
@@ -3190,6 +3086,7 @@
                 ctx.arc(0, 0, r, 0, Math.PI * 2);
                 ctx.stroke();
 
+                // توجيه القطع الجانبي البيضاوي وخط المنتصف تلقائياً حسب جهة الالتفات (يمين أو يسار)
                 const dir = yawRatio >= 0 ? 1 : -1;
                 const absY = Math.max(0.25, Math.abs(yawRatio));
                 const sidePlaneX = -dir * r * (0.28 + absY * 0.22);
@@ -3203,11 +3100,13 @@
                 ctx.stroke();
                 ctx.restore();
 
+                // خط منتصف الوجه المنحني ثلاثي الأبعاد
                 ctx.beginPath();
                 ctx.moveTo(centerCurveX * 0.85, hair - r * 0.1);
                 ctx.quadraticCurveTo(centerCurveX * 1.25, 0, centerCurveX * 0.7, chin);
                 ctx.stroke();
 
+                // خط الفك من أسفل القطع الجانبي إلى الذقن
                 ctx.beginPath();
                 ctx.moveTo(sidePlaneX, r * 0.35);
                 ctx.lineTo(sidePlaneX + dir * r * 0.2, nose * 1.15);
