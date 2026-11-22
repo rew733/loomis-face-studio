@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Loomis Face Studio - الاستوديو التشريحي الذكي</title>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <title>Loomis Face Studio - الاستوديو التشريحي ثلاثي الأبعاد</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body {
@@ -59,13 +58,38 @@
             color: #000;
             border-color: #00ff88;
         }
-        .container {
-            position: relative;
-            margin-top: 8px;
+        /* شريط زوايا الرأس ثلاثية الأبعاد (Yaw / Pitch / Roll) */
+        .pose-strip {
+            display: flex;
             width: 96%;
             max-width: 480px;
-            height: 60vh;
-            min-height: 420px;
+            background: #161b22;
+            border: 1px solid #2b3544;
+            border-radius: 7px;
+            padding: 6px 8px;
+            margin-top: 6px;
+            justify-content: space-around;
+            align-items: center;
+            font-size: 11px;
+        }
+        .pose-chip {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: #cbd5e1;
+        }
+        .pose-chip span {
+            color: #38bdf8;
+            font-weight: bold;
+            direction: ltr;
+        }
+        .container {
+            position: relative;
+            margin-top: 6px;
+            width: 96%;
+            max-width: 480px;
+            height: 58vh;
+            min-height: 410px;
             border-radius: 10px;
             overflow: hidden;
             background-color: #141414;
@@ -75,6 +99,7 @@
         }
         body.fullscreen-mode header,
         body.fullscreen-mode .tabs,
+        body.fullscreen-mode .pose-strip,
         body.fullscreen-mode .controls,
         body.fullscreen-mode .proportions-card,
         body.fullscreen-mode .plumb-card,
@@ -153,7 +178,6 @@
             color: #fff;
         }
 
-        /* شريط ضبط حدة الكنتور (Lineart Threshold) */
         .lineart-bar {
             display: none;
             position: absolute;
@@ -469,7 +493,6 @@
             color: #999;
         }
 
-        /* نافذة المرشد الذكي (Gemini + Hugging Face Qwen2.5-VL) */
         .ai-modal {
             display: none;
             position: fixed;
@@ -669,14 +692,21 @@
 </head>
 <body>
 
-    <header>Loomis Face Studio - الاستوديو التشريحي الذكي</header>
+    <header>Loomis Face Studio - الاستوديو التشريحي ثلاثي الأبعاد</header>
 
     <div class="tabs">
-        <button class="tab-btn active" onclick="setMode('front', this)">أمامي (Front)</button>
-        <button class="tab-btn" onclick="setMode('threeQuarter', this)">ثلاثي (3/4)</button>
-        <button class="tab-btn" onclick="setMode('side', this)">جانبي (Profile)</button>
-        <button class="tab-btn" onclick="setMode('anatomy', this)">نسب الملامح</button>
-        <button class="tab-btn ruler-tab" onclick="setMode('ruler', this)">📏 مسطرة</button>
+        <button class="tab-btn active" id="tabFront" onclick="setMode('front', this)">أمامي (Front)</button>
+        <button class="tab-btn" id="tab3Q" onclick="setMode('threeQuarter', this)">ثلاثي (3/4)</button>
+        <button class="tab-btn" id="tabSide" onclick="setMode('side', this)">جانبي (Profile)</button>
+        <button class="tab-btn" id="tabAnatomy" onclick="setMode('anatomy', this)">نسب الملامح</button>
+        <button class="tab-btn ruler-tab" id="tabRuler" onclick="setMode('ruler', this)">📏 مسطرة</button>
+    </div>
+
+    <!-- شريط زوايا الرأس ثلاثية الأبعاد الحية -->
+    <div class="pose-strip">
+        <div class="pose-chip">الالتفات (Yaw): <span id="poseYawVal">0°</span></div>
+        <div class="pose-chip">الارتفاع (Pitch): <span id="posePitchVal">0°</span></div>
+        <div class="pose-chip">الميلان (Roll): <span id="poseRollVal">0°</span></div>
     </div>
 
     <div class="container" id="canvasContainer">
@@ -696,18 +726,17 @@
             </div>
         </div>
 
-        <!-- شريط التحكم بحدة خطوط الكنتور (Lineart) -->
         <div class="lineart-bar" id="lineartBar">
             <span style="color:#00e5ff; font-weight:bold; white-space:nowrap;">✏️ حدة الخطوط:</span>
             <input type="range" id="lineartSensitivity" min="15" max="120" value="42" oninput="rebuildLineartCache()">
             <span id="lineartVal" style="color:#ffd700; font-weight:bold;">42</span>
         </div>
 
-        <div class="detect-banner" id="detectBanner">جاري رصد المعالم التشريحية بدقة...</div>
+        <div class="detect-banner" id="detectBanner">جاري تشغيل FaceLandmarker ثلاثي الأبعاد...</div>
         <canvas id="output_canvas" width="720" height="960"></canvas>
     </div>
 
-    <!-- بطاقة المسطرتين المتوازيتين (عمودي أو أفقي) -->
+    <!-- بطاقة المسطرتين المتوازيتين -->
     <div class="ruler-card" id="rulerCard">
         <div class="ruler-top-row">
             <button class="ruler-mode-btn active" id="btnRulerHoriz" onclick="setRulerOrientation('horizontal')">↕ خطان أفقيان (قياس الارتفاع)</button>
@@ -756,7 +785,7 @@
 
     <!-- بطاقة القياسات التشريحية المعايرة بالسنتيمتر -->
     <div class="proportions-card" id="propCard">
-        <button class="recalc-btn" onclick="recalculateAllMeasurements()">🔄 إعادة قياس وتحديث النسب الآن</button>
+        <button class="recalc-btn" onclick="recalculateAllMeasurements()">🔄 إعادة رصد الزوايا ثلاثية الأبعاد والنسب</button>
 
         <div class="paper-row">
             <span style="color:#ffd700; font-weight:bold;">طول الرأس الكامل على كراستك:</span>
@@ -872,10 +901,10 @@
             </select>
         </div>
 
-        <div class="hint">💡 اضغط "✏️ كنتور" لتحويل الصورة لخطوط رسم نظيفة، أو "🤖 المرشد" للتبديل بين Gemini و Hugging Face</div>
+        <div class="hint">💡 يعمل التطبيق الآن بمحرك FaceLandmarker 3D لضبط وضعية الرأس (Yaw/Pitch/Roll) تلقائياً</div>
     </div>
 
-    <!-- نافذة المرشد التشريحي الذكي (Gemini + Hugging Face Qwen2.5-VL) -->
+    <!-- نافذة المرشد الذكي (Gemini + Hugging Face Qwen2.5-VL) -->
     <div class="ai-modal" id="aiModal">
         <div class="ai-dialog">
             <div class="ai-header">
@@ -883,13 +912,11 @@
                 <button class="ai-close" onclick="closeAiModal()">✕</button>
             </div>
             <div class="ai-body">
-                <!-- اختيار المزود: Gemini أو Hugging Face -->
                 <div class="provider-switch">
                     <button class="provider-btn active" id="provGeminiBtn" onclick="selectAiProvider('gemini')">🔵 Google Gemini</button>
                     <button class="provider-btn" id="provHfBtn" onclick="selectAiProvider('huggingface')">🤗 Hugging Face (Qwen2.5-VL)</button>
                 </div>
 
-                <!-- إعدادات Gemini -->
                 <div class="api-key-box" id="geminiSettingsBox">
                     <div style="font-size:11px; color:#ccc;">مفتاح Gemini API:</div>
                     <div class="api-key-row">
@@ -912,7 +939,6 @@
                     </div>
                 </div>
 
-                <!-- إعدادات Hugging Face (احتياطي قوي ومجاني مع Qwen2.5-VL) -->
                 <div class="api-key-box" id="hfSettingsBox" style="display:none; border-color:#ff9d00;">
                     <div style="font-size:11px; color:#ffd54f;">توكن Hugging Face (يبدأ بـ hf_...):</div>
                     <div class="api-key-row">
@@ -954,13 +980,15 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
+
         const canvas = document.getElementById('output_canvas');
         const ctx = canvas.getContext('2d');
         const detectBanner = document.getElementById('detectBanner');
 
         let currentImage = null;
-        let lineartCanvasCache = null; // كاش الصورة المحولة لخطوط كنتور نظيفة
+        let lineartCanvasCache = null;
         let isLineartMode = false;
 
         let currentMode = 'front';
@@ -973,9 +1001,15 @@
         let isGrayscale = false;
         let hasDetectedOnce = false;
 
-        let activeAiProvider = 'gemini'; // 'gemini' أو 'huggingface'
-
+        let activeAiProvider = 'gemini';
         let view = { scale: 1, offsetX: 0, offsetY: 0 };
+
+        // زوايا الدوران ثلاثية الأبعاد المستخرجة من مصفوفة FaceLandmarker 3D
+        let headPose3D = {
+            yaw: 0,   // الالتفات يميناً (+) أو يساراً (-)
+            pitch: 0, // النظر للأعلى (+) أو للأسفل (-)
+            roll: 0   // ميلان الرأس على الكتف
+        };
 
         let state = {
             cx: 360,
@@ -1029,32 +1063,91 @@
         let initialViewScale = 1;
         let lastPinchCenter = null;
 
-        // --- أداة تحويل الصورة إلى خطوط رسم نظيفة (Lineart / Contour Extraction) ---
-        function toggleLineartMode() {
+        // --- تهيئة محرك MediaPipe FaceLandmarker 3D الرسمي ---
+        let faceLandmarker = null;
+        let isLandmarkerReady = false;
+
+        async function initFaceLandmarker3D() {
+            try {
+                const vision = await FilesetResolver.forVisionTasks(
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
+                );
+                faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+                    baseOptions: {
+                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+                        delegate: "CPU"
+                    },
+                    outputFaceBlendshapes: false,
+                    outputFacialTransformationMatrixes: true,
+                    runningMode: "IMAGE",
+                    numFaces: 1
+                });
+                isLandmarkerReady = true;
+                if (currentImage && !hasDetectedOnce) {
+                    runAutoFeatureDetection();
+                }
+            } catch (e) {
+                console.warn("FaceLandmarker init warning:", e);
+            }
+        }
+        initFaceLandmarker3D();
+
+        // استخراج زوايا Euler (Yaw, Pitch, Roll) من مصفوفة التحويل ثلاثية الأبعاد 4x4
+        function extractEulerFromMatrix(matrixData) {
+            // مصفوفة Column-Major 4x4
+            const m00 = matrixData[0], m01 = matrixData[4], m02 = matrixData[8];
+            const m10 = matrixData[1], m11 = matrixData[5], m12 = matrixData[9];
+            const m20 = matrixData[2], m21 = matrixData[6], m22 = matrixData[10];
+
+            const sy = Math.hypot(m00, m10);
+            const singular = sy < 1e-6;
+            let pitchRad, yawRad, rollRad;
+
+            if (!singular) {
+                pitchRad = Math.atan2(m21, m22);
+                yawRad = Math.atan2(-m20, sy);
+                rollRad = Math.atan2(m10, m00);
+            } else {
+                pitchRad = Math.atan2(-m12, m11);
+                yawRad = Math.atan2(-m20, sy);
+                rollRad = 0;
+            }
+
+            return {
+                yaw: Math.round(yawRad * 180 / Math.PI),
+                pitch: Math.round(pitchRad * 180 / Math.PI),
+                roll: Math.round(rollRad * 180 / Math.PI)
+            };
+        }
+
+        function updatePoseStripUI() {
+            document.getElementById('poseYawVal').textContent = `${headPose3D.yaw}°`;
+            document.getElementById('posePitchVal').textContent = `${headPose3D.pitch}°`;
+            document.getElementById('poseRollVal').textContent = `${headPose3D.roll}°`;
+        }
+
+        // --- أداة الكنتور (Lineart) ---
+        window.toggleLineartMode = function() {
             if (!currentImage) {
                 alert('يرجى رفع صورة الوجه أولاً لاستخراج خطوط الكنتور.');
                 return;
             }
             isLineartMode = !isLineartMode;
-            const btn = document.getElementById('btnLineart');
-            const bar = document.getElementById('lineartBar');
-
-            btn.classList.toggle('lineart-active', isLineartMode);
-            bar.classList.toggle('show', isLineartMode);
+            document.getElementById('btnLineart').classList.toggle('lineart-active', isLineartMode);
+            document.getElementById('lineartBar').classList.toggle('show', isLineartMode);
 
             if (isLineartMode && !lineartCanvasCache) {
                 rebuildLineartCache();
             } else {
                 redraw();
             }
-        }
+        };
 
-        function rebuildLineartCache() {
+        window.rebuildLineartCache = function() {
             if (!currentImage) return;
             const thresholdVal = parseInt(document.getElementById('lineartSensitivity').value);
             document.getElementById('lineartVal').textContent = thresholdVal;
 
-            // معالجة سريعة على أبعاد مناسبة لضمان السلاسة الفورية على الهاتف
             const maxSide = 900;
             let w = currentImage.width;
             let h = currentImage.height;
@@ -1078,13 +1171,11 @@
             const data = imgData.data;
             const gray = new Float32Array(w * h);
 
-            // 1. تحويل لرمادي ناعم لتقليل تشويش المسام
             for (let i = 0; i < w * h; i++) {
                 const idx = i * 4;
                 gray[i] = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
             }
 
-            // تنعيم خفيف (Gaussian-like 3x3) للحصول على خطوط كنتور نظيفة للرسم
             const smooth = new Float32Array(w * h);
             for (let y = 1; y < h - 1; y++) {
                 for (let x = 1; x < w - 1; x++) {
@@ -1097,7 +1188,6 @@
                 }
             }
 
-            // 2. استخراج الحواف (Sobel Edge Detection) وتحويلها لخطوط حبر داكنة على خلفية ورقية بيضاء
             const outData = oCtx.createImageData(w, h);
             const out = outData.data;
             const sensFactor = (135 - thresholdVal) / 35;
@@ -1112,9 +1202,8 @@
                                + smooth[p + w - 1] + 2 * smooth[p + w] + smooth[p + w + 1];
 
                     const mag = Math.hypot(gx, gy) * sensFactor;
-                    // عكس الألوان: خلفية بيضاء (255) وخطوط كنتور سوداء نظيفة
                     let val = 255 - Math.min(255, mag);
-                    if (val > 215) val = 255; // تنظيف الخلفية تماماً
+                    if (val > 215) val = 255;
 
                     const idx = p * 4;
                     out[idx] = val;
@@ -1127,10 +1216,10 @@
             oCtx.putImageData(outData, 0, 0);
             lineartCanvasCache = offCanvas;
             redraw();
-        }
+        };
 
-        // --- دوال المسطرتين المتوازيتين ---
-        function setRulerOrientation(orient) {
+        // --- المسطرتان المتوازيتان ---
+        window.setRulerOrientation = function(orient) {
             parallelRuler.orientation = orient;
             document.getElementById('btnRulerHoriz').classList.toggle('active', orient === 'horizontal');
             document.getElementById('btnRulerVert').classList.toggle('active', orient === 'vertical');
@@ -1146,9 +1235,9 @@
                 parallelRuler.line2 = state.cx + state.radius * 0.55;
             }
             redraw();
-        }
+        };
 
-        function toggleRulerTilt() {
+        window.toggleRulerTilt = function() {
             parallelRuler.alignWithHead = !parallelRuler.alignWithHead;
             const btn = document.getElementById('btnRulerTilt');
             if (parallelRuler.alignWithHead) {
@@ -1159,9 +1248,9 @@
                 btn.classList.remove('active');
             }
             redraw();
-        }
+        };
 
-        function resetParallelRulers() {
+        window.resetParallelRulers = function() {
             if (parallelRuler.orientation === 'horizontal') {
                 parallelRuler.line1 = state.cy + state.yOffsets.nose;
                 parallelRuler.line2 = state.cy + state.yOffsets.chin;
@@ -1170,7 +1259,7 @@
                 parallelRuler.line2 = state.cx + state.radius * 0.55;
             }
             redraw();
-        }
+        };
 
         function toRulerAxisSpace(px, py) {
             const deg = parallelRuler.alignWithHead ? state.angle : 0;
@@ -1305,7 +1394,7 @@
             ctx.fill();
         }
 
-        function toggleGridVisibility() {
+        window.toggleGridVisibility = function() {
             isGridVisible = !isGridVisible;
             const btn = document.getElementById('btnGridToggle');
             if (isGridVisible) {
@@ -1316,10 +1405,10 @@
                 btn.classList.remove('active');
             }
             redraw();
-        }
+        };
 
-        // --- دوال أداة الشاقول الذكي المزدوج ---
-        function togglePlumbTool() {
+        // --- الشاقول الذكي المزدوج ---
+        window.togglePlumbTool = function() {
             plumbState.active = !plumbState.active;
             const btn = document.getElementById('btnPlumbToggle');
             const card = document.getElementById('plumbCard');
@@ -1338,9 +1427,9 @@
                 card.classList.remove('show');
             }
             redraw();
-        }
+        };
 
-        function toggleSecondPlumb() {
+        window.toggleSecondPlumb = function() {
             plumbState.dual = !plumbState.dual;
             const btn = document.getElementById('btnDualPlumb');
             const statsBox = document.getElementById('plumbDualStats');
@@ -1357,9 +1446,9 @@
                 statsBox.classList.remove('show');
             }
             redraw();
-        }
+        };
 
-        function togglePlumbAxis() {
+        window.togglePlumbAxis = function() {
             plumbState.alignWithHead = !plumbState.alignWithHead;
             const btn = document.getElementById('btnPlumbAxis');
             if (plumbState.alignWithHead) {
@@ -1370,9 +1459,9 @@
                 btn.classList.remove('active-cyan');
             }
             redraw();
-        }
+        };
 
-        function togglePlumbSnap() {
+        window.togglePlumbSnap = function() {
             plumbState.snapEnabled = !plumbState.snapEnabled;
             const btn = document.getElementById('btnPlumbSnap');
             btn.textContent = plumbState.snapEnabled ? '🧲 المغناطيس: مفعّل' : '🧲 المغناطيس: متوقف';
@@ -1381,7 +1470,7 @@
                 plumbState.p2.snappedName = null;
             }
             redraw();
-        }
+        };
 
         function buildAnatomicalLandmarksList() {
             landmarksList = [];
@@ -1524,7 +1613,7 @@
             document.getElementById('plumbReportBox').innerHTML = html;
         }
 
-        // --- إعدادات المرشد الذكي المزدوج (Gemini + Hugging Face Qwen2.5-VL) ---
+        // --- إعدادات المرشد الذكي المزدوج (Gemini + Hugging Face) ---
         window.addEventListener('DOMContentLoaded', () => {
             const savedProvider = localStorage.getItem('loomis_ai_provider') || 'gemini';
             selectAiProvider(savedProvider);
@@ -1547,7 +1636,6 @@
             if (savedCustomModel) document.getElementById('customModelInput').value = savedCustomModel;
             onModelSelectChange();
 
-            // تحميل إعدادات Hugging Face
             const savedHfToken = localStorage.getItem('loomis_hf_token');
             if (savedHfToken) document.getElementById('hfTokenInput').value = savedHfToken;
 
@@ -1567,7 +1655,7 @@
             onHfModelSelectChange();
         });
 
-        function selectAiProvider(prov) {
+        window.selectAiProvider = function(prov) {
             activeAiProvider = prov;
             localStorage.setItem('loomis_ai_provider', prov);
 
@@ -1587,17 +1675,17 @@
                 hfBox.style.display = 'none';
                 gemBox.style.display = 'flex';
             }
-        }
+        };
 
-        function onModelSelectChange() {
+        window.onModelSelectChange = function() {
             const selectVal = document.getElementById('geminiModelSelect').value;
             document.getElementById('customModelBox').classList.toggle('show', selectVal === 'custom');
-        }
+        };
 
-        function onHfModelSelectChange() {
+        window.onHfModelSelectChange = function() {
             const selectVal = document.getElementById('hfModelSelect').value;
             document.getElementById('customHfModelBox').classList.toggle('show', selectVal === 'custom');
-        }
+        };
 
         function getSelectedGeminiModel() {
             const selectVal = document.getElementById('geminiModelSelect').value;
@@ -1615,7 +1703,7 @@
             return selectVal;
         }
 
-        function saveAiSettings() {
+        window.saveAiSettings = function() {
             if (activeAiProvider === 'huggingface') {
                 const hfToken = document.getElementById('hfTokenInput').value.trim();
                 const hfSel = document.getElementById('hfModelSelect').value;
@@ -1641,30 +1729,30 @@
                 if (customVal) localStorage.setItem('loomis_gemini_custom_model', customVal);
                 alert(`تم حفظ مفتاح Gemini والنموذج (${getSelectedGeminiModel()}) بنجاح!`);
             }
-        }
+        };
 
-        function openAiModal() {
+        window.openAiModal = function() {
             document.getElementById('aiModal').classList.add('open');
-        }
+        };
 
-        function closeAiModal() {
+        window.closeAiModal = function() {
             document.getElementById('aiModal').classList.remove('open');
             redraw();
-        }
+        };
 
-        function toggleAiOverlay() {
+        window.toggleAiOverlay = function() {
             aiVisualOverlay.visible = !aiVisualOverlay.visible;
             const btn = document.getElementById('btnAiLayer');
             btn.classList.toggle('active', aiVisualOverlay.visible);
             redraw();
-        }
+        };
 
-        function toggleSketchCompare(btn) {
+        window.toggleSketchCompare = function(btn) {
             document.querySelectorAll('.ai-task-btn').forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
             document.getElementById('sketchUploadBox').classList.add('show');
             document.getElementById('aiResultBox').textContent = 'اختر صورة رسمتك من الزر أعلاه ليقارنها الذكاء الاصطناعي بالصورة الأصلية.';
-        }
+        };
 
         function getResizedBase64(imgSource, maxDim = 512) {
             const tempCanvas = document.createElement('canvas');
@@ -1699,7 +1787,7 @@
             const t2 = document.getElementById('m_t2').textContent;
             const t3 = document.getElementById('m_t3').textContent;
 
-            return `المقياس: ${scaleText} | الطول: ${faceH} | العرض: ${faceW} (${faceRatio}) | العين: ${eyesLen} | بين العينين: ${interEye} | الأنف: ${noseW} | الفم: ${mouthW} | الأثلاث: (${t1} / ${t2} / ${t3})`;
+            return `المقياس: ${scaleText} | زوايا الرأس 3D: (Yaw: ${headPose3D.yaw}°, Pitch: ${headPose3D.pitch}°, Roll: ${headPose3D.roll}°) | الطول: ${faceH} | العرض: ${faceW} (${faceRatio}) | العين: ${eyesLen} | بين العينين: ${interEye} | الأنف: ${noseW} | الفم: ${mouthW} | الأثلاث: (${t1} / ${t2} / ${t3})`;
         }
 
         function applyAiVisualData(aiJson) {
@@ -1725,13 +1813,13 @@
             redraw();
         }
 
-        function runAiAnalysis(taskType, btn, sketchBase64 = null) {
+        window.runAiAnalysis = function(taskType, btn, sketchBase64 = null) {
             if (activeAiProvider === 'huggingface') {
                 askHuggingFace(taskType, btn, sketchBase64);
             } else {
                 askGemini(taskType, btn, sketchBase64);
             }
-        }
+        };
 
         function buildTaskPrompt(taskType) {
             const stats = buildCurrentMeasurementsSummary();
@@ -1750,11 +1838,11 @@
 
             let taskGoal = '';
             if (taskType === 'blueprint') {
-                taskGoal = `أنت أستاذ أكاديمي في تقنية أندرو لوميس. بناءً على الصورة وهذه القياسات المحسوبة بدقة (${stats})، اكتب خطة رسم هندسية مرقمة بالسنتيمتر للرسام في explanation (قطر الكرة، مواقع الأثلاث، وأبعاد العين والفم والأنف). اجعل lightDir=null و shadowZones=[] و corrections=[].`;
+                taskGoal = `أنت أستاذ أكاديمي في تقنية أندرو لوميس. بناءً على الصورة وهذه القياسات ثلاثية الأبعاد المحسوبة بدقة (${stats})، اكتب خطة رسم هندسية مرقمة بالسنتيمتر للرسام في explanation (قطر الكرة، وضعية القطع الجانبي بناءً على زاوية Yaw، مواقع الأثلاث، وأبعاد العين والفم والأنف). اجعل lightDir=null و shadowZones=[] و corrections=[].`;
             } else if (taskType === 'shading') {
                 taskGoal = `حلل الإضاءة ومناطق الظل العميق (Core Shadows) في هذه الصورة. حدد زاوية قدوم الضوء في lightDir، واختر من القائمة المحددة أهم مناطق الظل الحقيقية الموجودة في الصورة في shadowZones ليرسمها التطبيق فوق تلك الأجزاء التشريحية بدقة، واشرح كتل الضوء والظل في explanation.`;
             } else if (taskType === 'tilt') {
-                taskGoal = `انظر للصورة الأولى (الأصلية) والثانية (شبكة لوميس المطبقة عليها حالياً بزاوية ${state.angle}°). اشرح للرسام في explanation زاوية دوران الرأس (Yaw/Pitch) ومدى دقة تطابق الشبكة الحالية أو أي تعديل يدوي بسيط ينصحه به. اجعل lightDir=null و shadowZones=[] و corrections=[].`;
+                taskGoal = `انظر للصورة الأولى (الأصلية) والثانية (شبكة لوميس المطبقة عليها بزوايا Yaw=${headPose3D.yaw}°, Pitch=${headPose3D.pitch}°, Roll=${headPose3D.roll}°). اشرح للرسام في explanation كيف يرسم هذه الوضعية الفراغية للرأس وكيفية إمالة كرة لوميس وقطعيها الجانبيين. اجعل lightDir=null و shadowZones=[] و corrections=[].`;
             } else if (taskType === 'compare') {
                 taskGoal = `قارن الصورة المرجعية الأولى برسمة المستخدم الثانية. حدد الأجزاء التي تحتاج تصحيحاً من القائمة المحددة في corrections مع ذكر مقدار التعديل، واشرح الفروقات في explanation.`;
             }
@@ -1778,7 +1866,6 @@
             }
         }
 
-        // 1. المحرك الأول: Google Gemini API
         async function askGemini(taskType, btn, sketchBase64 = null) {
             const apiKey = document.getElementById('geminiApiKeyInput').value.trim() || localStorage.getItem('loomis_gemini_api_key');
             const modelName = getSelectedGeminiModel();
@@ -1852,7 +1939,6 @@
             }
         }
 
-        // 2. المحرك الثاني الإضافي: Hugging Face Inference API (Qwen2.5-VL)
         async function askHuggingFace(taskType, btn, sketchBase64 = null) {
             const hfToken = document.getElementById('hfTokenInput').value.trim() || localStorage.getItem('loomis_hf_token');
             const modelId = getSelectedHfModel();
@@ -1929,7 +2015,7 @@
             }
         }
 
-        function handleSketchUpload(event) {
+        window.handleSketchUpload = function(event) {
             const file = event.target.files[0];
             if (!file) return;
             const img = new Image();
@@ -1938,26 +2024,9 @@
                 runAiAnalysis('compare', null, sketchB64);
             };
             img.src = URL.createObjectURL(file);
-        }
+        };
 
-        // --- محرك MediaPipe والرسم الهندسي ---
-        let faceMesh = null;
-        let isFaceMeshReady = false;
-
-        if (typeof FaceMesh !== 'undefined') {
-            faceMesh = new FaceMesh({
-                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-            });
-            faceMesh.setOptions({
-                maxNumFaces: 1,
-                refineLandmarks: true,
-                minDetectionConfidence: 0.4,
-                minTrackingConfidence: 0.4
-            });
-            faceMesh.onResults(onFaceMeshResults);
-            isFaceMeshReady = true;
-        }
-
+        // --- معالجة نتائج FaceLandmarker 3D وضبط شبكة لوميس والوضع التلقائي ---
         function createDefaultFeaturesFromGrid() {
             const r = state.radius;
             const faceWidth = r * 1.36;
@@ -1986,10 +2055,10 @@
             buildAnatomicalLandmarksList();
         }
 
-        function onFaceMeshResults(results) {
+        function processLandmarker3DResults(result) {
             detectBanner.style.display = 'none';
-            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0 && currentImage) {
-                const lm = results.multiFaceLandmarks[0];
+            if (result && result.faceLandmarks && result.faceLandmarks.length > 0 && currentImage) {
+                const lm = result.faceLandmarks[0];
                 const w = canvas.width;
                 const h = canvas.height;
 
@@ -2020,25 +2089,46 @@
                     noseLeft, noseRight
                 };
 
+                // استخراج الزوايا ثلاثية الأبعاد من مصفوفة FaceLandmarker 3D
+                if (result.facialTransformationMatrixes && result.facialTransformationMatrixes.length > 0) {
+                    const mat = result.facialTransformationMatrixes[0].data;
+                    headPose3D = extractEulerFromMatrix(mat);
+                } else {
+                    const eyeAngleRad = Math.atan2(rightEyeOuter.y - leftEyeOuter.y, rightEyeOuter.x - leftEyeOuter.x);
+                    headPose3D = { yaw: 0, pitch: 0, roll: Math.round(eyeAngleRad * 180 / Math.PI) };
+                }
+                updatePoseStripUI();
+
                 const faceCenterX = (leftFaceEdge.x + rightFaceEdge.x) / 2;
                 const browCenterY = browPt.y;
                 const faceWidthPx = dist(leftFaceEdge, rightFaceEdge);
-
-                const eyeAngleRad = Math.atan2(rightEyeOuter.y - leftEyeOuter.y, rightEyeOuter.x - leftEyeOuter.x);
-                const eyeAngleDeg = Math.round(eyeAngleRad * 180 / Math.PI);
+                const faceHeightPx = dist(topHead, chinPt);
 
                 if (!isLocked) {
+                    // التبديل التلقائي لوضعية الرأس (Front / 3/4 / Profile) حسب زاوية Yaw الحقيقية
+                    const absYaw = Math.abs(headPose3D.yaw);
+                    if (currentMode === 'front' || currentMode === 'threeQuarter' || currentMode === 'side') {
+                        if (absYaw >= 52) {
+                            autoSwitchModeTab('side', document.getElementById('tabSide'));
+                        } else if (absYaw >= 12) {
+                            autoSwitchModeTab('threeQuarter', document.getElementById('tab3Q'));
+                        } else {
+                            autoSwitchModeTab('front', document.getElementById('tabFront'));
+                        }
+                    }
+
                     state.cx = faceCenterX;
-                    state.cy = browCenterY + faceWidthPx * 0.12;
-                    state.radius = Math.round(faceWidthPx * 0.62);
+                    state.cy = browCenterY + faceHeightPx * 0.08;
+                    // حساب نصف قطر الكرة بالاعتماد على البعد الأكبر لتعويض المنظور في الوضع الجانبي والثلاثي
+                    const effectiveSpan = Math.max(faceWidthPx, faceHeightPx * 0.76);
+                    state.radius = Math.round(effectiveSpan * 0.58);
                     radiusRange.value = state.radius;
                     document.getElementById('radiusVal').textContent = state.radius;
 
-                    if (Math.abs(eyeAngleDeg) <= 60) {
-                        state.angle = eyeAngleDeg;
-                        angleRange.value = eyeAngleDeg;
-                        document.getElementById('angleVal').textContent = eyeAngleDeg + '°';
-                    }
+                    const rollDeg = Math.max(-60, Math.min(60, headPose3D.roll));
+                    state.angle = rollDeg;
+                    angleRange.value = rollDeg;
+                    document.getElementById('angleVal').textContent = rollDeg + '°';
 
                     const localTop = toLocalGridSpace(topHead.x, topHead.y);
                     const localChin = toLocalGridSpace(chinPt.x, chinPt.y);
@@ -2068,16 +2158,23 @@
             }
         }
 
+        function autoSwitchModeTab(mode, btn) {
+            currentMode = mode;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+        }
+
         async function runAutoFeatureDetection() {
             if (!currentImage) {
                 createDefaultFeaturesFromGrid();
                 redraw();
                 return;
             }
-            if (isFaceMeshReady && faceMesh) {
+            if (isLandmarkerReady && faceLandmarker) {
                 detectBanner.style.display = 'block';
                 try {
-                    await faceMesh.send({ image: currentImage });
+                    const result = faceLandmarker.detect(currentImage);
+                    processLandmarker3DResults(result);
                 } catch (err) {
                     detectBanner.style.display = 'none';
                     if (!features) createDefaultFeaturesFromGrid();
@@ -2089,7 +2186,7 @@
             }
         }
 
-        async function recalculateAllMeasurements() {
+        window.recalculateAllMeasurements = async function() {
             if (isLocked) {
                 alert('يرجى فتح القفل أولاً لتحديث القياسات.');
                 return;
@@ -2100,7 +2197,7 @@
                 createDefaultFeaturesFromGrid();
                 redraw();
             }
-        }
+        };
 
         const radiusRange = document.getElementById('radiusRange');
         const angleRange = document.getElementById('angleRange');
@@ -2160,7 +2257,7 @@
             redraw();
         });
 
-        function toggleFullscreen() {
+        window.toggleFullscreen = function() {
             document.body.classList.toggle('fullscreen-mode');
             const btn = document.getElementById('btnFullscreen');
             if (document.body.classList.contains('fullscreen-mode')) {
@@ -2171,9 +2268,9 @@
                 btn.classList.remove('active');
             }
             redraw();
-        }
+        };
 
-        function toggleLock() {
+        window.toggleLock = function() {
             isLocked = !isLocked;
             const btn = document.getElementById('btnLock');
             if (isLocked) {
@@ -2184,23 +2281,23 @@
                 btn.classList.remove('locked');
             }
             redraw();
-        }
+        };
 
-        function toggleGrayscale() {
+        window.toggleGrayscale = function() {
             isGrayscale = !isGrayscale;
             document.getElementById('btnGrayscale').classList.toggle('active', isGrayscale);
             redraw();
-        }
+        };
 
-        function resetZoom() {
+        window.resetZoom = function() {
             view.scale = 1;
             view.offsetX = 0;
             view.offsetY = 0;
             document.getElementById('btnZoomReset').textContent = '100%';
             redraw();
-        }
+        };
 
-        function setMode(mode, btn) {
+        window.setMode = function(mode, btn) {
             currentMode = mode;
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
@@ -2217,9 +2314,9 @@
                 resetParallelRulers();
             }
             redraw();
-        }
+        };
 
-        function resetLines() {
+        window.resetLines = function() {
             if (isLocked) return;
             const r = state.radius;
             state.yOffsets = {
@@ -2235,6 +2332,8 @@
                 rightX: r * 0.95
             };
             state.angle = 0;
+            headPose3D = { yaw: 0, pitch: 0, roll: 0 };
+            updatePoseStripUI();
             angleRange.value = 0;
             document.getElementById('angleVal').textContent = '0°';
             hasDetectedOnce = false;
@@ -2250,7 +2349,7 @@
             }
             resetParallelRulers();
             redraw();
-        }
+        };
 
         document.getElementById('imageUpload').addEventListener('change', (e) => {
             const file = e.target.files[0];
@@ -2930,6 +3029,7 @@
             });
         }
 
+        // رسم شبكة لوميس الديناميكية المستجيبة لزوايا Yaw و Pitch ثلاثية الأبعاد
         function drawGrid(pxToCm) {
             ctx.save();
             ctx.globalAlpha = lineOpacity;
@@ -2952,6 +3052,8 @@
 
             const r = state.radius;
             const { hair, brow, nose, chin } = state.yOffsets;
+            const yawRatio = Math.max(-1, Math.min(1, headPose3D.yaw / 65));
+            const pitchCurve = (headPose3D.pitch / 45) * (r * 0.22);
 
             if (currentMode === 'front' || currentMode === 'anatomy') {
                 ctx.beginPath();
@@ -2984,19 +3086,35 @@
                 ctx.arc(0, 0, r, 0, Math.PI * 2);
                 ctx.stroke();
 
+                // توجيه القطع الجانبي البيضاوي وخط المنتصف تلقائياً حسب جهة الالتفات (يمين أو يسار)
+                const dir = yawRatio >= 0 ? 1 : -1;
+                const absY = Math.max(0.25, Math.abs(yawRatio));
+                const sidePlaneX = -dir * r * (0.28 + absY * 0.22);
+                const sidePlaneRx = r * (0.48 - absY * 0.14);
+                const centerCurveX = dir * r * (0.22 + absY * 0.35);
+
                 ctx.save();
                 ctx.setLineDash([8 * resFactor, 6 * resFactor]);
                 ctx.beginPath();
-                ctx.ellipse(-r * 0.32, 0, r * 0.45, r * 0.72, 0, 0, Math.PI * 2);
+                ctx.ellipse(sidePlaneX, 0, sidePlaneRx, r * 0.72, 0, 0, Math.PI * 2);
                 ctx.stroke();
                 ctx.restore();
 
+                // خط منتصف الوجه المنحني ثلاثي الأبعاد
                 ctx.beginPath();
-                ctx.moveTo(r * 0.25, hair - r * 0.1);
-                ctx.quadraticCurveTo(r * 0.45, 0, r * 0.2, chin);
+                ctx.moveTo(centerCurveX * 0.85, hair - r * 0.1);
+                ctx.quadraticCurveTo(centerCurveX * 1.25, 0, centerCurveX * 0.7, chin);
+                ctx.stroke();
+
+                // خط الفك من أسفل القطع الجانبي إلى الذقن
+                ctx.beginPath();
+                ctx.moveTo(sidePlaneX, r * 0.35);
+                ctx.lineTo(sidePlaneX + dir * r * 0.2, nose * 1.15);
+                ctx.lineTo(centerCurveX * 0.7, chin);
                 ctx.stroke();
 
             } else if (currentMode === 'side') {
+                const dir = yawRatio >= 0 ? 1 : -1;
                 ctx.beginPath();
                 ctx.arc(0, 0, r, 0, Math.PI * 2);
                 ctx.stroke();
@@ -3008,16 +3126,16 @@
                 ctx.beginPath();
                 ctx.moveTo(0, hair - r * 0.1);
                 ctx.lineTo(0, chin);
-                ctx.moveTo(r, brow);
-                ctx.lineTo(r * 0.85, chin);
+                ctx.moveTo(dir * r, brow);
+                ctx.lineTo(dir * r * 0.85, chin);
                 ctx.stroke();
             }
 
             const lineSpan = r * 1.5;
-            drawAdjustableLine(hair, lineSpan, 'الشعر', lw, fontSize, resFactor);
-            drawAdjustableLine(brow, lineSpan, 'الحواجب', lw, fontSize, resFactor);
-            drawAdjustableLine(nose, lineSpan, 'الأنف', lw, fontSize, resFactor);
-            drawAdjustableLine(chin, lineSpan, 'الذقن', lw, fontSize, resFactor);
+            drawCurvedOrFlatLine(hair, lineSpan, pitchCurve * 0.6, 'الشعر', lw, fontSize, resFactor);
+            drawCurvedOrFlatLine(brow, lineSpan, pitchCurve, 'الحواجب', lw, fontSize, resFactor);
+            drawCurvedOrFlatLine(nose, lineSpan, pitchCurve * 0.7, 'الأنف', lw, fontSize, resFactor);
+            drawCurvedOrFlatLine(chin, lineSpan, 0, 'الذقن', lw, fontSize, resFactor);
 
             if (currentMode === 'anatomy') {
                 drawFaceDimensionFrame(pxToCm, lw, resFactor);
@@ -3037,6 +3155,29 @@
             ctx.fill();
 
             ctx.restore();
+        }
+
+        function drawCurvedOrFlatLine(y, span, curveOffset, label, lw, fontSize, resFactor) {
+            ctx.lineWidth = lw;
+            ctx.beginPath();
+            ctx.moveTo(-span, y);
+            if (Math.abs(curveOffset) > 2 && currentMode !== 'anatomy') {
+                ctx.quadraticCurveTo(0, y - curveOffset, span, y);
+            } else {
+                ctx.lineTo(span, y);
+            }
+            ctx.stroke();
+
+            if (!isLocked) {
+                ctx.beginPath();
+                ctx.arc(-span, y, 6 * resFactor, 0, Math.PI * 2);
+                ctx.arc(span, y, 6 * resFactor, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.font = `bold ${fontSize}px Tahoma`;
+            ctx.textAlign = 'right';
+            ctx.fillText(label, -span - (10 * resFactor), y + (4 * resFactor));
         }
 
         function drawFaceDimensionFrame(pxToCm, lw, resFactor) {
@@ -3110,25 +3251,6 @@
 
             drawLabelBadge(label, x + 28 * resFactor, (y1 + y2) / 2, 'rgba(0,0,0,0.85)', '#FFD700', resFactor);
             ctx.restore();
-        }
-
-        function drawAdjustableLine(y, span, label, lw, fontSize, resFactor) {
-            ctx.lineWidth = lw;
-            ctx.beginPath();
-            ctx.moveTo(-span, y);
-            ctx.lineTo(span, y);
-            ctx.stroke();
-
-            if (!isLocked) {
-                ctx.beginPath();
-                ctx.arc(-span, y, 6 * resFactor, 0, Math.PI * 2);
-                ctx.arc(span, y, 6 * resFactor, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            ctx.font = `bold ${fontSize}px Tahoma`;
-            ctx.textAlign = 'right';
-            ctx.fillText(label, -span - (10 * resFactor), y + (4 * resFactor));
         }
 
         function dist(p1, p2) {
