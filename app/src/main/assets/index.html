@@ -58,7 +58,6 @@
             color: #000;
             border-color: #00ff88;
         }
-        /* شريط زوايا الرأس ثلاثية الأبعاد (Yaw / Pitch / Roll) */
         .pose-strip {
             display: flex;
             width: 96%;
@@ -211,7 +210,6 @@
             z-index: 10;
         }
 
-        /* بطاقة المسطرتين المتوازيتين */
         .ruler-card {
             display: none;
             width: 96%;
@@ -262,7 +260,6 @@
             direction: ltr;
         }
 
-        /* بطاقة الشاقول الذكي المزدوج */
         .plumb-card {
             display: none;
             width: 96%;
@@ -702,7 +699,6 @@
         <button class="tab-btn ruler-tab" id="tabRuler" onclick="setMode('ruler', this)">📏 مسطرة</button>
     </div>
 
-    <!-- شريط زوايا الرأس ثلاثية الأبعاد الحية -->
     <div class="pose-strip">
         <div class="pose-chip">الالتفات (Yaw): <span id="poseYawVal">0°</span></div>
         <div class="pose-chip">الارتفاع (Pitch): <span id="posePitchVal">0°</span></div>
@@ -736,7 +732,6 @@
         <canvas id="output_canvas" width="720" height="960"></canvas>
     </div>
 
-    <!-- بطاقة المسطرتين المتوازيتين -->
     <div class="ruler-card" id="rulerCard">
         <div class="ruler-top-row">
             <button class="ruler-mode-btn active" id="btnRulerHoriz" onclick="setRulerOrientation('horizontal')">↕ خطان أفقيان (قياس الارتفاع)</button>
@@ -755,7 +750,6 @@
         </div>
     </div>
 
-    <!-- بطاقة الشاقول الذكي المزدوج -->
     <div class="plumb-card" id="plumbCard">
         <div class="plumb-controls-row">
             <button class="plumb-pill-btn" id="btnDualPlumb" onclick="toggleSecondPlumb()">➕ إضافة شاقول 2 (قياس بين نقطتين)</button>
@@ -783,7 +777,6 @@
         </div>
     </div>
 
-    <!-- بطاقة القياسات التشريحية المعايرة بالسنتيمتر -->
     <div class="proportions-card" id="propCard">
         <button class="recalc-btn" onclick="recalculateAllMeasurements()">🔄 إعادة رصد الزوايا ثلاثية الأبعاد والنسب</button>
 
@@ -901,10 +894,9 @@
             </select>
         </div>
 
-        <div class="hint">💡 يعمل التطبيق الآن بمحرك FaceLandmarker 3D لضبط وضعية الرأس (Yaw/Pitch/Roll) تلقائياً</div>
+        <div class="hint">💡 تم ضبط مقياس الكرة وزاوية الميلان لتطابق الجمجمة بدقة أعلى</div>
     </div>
 
-    <!-- نافذة المرشد الذكي (Gemini + Hugging Face Qwen2.5-VL) -->
     <div class="ai-modal" id="aiModal">
         <div class="ai-dialog">
             <div class="ai-header">
@@ -1004,12 +996,7 @@
         let activeAiProvider = 'gemini';
         let view = { scale: 1, offsetX: 0, offsetY: 0 };
 
-        // زوايا الدوران ثلاثية الأبعاد المستخرجة من مصفوفة FaceLandmarker 3D
-        let headPose3D = {
-            yaw: 0,   // الالتفات يميناً (+) أو يساراً (-)
-            pitch: 0, // النظر للأعلى (+) أو للأسفل (-)
-            roll: 0   // ميلان الرأس على الكتف
-        };
+        let headPose3D = { yaw: 0, pitch: 0, roll: 0 };
 
         let state = {
             cx: 360,
@@ -1017,16 +1004,16 @@
             radius: 180,
             angle: 0,
             yOffsets: {
-                hair: -220,
-                brow: -60,
-                nose: 90,
-                chin: 240
+                hair: -180,
+                brow: -45,
+                nose: 75,
+                chin: 195
             },
             bounds: {
-                topY: -260,
-                bottomY: 250,
-                leftX: -170,
-                rightX: 170
+                topY: -210,
+                bottomY: 205,
+                leftX: -145,
+                rightX: 145
             }
         };
 
@@ -1063,7 +1050,6 @@
         let initialViewScale = 1;
         let lastPinchCenter = null;
 
-        // --- تهيئة محرك MediaPipe FaceLandmarker 3D الرسمي ---
         let faceLandmarker = null;
         let isLandmarkerReady = false;
 
@@ -1092,9 +1078,7 @@
         }
         initFaceLandmarker3D();
 
-        // استخراج زوايا Euler (Yaw, Pitch, Roll) من مصفوفة التحويل ثلاثية الأبعاد 4x4
         function extractEulerFromMatrix(matrixData) {
-            // مصفوفة Column-Major 4x4
             const m00 = matrixData[0], m01 = matrixData[4], m02 = matrixData[8];
             const m10 = matrixData[1], m11 = matrixData[5], m12 = matrixData[9];
             const m20 = matrixData[2], m21 = matrixData[6], m22 = matrixData[10];
@@ -1126,7 +1110,6 @@
             document.getElementById('poseRollVal').textContent = `${headPose3D.roll}°`;
         }
 
-        // --- أداة الكنتور (Lineart) ---
         window.toggleLineartMode = function() {
             if (!currentImage) {
                 alert('يرجى رفع صورة الوجه أولاً لاستخراج خطوط الكنتور.');
@@ -1218,7 +1201,6 @@
             redraw();
         };
 
-        // --- المسطرتان المتوازيتان ---
         window.setRulerOrientation = function(orient) {
             parallelRuler.orientation = orient;
             document.getElementById('btnRulerHoriz').classList.toggle('active', orient === 'horizontal');
@@ -1407,7 +1389,6 @@
             redraw();
         };
 
-        // --- الشاقول الذكي المزدوج ---
         window.togglePlumbTool = function() {
             plumbState.active = !plumbState.active;
             const btn = document.getElementById('btnPlumbToggle');
@@ -1613,7 +1594,6 @@
             document.getElementById('plumbReportBox').innerHTML = html;
         }
 
-        // --- إعدادات المرشد الذكي المزدوج (Gemini + Hugging Face) ---
         window.addEventListener('DOMContentLoaded', () => {
             const savedProvider = localStorage.getItem('loomis_ai_provider') || 'gemini';
             selectAiProvider(savedProvider);
@@ -2026,7 +2006,6 @@
             img.src = URL.createObjectURL(file);
         };
 
-        // --- معالجة نتائج FaceLandmarker 3D وضبط شبكة لوميس والوضع التلقائي ---
         function createDefaultFeaturesFromGrid() {
             const r = state.radius;
             const faceWidth = r * 1.36;
@@ -2079,8 +2058,9 @@
                 const chinPt = { x: lm[152].x * w, y: lm[152].y * h };
                 const browPt = { x: lm[9].x * w, y: lm[9].y * h };
 
-                const leftFaceEdge = { x: lm[234].x * w, y: lm[234].y * h };
-                const rightFaceEdge = { x: lm[454].x * w, y: lm[454].y * h };
+                // استخدام نقاط الوجنتين/الصدغ بدقة أكبر لحجم كرة لوميس
+                const leftCheek = { x: lm[234].x * w, y: lm[234].y * h };
+                const rightCheek = { x: lm[454].x * w, y: lm[454].y * h };
 
                 features = {
                     leftEyeOuter, leftEyeInner,
@@ -2089,39 +2069,50 @@
                     noseLeft, noseRight
                 };
 
-                // استخراج الزوايا ثلاثية الأبعاد من مصفوفة FaceLandmarker 3D
+                // حساب زاوية الميلان المباشرة من خط العينين لضمان التطابق البصري
+                const eyeLineAngleDeg = Math.round(Math.atan2(rightEyeOuter.y - leftEyeOuter.y, rightEyeOuter.x - leftEyeOuter.x) * 180 / Math.PI);
+
                 if (result.facialTransformationMatrixes && result.facialTransformationMatrixes.length > 0) {
                     const mat = result.facialTransformationMatrixes[0].data;
-                    headPose3D = extractEulerFromMatrix(mat);
+                    const euler = extractEulerFromMatrix(mat);
+                    headPose3D = {
+                        yaw: euler.yaw,
+                        pitch: euler.pitch,
+                        roll: Math.abs(eyeLineAngleDeg) <= 45 ? eyeLineAngleDeg : euler.roll
+                    };
                 } else {
-                    const eyeAngleRad = Math.atan2(rightEyeOuter.y - leftEyeOuter.y, rightEyeOuter.x - leftEyeOuter.x);
-                    headPose3D = { yaw: 0, pitch: 0, roll: Math.round(eyeAngleRad * 180 / Math.PI) };
+                    headPose3D = { yaw: 0, pitch: 0, roll: eyeLineAngleDeg };
                 }
                 updatePoseStripUI();
 
-                const faceCenterX = (leftFaceEdge.x + rightFaceEdge.x) / 2;
+                const faceCenterX = (leftCheek.x + rightCheek.x) / 2;
                 const browCenterY = browPt.y;
-                const faceWidthPx = dist(leftFaceEdge, rightFaceEdge);
+                const faceWidthPx = dist(leftCheek, rightCheek);
                 const faceHeightPx = dist(topHead, chinPt);
 
                 if (!isLocked) {
-                    // التبديل التلقائي لوضعية الرأس (Front / 3/4 / Profile) حسب زاوية Yaw الحقيقية
                     const absYaw = Math.abs(headPose3D.yaw);
                     if (currentMode === 'front' || currentMode === 'threeQuarter' || currentMode === 'side') {
                         if (absYaw >= 52) {
                             autoSwitchModeTab('side', document.getElementById('tabSide'));
-                        } else if (absYaw >= 12) {
+                        } else if (absYaw >= 14) {
                             autoSwitchModeTab('threeQuarter', document.getElementById('tab3Q'));
                         } else {
                             autoSwitchModeTab('front', document.getElementById('tabFront'));
                         }
                     }
 
+                    // مقياس متوازن للكرة يطابق عرض الجمجمة دون تضخم
+                    const calibratedRadius = Math.min(
+                        Math.max(40, Math.round(faceWidthPx * 0.48)),
+                        Math.round(Math.min(w, h) * 0.45)
+                    );
+
                     state.cx = faceCenterX;
-                    state.cy = browCenterY + faceHeightPx * 0.08;
-                    // حساب نصف قطر الكرة بالاعتماد على البعد الأكبر لتعويض المنظور في الوضع الجانبي والثلاثي
-                    const effectiveSpan = Math.max(faceWidthPx, faceHeightPx * 0.76);
-                    state.radius = Math.round(effectiveSpan * 0.58);
+                    state.cy = browCenterY + calibratedRadius * 0.12;
+                    state.radius = calibratedRadius;
+
+                    radiusRange.max = Math.max(600, Math.round(Math.max(w, h) * 0.65));
                     radiusRange.value = state.radius;
                     document.getElementById('radiusVal').textContent = state.radius;
 
@@ -2132,16 +2123,16 @@
 
                     const localTop = toLocalGridSpace(topHead.x, topHead.y);
                     const localChin = toLocalGridSpace(chinPt.x, chinPt.y);
-                    const localLeft = toLocalGridSpace(leftFaceEdge.x, leftFaceEdge.y);
-                    const localRight = toLocalGridSpace(rightFaceEdge.x, rightFaceEdge.y);
+                    const localLeft = toLocalGridSpace(leftCheek.x, leftCheek.y);
+                    const localRight = toLocalGridSpace(rightCheek.x, rightCheek.y);
 
                     state.yOffsets.brow = toLocalGridSpace(browPt.x, browPt.y).y;
                     state.yOffsets.nose = toLocalGridSpace(noseBase.x, noseBase.y).y;
                     state.yOffsets.chin = localChin.y;
                     state.yOffsets.hair = localTop.y;
 
-                    const faceSpanY = localChin.y - localTop.y;
-                    state.bounds.topY = localTop.y - faceSpanY * 0.14;
+                    const faceSpanY = Math.max(40, localChin.y - localTop.y);
+                    state.bounds.topY = localTop.y - faceSpanY * 0.12;
                     state.bounds.bottomY = localChin.y;
                     state.bounds.leftX = localLeft.x;
                     state.bounds.rightX = localRight.x;
@@ -2320,16 +2311,16 @@
             if (isLocked) return;
             const r = state.radius;
             state.yOffsets = {
-                hair: -r * 1.15,
+                hair: -r * 1.05,
                 brow: -r * 0.25,
-                nose: r * 0.55,
-                chin: r * 1.35
+                nose: r * 0.45,
+                chin: r * 1.15
             };
             state.bounds = {
-                topY: -r * 1.35,
-                bottomY: r * 1.35,
-                leftX: -r * 0.95,
-                rightX: r * 0.95
+                topY: -r * 1.2,
+                bottomY: r * 1.15,
+                leftX: -r * 0.85,
+                rightX: r * 0.85
             };
             state.angle = 0;
             headPose3D = { yaw: 0, pitch: 0, roll: 0 };
@@ -2366,9 +2357,9 @@
 
                 state.cx = img.width / 2;
                 state.cy = img.height / 2.2;
-                state.radius = Math.round(Math.min(img.width, img.height) * 0.28);
+                state.radius = Math.round(Math.min(img.width, img.height) * 0.24);
 
-                radiusRange.max = Math.round(Math.max(img.width, img.height) * 0.65);
+                radiusRange.max = Math.max(600, Math.round(Math.max(img.width, img.height) * 0.65));
                 radiusRange.value = state.radius;
                 document.getElementById('radiusVal').textContent = state.radius;
 
@@ -3029,7 +3020,6 @@
             });
         }
 
-        // رسم شبكة لوميس الديناميكية المستجيبة لزوايا Yaw و Pitch ثلاثية الأبعاد
         function drawGrid(pxToCm) {
             ctx.save();
             ctx.globalAlpha = lineOpacity;
@@ -3053,7 +3043,7 @@
             const r = state.radius;
             const { hair, brow, nose, chin } = state.yOffsets;
             const yawRatio = Math.max(-1, Math.min(1, headPose3D.yaw / 65));
-            const pitchCurve = (headPose3D.pitch / 45) * (r * 0.22);
+            const pitchCurve = (headPose3D.pitch / 45) * (r * 0.2);
 
             if (currentMode === 'front' || currentMode === 'anatomy') {
                 ctx.beginPath();
@@ -3068,8 +3058,8 @@
                 ctx.restore();
 
                 ctx.beginPath();
-                ctx.moveTo(0, hair - r * 0.2);
-                ctx.lineTo(0, chin + r * 0.2);
+                ctx.moveTo(0, hair - r * 0.15);
+                ctx.lineTo(0, chin + r * 0.15);
                 ctx.stroke();
 
                 ctx.beginPath();
@@ -3086,7 +3076,6 @@
                 ctx.arc(0, 0, r, 0, Math.PI * 2);
                 ctx.stroke();
 
-                // توجيه القطع الجانبي البيضاوي وخط المنتصف تلقائياً حسب جهة الالتفات (يمين أو يسار)
                 const dir = yawRatio >= 0 ? 1 : -1;
                 const absY = Math.max(0.25, Math.abs(yawRatio));
                 const sidePlaneX = -dir * r * (0.28 + absY * 0.22);
@@ -3100,13 +3089,11 @@
                 ctx.stroke();
                 ctx.restore();
 
-                // خط منتصف الوجه المنحني ثلاثي الأبعاد
                 ctx.beginPath();
                 ctx.moveTo(centerCurveX * 0.85, hair - r * 0.1);
                 ctx.quadraticCurveTo(centerCurveX * 1.25, 0, centerCurveX * 0.7, chin);
                 ctx.stroke();
 
-                // خط الفك من أسفل القطع الجانبي إلى الذقن
                 ctx.beginPath();
                 ctx.moveTo(sidePlaneX, r * 0.35);
                 ctx.lineTo(sidePlaneX + dir * r * 0.2, nose * 1.15);
@@ -3131,7 +3118,7 @@
                 ctx.stroke();
             }
 
-            const lineSpan = r * 1.5;
+            const lineSpan = r * 1.35;
             drawCurvedOrFlatLine(hair, lineSpan, pitchCurve * 0.6, 'الشعر', lw, fontSize, resFactor);
             drawCurvedOrFlatLine(brow, lineSpan, pitchCurve, 'الحواجب', lw, fontSize, resFactor);
             drawCurvedOrFlatLine(nose, lineSpan, pitchCurve * 0.7, 'الأنف', lw, fontSize, resFactor);
