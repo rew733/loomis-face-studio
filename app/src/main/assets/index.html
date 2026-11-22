@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Loomis Face Studio - الاستوديو التشريحي ثلاثي الأبعاد</title>
+    <title>Loomis Face Studio - الاستوديو التشريحي الذكي</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body {
@@ -58,7 +59,6 @@
             color: #000;
             border-color: #00ff88;
         }
-        /* شريط زوايا الرأس ثلاثية الأبعاد (Yaw / Pitch / Roll) */
         .pose-strip {
             display: flex;
             width: 96%;
@@ -211,7 +211,6 @@
             z-index: 10;
         }
 
-        /* بطاقة المسطرتين المتوازيتين */
         .ruler-card {
             display: none;
             width: 96%;
@@ -262,7 +261,6 @@
             direction: ltr;
         }
 
-        /* بطاقة الشاقول الذكي المزدوج */
         .plumb-card {
             display: none;
             width: 96%;
@@ -692,7 +690,7 @@
 </head>
 <body>
 
-    <header>Loomis Face Studio - الاستوديو التشريحي ثلاثي الأبعاد</header>
+    <header>Loomis Face Studio - الاستوديو التشريحي الذكي</header>
 
     <div class="tabs">
         <button class="tab-btn active" id="tabFront" onclick="setMode('front', this)">أمامي (Front)</button>
@@ -702,7 +700,6 @@
         <button class="tab-btn ruler-tab" id="tabRuler" onclick="setMode('ruler', this)">📏 مسطرة</button>
     </div>
 
-    <!-- شريط زوايا الرأس ثلاثية الأبعاد الحية -->
     <div class="pose-strip">
         <div class="pose-chip">الالتفات (Yaw): <span id="poseYawVal">0°</span></div>
         <div class="pose-chip">الارتفاع (Pitch): <span id="posePitchVal">0°</span></div>
@@ -732,11 +729,10 @@
             <span id="lineartVal" style="color:#ffd700; font-weight:bold;">42</span>
         </div>
 
-        <div class="detect-banner" id="detectBanner">جاري تشغيل FaceLandmarker ثلاثي الأبعاد...</div>
+        <div class="detect-banner" id="detectBanner">جاري رصد المعالم التشريحية...</div>
         <canvas id="output_canvas" width="720" height="960"></canvas>
     </div>
 
-    <!-- بطاقة المسطرتين المتوازيتين -->
     <div class="ruler-card" id="rulerCard">
         <div class="ruler-top-row">
             <button class="ruler-mode-btn active" id="btnRulerHoriz" onclick="setRulerOrientation('horizontal')">↕ خطان أفقيان (قياس الارتفاع)</button>
@@ -755,7 +751,6 @@
         </div>
     </div>
 
-    <!-- بطاقة الشاقول الذكي المزدوج -->
     <div class="plumb-card" id="plumbCard">
         <div class="plumb-controls-row">
             <button class="plumb-pill-btn" id="btnDualPlumb" onclick="toggleSecondPlumb()">➕ إضافة شاقول 2 (قياس بين نقطتين)</button>
@@ -783,9 +778,8 @@
         </div>
     </div>
 
-    <!-- بطاقة القياسات التشريحية المعايرة بالسنتيمتر -->
     <div class="proportions-card" id="propCard">
-        <button class="recalc-btn" onclick="recalculateAllMeasurements()">🔄 إعادة رصد الزوايا ثلاثية الأبعاد والنسب</button>
+        <button class="recalc-btn" onclick="recalculateAllMeasurements()">🔄 إعادة رصد الزوايا والنسب الآن</button>
 
         <div class="paper-row">
             <span style="color:#ffd700; font-weight:bold;">طول الرأس الكامل على كراستك:</span>
@@ -901,10 +895,9 @@
             </select>
         </div>
 
-        <div class="hint">💡 يعمل التطبيق الآن بمحرك FaceLandmarker 3D لضبط وضعية الرأس (Yaw/Pitch/Roll) تلقائياً</div>
+        <div class="hint">💡 الشاشة تعمل الآن بوضع مستقر وفوري دون توقف</div>
     </div>
 
-    <!-- نافذة المرشد الذكي (Gemini + Hugging Face Qwen2.5-VL) -->
     <div class="ai-modal" id="aiModal">
         <div class="ai-dialog">
             <div class="ai-header">
@@ -980,9 +973,7 @@
         </div>
     </div>
 
-    <script type="module">
-        import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
-
+    <script>
         const canvas = document.getElementById('output_canvas');
         const ctx = canvas.getContext('2d');
         const detectBanner = document.getElementById('detectBanner');
@@ -1004,12 +995,7 @@
         let activeAiProvider = 'gemini';
         let view = { scale: 1, offsetX: 0, offsetY: 0 };
 
-        // زوايا الدوران ثلاثية الأبعاد المستخرجة من مصفوفة FaceLandmarker 3D
-        let headPose3D = {
-            yaw: 0,   // الالتفات يميناً (+) أو يساراً (-)
-            pitch: 0, // النظر للأعلى (+) أو للأسفل (-)
-            roll: 0   // ميلان الرأس على الكتف
-        };
+        let headPose3D = { yaw: 0, pitch: 0, roll: 0 };
 
         let state = {
             cx: 360,
@@ -1017,16 +1003,16 @@
             radius: 180,
             angle: 0,
             yOffsets: {
-                hair: -220,
-                brow: -60,
-                nose: 90,
-                chin: 240
+                hair: -180,
+                brow: -45,
+                nose: 75,
+                chin: 195
             },
             bounds: {
-                topY: -260,
-                bottomY: 250,
-                leftX: -170,
-                rightX: 170
+                topY: -210,
+                bottomY: 205,
+                leftX: -145,
+                rightX: 145
             }
         };
 
@@ -1063,71 +1049,13 @@
         let initialViewScale = 1;
         let lastPinchCenter = null;
 
-        // --- تهيئة محرك MediaPipe FaceLandmarker 3D الرسمي ---
-        let faceLandmarker = null;
-        let isLandmarkerReady = false;
-
-        async function initFaceLandmarker3D() {
-            try {
-                const vision = await FilesetResolver.forVisionTasks(
-                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
-                );
-                faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
-                    baseOptions: {
-                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-                        delegate: "CPU"
-                    },
-                    outputFaceBlendshapes: false,
-                    outputFacialTransformationMatrixes: true,
-                    runningMode: "IMAGE",
-                    numFaces: 1
-                });
-                isLandmarkerReady = true;
-                if (currentImage && !hasDetectedOnce) {
-                    runAutoFeatureDetection();
-                }
-            } catch (e) {
-                console.warn("FaceLandmarker init warning:", e);
-            }
-        }
-        initFaceLandmarker3D();
-
-        // استخراج زوايا Euler (Yaw, Pitch, Roll) من مصفوفة التحويل ثلاثية الأبعاد 4x4
-        function extractEulerFromMatrix(matrixData) {
-            // مصفوفة Column-Major 4x4
-            const m00 = matrixData[0], m01 = matrixData[4], m02 = matrixData[8];
-            const m10 = matrixData[1], m11 = matrixData[5], m12 = matrixData[9];
-            const m20 = matrixData[2], m21 = matrixData[6], m22 = matrixData[10];
-
-            const sy = Math.hypot(m00, m10);
-            const singular = sy < 1e-6;
-            let pitchRad, yawRad, rollRad;
-
-            if (!singular) {
-                pitchRad = Math.atan2(m21, m22);
-                yawRad = Math.atan2(-m20, sy);
-                rollRad = Math.atan2(m10, m00);
-            } else {
-                pitchRad = Math.atan2(-m12, m11);
-                yawRad = Math.atan2(-m20, sy);
-                rollRad = 0;
-            }
-
-            return {
-                yaw: Math.round(yawRad * 180 / Math.PI),
-                pitch: Math.round(pitchRad * 180 / Math.PI),
-                roll: Math.round(rollRad * 180 / Math.PI)
-            };
-        }
-
         function updatePoseStripUI() {
             document.getElementById('poseYawVal').textContent = `${headPose3D.yaw}°`;
             document.getElementById('posePitchVal').textContent = `${headPose3D.pitch}°`;
             document.getElementById('poseRollVal').textContent = `${headPose3D.roll}°`;
         }
 
-        // --- أداة الكنتور (Lineart) ---
-        window.toggleLineartMode = function() {
+        function toggleLineartMode() {
             if (!currentImage) {
                 alert('يرجى رفع صورة الوجه أولاً لاستخراج خطوط الكنتور.');
                 return;
@@ -1141,9 +1069,9 @@
             } else {
                 redraw();
             }
-        };
+        }
 
-        window.rebuildLineartCache = function() {
+        function rebuildLineartCache() {
             if (!currentImage) return;
             const thresholdVal = parseInt(document.getElementById('lineartSensitivity').value);
             document.getElementById('lineartVal').textContent = thresholdVal;
@@ -1216,10 +1144,9 @@
             oCtx.putImageData(outData, 0, 0);
             lineartCanvasCache = offCanvas;
             redraw();
-        };
+        }
 
-        // --- المسطرتان المتوازيتان ---
-        window.setRulerOrientation = function(orient) {
+        function setRulerOrientation(orient) {
             parallelRuler.orientation = orient;
             document.getElementById('btnRulerHoriz').classList.toggle('active', orient === 'horizontal');
             document.getElementById('btnRulerVert').classList.toggle('active', orient === 'vertical');
@@ -1235,9 +1162,9 @@
                 parallelRuler.line2 = state.cx + state.radius * 0.55;
             }
             redraw();
-        };
+        }
 
-        window.toggleRulerTilt = function() {
+        function toggleRulerTilt() {
             parallelRuler.alignWithHead = !parallelRuler.alignWithHead;
             const btn = document.getElementById('btnRulerTilt');
             if (parallelRuler.alignWithHead) {
@@ -1248,9 +1175,9 @@
                 btn.classList.remove('active');
             }
             redraw();
-        };
+        }
 
-        window.resetParallelRulers = function() {
+        function resetParallelRulers() {
             if (parallelRuler.orientation === 'horizontal') {
                 parallelRuler.line1 = state.cy + state.yOffsets.nose;
                 parallelRuler.line2 = state.cy + state.yOffsets.chin;
@@ -1259,7 +1186,7 @@
                 parallelRuler.line2 = state.cx + state.radius * 0.55;
             }
             redraw();
-        };
+        }
 
         function toRulerAxisSpace(px, py) {
             const deg = parallelRuler.alignWithHead ? state.angle : 0;
@@ -1394,7 +1321,7 @@
             ctx.fill();
         }
 
-        window.toggleGridVisibility = function() {
+        function toggleGridVisibility() {
             isGridVisible = !isGridVisible;
             const btn = document.getElementById('btnGridToggle');
             if (isGridVisible) {
@@ -1405,10 +1332,9 @@
                 btn.classList.remove('active');
             }
             redraw();
-        };
+        }
 
-        // --- الشاقول الذكي المزدوج ---
-        window.togglePlumbTool = function() {
+        function togglePlumbTool() {
             plumbState.active = !plumbState.active;
             const btn = document.getElementById('btnPlumbToggle');
             const card = document.getElementById('plumbCard');
@@ -1427,9 +1353,9 @@
                 card.classList.remove('show');
             }
             redraw();
-        };
+        }
 
-        window.toggleSecondPlumb = function() {
+        function toggleSecondPlumb() {
             plumbState.dual = !plumbState.dual;
             const btn = document.getElementById('btnDualPlumb');
             const statsBox = document.getElementById('plumbDualStats');
@@ -1446,9 +1372,9 @@
                 statsBox.classList.remove('show');
             }
             redraw();
-        };
+        }
 
-        window.togglePlumbAxis = function() {
+        function togglePlumbAxis() {
             plumbState.alignWithHead = !plumbState.alignWithHead;
             const btn = document.getElementById('btnPlumbAxis');
             if (plumbState.alignWithHead) {
@@ -1459,9 +1385,9 @@
                 btn.classList.remove('active-cyan');
             }
             redraw();
-        };
+        }
 
-        window.togglePlumbSnap = function() {
+        function togglePlumbSnap() {
             plumbState.snapEnabled = !plumbState.snapEnabled;
             const btn = document.getElementById('btnPlumbSnap');
             btn.textContent = plumbState.snapEnabled ? '🧲 المغناطيس: مفعّل' : '🧲 المغناطيس: متوقف';
@@ -1470,7 +1396,7 @@
                 plumbState.p2.snappedName = null;
             }
             redraw();
-        };
+        }
 
         function buildAnatomicalLandmarksList() {
             landmarksList = [];
@@ -1613,7 +1539,6 @@
             document.getElementById('plumbReportBox').innerHTML = html;
         }
 
-        // --- إعدادات المرشد الذكي المزدوج (Gemini + Hugging Face) ---
         window.addEventListener('DOMContentLoaded', () => {
             const savedProvider = localStorage.getItem('loomis_ai_provider') || 'gemini';
             selectAiProvider(savedProvider);
@@ -1653,9 +1578,12 @@
             }
             if (savedCustomHf) document.getElementById('customHfModelInput').value = savedCustomHf;
             onHfModelSelectChange();
+
+            createDefaultFeaturesFromGrid();
+            redraw();
         });
 
-        window.selectAiProvider = function(prov) {
+        function selectAiProvider(prov) {
             activeAiProvider = prov;
             localStorage.setItem('loomis_ai_provider', prov);
 
@@ -1675,17 +1603,17 @@
                 hfBox.style.display = 'none';
                 gemBox.style.display = 'flex';
             }
-        };
+        }
 
-        window.onModelSelectChange = function() {
+        function onModelSelectChange() {
             const selectVal = document.getElementById('geminiModelSelect').value;
             document.getElementById('customModelBox').classList.toggle('show', selectVal === 'custom');
-        };
+        }
 
-        window.onHfModelSelectChange = function() {
+        function onHfModelSelectChange() {
             const selectVal = document.getElementById('hfModelSelect').value;
             document.getElementById('customHfModelBox').classList.toggle('show', selectVal === 'custom');
-        };
+        }
 
         function getSelectedGeminiModel() {
             const selectVal = document.getElementById('geminiModelSelect').value;
@@ -1703,7 +1631,7 @@
             return selectVal;
         }
 
-        window.saveAiSettings = function() {
+        function saveAiSettings() {
             if (activeAiProvider === 'huggingface') {
                 const hfToken = document.getElementById('hfTokenInput').value.trim();
                 const hfSel = document.getElementById('hfModelSelect').value;
@@ -1729,30 +1657,30 @@
                 if (customVal) localStorage.setItem('loomis_gemini_custom_model', customVal);
                 alert(`تم حفظ مفتاح Gemini والنموذج (${getSelectedGeminiModel()}) بنجاح!`);
             }
-        };
+        }
 
-        window.openAiModal = function() {
+        function openAiModal() {
             document.getElementById('aiModal').classList.add('open');
-        };
+        }
 
-        window.closeAiModal = function() {
+        function closeAiModal() {
             document.getElementById('aiModal').classList.remove('open');
             redraw();
-        };
+        }
 
-        window.toggleAiOverlay = function() {
+        function toggleAiOverlay() {
             aiVisualOverlay.visible = !aiVisualOverlay.visible;
             const btn = document.getElementById('btnAiLayer');
             btn.classList.toggle('active', aiVisualOverlay.visible);
             redraw();
-        };
+        }
 
-        window.toggleSketchCompare = function(btn) {
+        function toggleSketchCompare(btn) {
             document.querySelectorAll('.ai-task-btn').forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
             document.getElementById('sketchUploadBox').classList.add('show');
             document.getElementById('aiResultBox').textContent = 'اختر صورة رسمتك من الزر أعلاه ليقارنها الذكاء الاصطناعي بالصورة الأصلية.';
-        };
+        }
 
         function getResizedBase64(imgSource, maxDim = 512) {
             const tempCanvas = document.createElement('canvas');
@@ -1787,7 +1715,7 @@
             const t2 = document.getElementById('m_t2').textContent;
             const t3 = document.getElementById('m_t3').textContent;
 
-            return `المقياس: ${scaleText} | زوايا الرأس 3D: (Yaw: ${headPose3D.yaw}°, Pitch: ${headPose3D.pitch}°, Roll: ${headPose3D.roll}°) | الطول: ${faceH} | العرض: ${faceW} (${faceRatio}) | العين: ${eyesLen} | بين العينين: ${interEye} | الأنف: ${noseW} | الفم: ${mouthW} | الأثلاث: (${t1} / ${t2} / ${t3})`;
+            return `المقياس: ${scaleText} | الزوايا: (Yaw: ${headPose3D.yaw}°, Pitch: ${headPose3D.pitch}°, Roll: ${headPose3D.roll}°) | الطول: ${faceH} | العرض: ${faceW} (${faceRatio}) | العين: ${eyesLen} | بين العينين: ${interEye} | الأنف: ${noseW} | الفم: ${mouthW} | الأثلاث: (${t1} / ${t2} / ${t3})`;
         }
 
         function applyAiVisualData(aiJson) {
@@ -1813,13 +1741,13 @@
             redraw();
         }
 
-        window.runAiAnalysis = function(taskType, btn, sketchBase64 = null) {
+        function runAiAnalysis(taskType, btn, sketchBase64 = null) {
             if (activeAiProvider === 'huggingface') {
                 askHuggingFace(taskType, btn, sketchBase64);
             } else {
                 askGemini(taskType, btn, sketchBase64);
             }
-        };
+        }
 
         function buildTaskPrompt(taskType) {
             const stats = buildCurrentMeasurementsSummary();
@@ -1838,11 +1766,11 @@
 
             let taskGoal = '';
             if (taskType === 'blueprint') {
-                taskGoal = `أنت أستاذ أكاديمي في تقنية أندرو لوميس. بناءً على الصورة وهذه القياسات ثلاثية الأبعاد المحسوبة بدقة (${stats})، اكتب خطة رسم هندسية مرقمة بالسنتيمتر للرسام في explanation (قطر الكرة، وضعية القطع الجانبي بناءً على زاوية Yaw، مواقع الأثلاث، وأبعاد العين والفم والأنف). اجعل lightDir=null و shadowZones=[] و corrections=[].`;
+                taskGoal = `أنت أستاذ أكاديمي في تقنية أندرو لوميس. بناءً على الصورة وهذه القياسات المحسوبة بدقة (${stats})، اكتب خطة رسم هندسية مرقمة بالسنتيمتر للرسام في explanation (قطر الكرة، مواقع الأثلاث، وأبعاد العين والفم والأنف). اجعل lightDir=null و shadowZones=[] و corrections=[].`;
             } else if (taskType === 'shading') {
                 taskGoal = `حلل الإضاءة ومناطق الظل العميق (Core Shadows) في هذه الصورة. حدد زاوية قدوم الضوء في lightDir، واختر من القائمة المحددة أهم مناطق الظل الحقيقية الموجودة في الصورة في shadowZones ليرسمها التطبيق فوق تلك الأجزاء التشريحية بدقة، واشرح كتل الضوء والظل في explanation.`;
             } else if (taskType === 'tilt') {
-                taskGoal = `انظر للصورة الأولى (الأصلية) والثانية (شبكة لوميس المطبقة عليها بزوايا Yaw=${headPose3D.yaw}°, Pitch=${headPose3D.pitch}°, Roll=${headPose3D.roll}°). اشرح للرسام في explanation كيف يرسم هذه الوضعية الفراغية للرأس وكيفية إمالة كرة لوميس وقطعيها الجانبيين. اجعل lightDir=null و shadowZones=[] و corrections=[].`;
+                taskGoal = `انظر للصورة الأولى (الأصلية) والثانية (شبكة لوميس المطبقة عليها حالياً بزاوية ${state.angle}°). اشرح للرسام في explanation زاوية دوران الرأس (Yaw/Pitch) ومدى دقة تطابق الشبكة الحالية أو أي تعديل يدوي بسيط ينصحه به. اجعل lightDir=null و shadowZones=[] و corrections=[].`;
             } else if (taskType === 'compare') {
                 taskGoal = `قارن الصورة المرجعية الأولى برسمة المستخدم الثانية. حدد الأجزاء التي تحتاج تصحيحاً من القائمة المحددة في corrections مع ذكر مقدار التعديل، واشرح الفروقات في explanation.`;
             }
@@ -2015,7 +1943,7 @@
             }
         }
 
-        window.handleSketchUpload = function(event) {
+        function handleSketchUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
             const img = new Image();
@@ -2024,9 +1952,30 @@
                 runAiAnalysis('compare', null, sketchB64);
             };
             img.src = URL.createObjectURL(file);
-        };
+        }
 
-        // --- معالجة نتائج FaceLandmarker 3D وضبط شبكة لوميس والوضع التلقائي ---
+        // --- محرك MediaPipe FaceMesh المحلي المستقر ---
+        let faceMesh = null;
+        let isFaceMeshReady = false;
+
+        try {
+            if (typeof FaceMesh !== 'undefined') {
+                faceMesh = new FaceMesh({
+                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+                });
+                faceMesh.setOptions({
+                    maxNumFaces: 1,
+                    refineLandmarks: true,
+                    minDetectionConfidence: 0.4,
+                    minTrackingConfidence: 0.4
+                });
+                faceMesh.onResults(onFaceMeshResults);
+                isFaceMeshReady = true;
+            }
+        } catch (err) {
+            isFaceMeshReady = false;
+        }
+
         function createDefaultFeaturesFromGrid() {
             const r = state.radius;
             const faceWidth = r * 1.36;
@@ -2055,10 +2004,10 @@
             buildAnatomicalLandmarksList();
         }
 
-        function processLandmarker3DResults(result) {
+        function onFaceMeshResults(results) {
             detectBanner.style.display = 'none';
-            if (result && result.faceLandmarks && result.faceLandmarks.length > 0 && currentImage) {
-                const lm = result.faceLandmarks[0];
+            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0 && currentImage) {
+                const lm = results.multiFaceLandmarks[0];
                 const w = canvas.width;
                 const h = canvas.height;
 
@@ -2079,8 +2028,8 @@
                 const chinPt = { x: lm[152].x * w, y: lm[152].y * h };
                 const browPt = { x: lm[9].x * w, y: lm[9].y * h };
 
-                const leftFaceEdge = { x: lm[234].x * w, y: lm[234].y * h };
-                const rightFaceEdge = { x: lm[454].x * w, y: lm[454].y * h };
+                const leftCheek = { x: lm[234].x * w, y: lm[234].y * h };
+                const rightCheek = { x: lm[454].x * w, y: lm[454].y * h };
 
                 features = {
                     leftEyeOuter, leftEyeInner,
@@ -2089,59 +2038,54 @@
                     noseLeft, noseRight
                 };
 
-                // استخراج الزوايا ثلاثية الأبعاد من مصفوفة FaceLandmarker 3D
-                if (result.facialTransformationMatrixes && result.facialTransformationMatrixes.length > 0) {
-                    const mat = result.facialTransformationMatrixes[0].data;
-                    headPose3D = extractEulerFromMatrix(mat);
-                } else {
-                    const eyeAngleRad = Math.atan2(rightEyeOuter.y - leftEyeOuter.y, rightEyeOuter.x - leftEyeOuter.x);
-                    headPose3D = { yaw: 0, pitch: 0, roll: Math.round(eyeAngleRad * 180 / Math.PI) };
-                }
+                const faceCenterX = (leftCheek.x + rightCheek.x) / 2;
+                const browCenterY = browPt.y;
+                const faceWidthPx = Math.max(20, dist(leftCheek, rightCheek));
+                const faceHeightPx = Math.max(20, dist(topHead, chinPt));
+
+                const eyeLineAngleDeg = Math.round(Math.atan2(rightEyeOuter.y - leftEyeOuter.y, rightEyeOuter.x - leftEyeOuter.x) * 180 / Math.PI);
+                const noseMidX = (noseLeft.x + noseRight.x) / 2;
+                const approxYaw = Math.max(-65, Math.min(65, Math.round(((noseMidX - faceCenterX) / (faceWidthPx * 0.5)) * 45)));
+                const approxPitch = Math.max(-45, Math.min(45, Math.round(((noseBase.y - browCenterY) / faceHeightPx - 0.35) * 90)));
+
+                headPose3D = {
+                    yaw: approxYaw,
+                    pitch: approxPitch,
+                    roll: eyeLineAngleDeg
+                };
                 updatePoseStripUI();
 
-                const faceCenterX = (leftFaceEdge.x + rightFaceEdge.x) / 2;
-                const browCenterY = browPt.y;
-                const faceWidthPx = dist(leftFaceEdge, rightFaceEdge);
-                const faceHeightPx = dist(topHead, chinPt);
-
                 if (!isLocked) {
-                    // التبديل التلقائي لوضعية الرأس (Front / 3/4 / Profile) حسب زاوية Yaw الحقيقية
-                    const absYaw = Math.abs(headPose3D.yaw);
-                    if (currentMode === 'front' || currentMode === 'threeQuarter' || currentMode === 'side') {
-                        if (absYaw >= 52) {
-                            autoSwitchModeTab('side', document.getElementById('tabSide'));
-                        } else if (absYaw >= 12) {
-                            autoSwitchModeTab('threeQuarter', document.getElementById('tab3Q'));
-                        } else {
-                            autoSwitchModeTab('front', document.getElementById('tabFront'));
-                        }
-                    }
+                    const calibratedRadius = Math.min(
+                        Math.max(40, Math.round(faceWidthPx * 0.48)),
+                        Math.round(Math.min(w, h) * 0.45)
+                    );
 
                     state.cx = faceCenterX;
-                    state.cy = browCenterY + faceHeightPx * 0.08;
-                    // حساب نصف قطر الكرة بالاعتماد على البعد الأكبر لتعويض المنظور في الوضع الجانبي والثلاثي
-                    const effectiveSpan = Math.max(faceWidthPx, faceHeightPx * 0.76);
-                    state.radius = Math.round(effectiveSpan * 0.58);
+                    state.cy = browCenterY + calibratedRadius * 0.12;
+                    state.radius = calibratedRadius;
+
+                    radiusRange.max = Math.max(600, Math.round(Math.max(w, h) * 0.65));
                     radiusRange.value = state.radius;
                     document.getElementById('radiusVal').textContent = state.radius;
 
-                    const rollDeg = Math.max(-60, Math.min(60, headPose3D.roll));
+                    const rollDeg = Math.max(-60, Math.min(60, eyeLineAngleDeg));
                     state.angle = rollDeg;
                     angleRange.value = rollDeg;
                     document.getElementById('angleVal').textContent = rollDeg + '°';
 
                     const localTop = toLocalGridSpace(topHead.x, topHead.y);
                     const localChin = toLocalGridSpace(chinPt.x, chinPt.y);
-                    const localLeft = toLocalGridSpace(leftFaceEdge.x, leftFaceEdge.y);
-                    const localRight = toLocalGridSpace(rightFaceEdge.x, rightFaceEdge.y);
+                    const localLeft = toLocalGridSpace(leftCheek.x, leftCheek.y);
+                    const localRight = toLocalGridSpace(rightCheek.x, rightCheek.y);
 
                     state.yOffsets.brow = toLocalGridSpace(browPt.x, browPt.y).y;
                     state.yOffsets.nose = toLocalGridSpace(noseBase.x, noseBase.y).y;
                     state.yOffsets.chin = localChin.y;
                     state.yOffsets.hair = localTop.y;
 
-                    const faceSpanY = localChin.y - localTop.y;
-                    state.bounds.topY = localTop.y - faceSpanY * 0.14;
+                    const faceSpanY = Math.max(40, localChin.y - localTop.y);
+                    state.bounds.topY = localTop.y - faceSpanY * 0.12;
                     state.bounds.bottomY = localChin.y;
                     state.bounds.leftX = localLeft.x;
                     state.bounds.rightX = localRight.x;
@@ -2158,23 +2102,16 @@
             }
         }
 
-        function autoSwitchModeTab(mode, btn) {
-            currentMode = mode;
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            if (btn) btn.classList.add('active');
-        }
-
         async function runAutoFeatureDetection() {
             if (!currentImage) {
                 createDefaultFeaturesFromGrid();
                 redraw();
                 return;
             }
-            if (isLandmarkerReady && faceLandmarker) {
+            if (isFaceMeshReady && faceMesh) {
                 detectBanner.style.display = 'block';
                 try {
-                    const result = faceLandmarker.detect(currentImage);
-                    processLandmarker3DResults(result);
+                    await faceMesh.send({ image: currentImage });
                 } catch (err) {
                     detectBanner.style.display = 'none';
                     if (!features) createDefaultFeaturesFromGrid();
@@ -2186,7 +2123,7 @@
             }
         }
 
-        window.recalculateAllMeasurements = async function() {
+        async function recalculateAllMeasurements() {
             if (isLocked) {
                 alert('يرجى فتح القفل أولاً لتحديث القياسات.');
                 return;
@@ -2197,7 +2134,7 @@
                 createDefaultFeaturesFromGrid();
                 redraw();
             }
-        };
+        }
 
         const radiusRange = document.getElementById('radiusRange');
         const angleRange = document.getElementById('angleRange');
@@ -2257,7 +2194,7 @@
             redraw();
         });
 
-        window.toggleFullscreen = function() {
+        function toggleFullscreen() {
             document.body.classList.toggle('fullscreen-mode');
             const btn = document.getElementById('btnFullscreen');
             if (document.body.classList.contains('fullscreen-mode')) {
@@ -2268,9 +2205,9 @@
                 btn.classList.remove('active');
             }
             redraw();
-        };
+        }
 
-        window.toggleLock = function() {
+        function toggleLock() {
             isLocked = !isLocked;
             const btn = document.getElementById('btnLock');
             if (isLocked) {
@@ -2281,23 +2218,23 @@
                 btn.classList.remove('locked');
             }
             redraw();
-        };
+        }
 
-        window.toggleGrayscale = function() {
+        function toggleGrayscale() {
             isGrayscale = !isGrayscale;
             document.getElementById('btnGrayscale').classList.toggle('active', isGrayscale);
             redraw();
-        };
+        }
 
-        window.resetZoom = function() {
+        function resetZoom() {
             view.scale = 1;
             view.offsetX = 0;
             view.offsetY = 0;
             document.getElementById('btnZoomReset').textContent = '100%';
             redraw();
-        };
+        }
 
-        window.setMode = function(mode, btn) {
+        function setMode(mode, btn) {
             currentMode = mode;
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
@@ -2314,22 +2251,22 @@
                 resetParallelRulers();
             }
             redraw();
-        };
+        }
 
-        window.resetLines = function() {
+        function resetLines() {
             if (isLocked) return;
             const r = state.radius;
             state.yOffsets = {
-                hair: -r * 1.15,
+                hair: -r * 1.05,
                 brow: -r * 0.25,
-                nose: r * 0.55,
-                chin: r * 1.35
+                nose: r * 0.45,
+                chin: r * 1.15
             };
             state.bounds = {
-                topY: -r * 1.35,
-                bottomY: r * 1.35,
-                leftX: -r * 0.95,
-                rightX: r * 0.95
+                topY: -r * 1.2,
+                bottomY: r * 1.15,
+                leftX: -r * 0.85,
+                rightX: r * 0.85
             };
             state.angle = 0;
             headPose3D = { yaw: 0, pitch: 0, roll: 0 };
@@ -2349,7 +2286,7 @@
             }
             resetParallelRulers();
             redraw();
-        };
+        }
 
         document.getElementById('imageUpload').addEventListener('change', (e) => {
             const file = e.target.files[0];
@@ -2361,14 +2298,14 @@
                 lineartCanvasCache = null;
                 features = null;
                 hasDetectedOnce = false;
-                canvas.width = img.width;
-                canvas.height = img.height;
+                canvas.width = img.width || 720;
+                canvas.height = img.height || 960;
 
-                state.cx = img.width / 2;
-                state.cy = img.height / 2.2;
-                state.radius = Math.round(Math.min(img.width, img.height) * 0.28);
+                state.cx = canvas.width / 2;
+                state.cy = canvas.height / 2.2;
+                state.radius = Math.round(Math.min(canvas.width, canvas.height) * 0.24);
 
-                radiusRange.max = Math.round(Math.max(img.width, img.height) * 0.65);
+                radiusRange.max = Math.max(600, Math.round(Math.max(canvas.width, canvas.height) * 0.65));
                 radiusRange.value = state.radius;
                 document.getElementById('radiusVal').textContent = state.radius;
 
@@ -3029,7 +2966,6 @@
             });
         }
 
-        // رسم شبكة لوميس الديناميكية المستجيبة لزوايا Yaw و Pitch ثلاثية الأبعاد
         function drawGrid(pxToCm) {
             ctx.save();
             ctx.globalAlpha = lineOpacity;
@@ -3053,7 +2989,7 @@
             const r = state.radius;
             const { hair, brow, nose, chin } = state.yOffsets;
             const yawRatio = Math.max(-1, Math.min(1, headPose3D.yaw / 65));
-            const pitchCurve = (headPose3D.pitch / 45) * (r * 0.22);
+            const pitchCurve = (headPose3D.pitch / 45) * (r * 0.2);
 
             if (currentMode === 'front' || currentMode === 'anatomy') {
                 ctx.beginPath();
@@ -3068,8 +3004,8 @@
                 ctx.restore();
 
                 ctx.beginPath();
-                ctx.moveTo(0, hair - r * 0.2);
-                ctx.lineTo(0, chin + r * 0.2);
+                ctx.moveTo(0, hair - r * 0.15);
+                ctx.lineTo(0, chin + r * 0.15);
                 ctx.stroke();
 
                 ctx.beginPath();
@@ -3086,7 +3022,6 @@
                 ctx.arc(0, 0, r, 0, Math.PI * 2);
                 ctx.stroke();
 
-                // توجيه القطع الجانبي البيضاوي وخط المنتصف تلقائياً حسب جهة الالتفات (يمين أو يسار)
                 const dir = yawRatio >= 0 ? 1 : -1;
                 const absY = Math.max(0.25, Math.abs(yawRatio));
                 const sidePlaneX = -dir * r * (0.28 + absY * 0.22);
@@ -3100,13 +3035,11 @@
                 ctx.stroke();
                 ctx.restore();
 
-                // خط منتصف الوجه المنحني ثلاثي الأبعاد
                 ctx.beginPath();
                 ctx.moveTo(centerCurveX * 0.85, hair - r * 0.1);
                 ctx.quadraticCurveTo(centerCurveX * 1.25, 0, centerCurveX * 0.7, chin);
                 ctx.stroke();
 
-                // خط الفك من أسفل القطع الجانبي إلى الذقن
                 ctx.beginPath();
                 ctx.moveTo(sidePlaneX, r * 0.35);
                 ctx.lineTo(sidePlaneX + dir * r * 0.2, nose * 1.15);
@@ -3131,7 +3064,7 @@
                 ctx.stroke();
             }
 
-            const lineSpan = r * 1.5;
+            const lineSpan = r * 1.35;
             drawCurvedOrFlatLine(hair, lineSpan, pitchCurve * 0.6, 'الشعر', lw, fontSize, resFactor);
             drawCurvedOrFlatLine(brow, lineSpan, pitchCurve, 'الحواجب', lw, fontSize, resFactor);
             drawCurvedOrFlatLine(nose, lineSpan, pitchCurve * 0.7, 'الأنف', lw, fontSize, resFactor);
