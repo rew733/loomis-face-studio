@@ -412,6 +412,31 @@
             font-size: 11px;
             font-weight: bold;
         }
+        .face-structure-banner {
+            background: #1f1b2e;
+            border: 1px solid #a78bfa;
+            border-radius: 6px;
+            padding: 7px 9px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 6px;
+        }
+        .face-structure-title {
+            color: #ddd6fe;
+            font-size: 10.5px;
+            font-weight: bold;
+        }
+        .face-structure-tag {
+            background: #a78bfa;
+            color: #111;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 10.5px;
+            font-weight: bold;
+            direction: ltr;
+        }
         .section-subtitle {
             color: #00ffff;
             font-weight: bold;
@@ -827,12 +852,17 @@
             </select>
         </div>
 
+        <div class="face-structure-banner">
+            <span class="face-structure-title">البنية التشريحية الفردية للوجه (حسب النسب الداخلية):</span>
+            <span class="face-structure-tag" id="m_faceTypeTag">متوازن (1.40 : 1)</span>
+        </div>
+
         <div class="section-subtitle magenta">إطار قياس الوجه الكلي (اسحب الخطوط الأرجوانية لتحديد الطول والعرض):</div>
         <div class="prop-grid-3">
             <div class="prop-item magenta">
                 <span class="prop-label">الطول الكلي للوجه:</span>
                 <span class="prop-val" id="m_faceH">0.0 سم</span>
-                <span class="prop-sub">بين الخطين الأفقيين</span>
+                <span class="prop-sub">مقياس الكراسة المحدد</span>
             </div>
             <div class="prop-item magenta">
                 <span class="prop-label">العرض الكلي للوجه:</span>
@@ -851,22 +881,22 @@
             <div class="prop-item cyan">
                 <span class="prop-label">طول العين (يمنى / يسرى):</span>
                 <span class="prop-val" id="m_eyesLen">0.0 / 0.0 سم</span>
-                <span class="prop-sub" id="m_eyesRatio">وحدة القياس الأساسية (1.0)</span>
+                <span class="prop-sub" id="m_eyesRatio">1.00 / 1.00 وحدة</span>
             </div>
             <div class="prop-item cyan">
                 <span class="prop-label">المسافة بين العينين:</span>
                 <span class="prop-val" id="m_interEye">0.0 سم</span>
-                <span class="prop-sub" id="m_interEyeRatio">1.0 × طول العين</span>
+                <span class="prop-sub" id="m_interEyeRatio">1.00 × العين</span>
             </div>
             <div class="prop-item cyan">
                 <span class="prop-label">عرض الفم (بين الزاويتين):</span>
                 <span class="prop-val" id="m_mouthW">0.0 سم</span>
-                <span class="prop-sub" id="m_mouthRatio">1.5 × طول العين</span>
+                <span class="prop-sub" id="m_mouthRatio">1.50 × العين</span>
             </div>
             <div class="prop-item cyan">
                 <span class="prop-label">عرض الأنف (بين الفتحتين):</span>
                 <span class="prop-val" id="m_noseW">0.0 سم</span>
-                <span class="prop-sub" id="m_noseRatio">1.0 × طول العين</span>
+                <span class="prop-sub" id="m_noseRatio">1.00 × العين</span>
             </div>
         </div>
 
@@ -1254,6 +1284,7 @@
             document.getElementById('poseRollVal').textContent = `${headPose3D.roll}°`;
         }
 
+        // --- أداة الكنتور (Lineart) ---
         window.toggleLineartMode = function() {
             if (!currentImage) {
                 alert('يرجى رفع صورة الوجه أولاً لاستخراج خطوط الكنتور.');
@@ -1350,6 +1381,7 @@
             redraw();
         };
 
+        // --- المسطرتان المتوازيتان ---
         window.setRulerOrientation = function(orient) {
             parallelRuler.orientation = orient;
             document.getElementById('btnRulerHoriz').classList.toggle('active', orient === 'horizontal');
@@ -1538,6 +1570,7 @@
             redraw();
         };
 
+        // --- الشاقول الذكي المزدوج ---
         window.togglePlumbTool = function() {
             plumbState.active = !plumbState.active;
             const btn = document.getElementById('btnPlumbToggle');
@@ -1905,19 +1938,17 @@
         }
 
         function buildCurrentMeasurementsSummary() {
-            const scaleText = document.getElementById('headHeightScale').selectedOptions[0].text;
-            const faceH = document.getElementById('m_faceH').textContent;
-            const faceW = document.getElementById('m_faceW').textContent;
+            const faceType = document.getElementById('m_faceTypeTag').textContent;
             const faceRatio = document.getElementById('m_faceRatio').textContent;
-            const eyesLen = document.getElementById('m_eyesLen').textContent;
-            const interEye = document.getElementById('m_interEye').textContent;
-            const mouthW = document.getElementById('m_mouthW').textContent;
-            const noseW = document.getElementById('m_noseW').textContent;
-            const t1 = document.getElementById('m_t1').textContent;
-            const t2 = document.getElementById('m_t2').textContent;
-            const t3 = document.getElementById('m_t3').textContent;
+            const eyesRatio = document.getElementById('m_eyesRatio').textContent;
+            const interEyeRatio = document.getElementById('m_interEyeRatio').textContent;
+            const mouthRatio = document.getElementById('m_mouthRatio').textContent;
+            const noseRatio = document.getElementById('m_noseRatio').textContent;
+            const t1Pct = document.getElementById('m_t1Pct').textContent;
+            const t2Pct = document.getElementById('m_t2Pct').textContent;
+            const t3Pct = document.getElementById('m_t3Pct').textContent;
 
-            return `المقياس: ${scaleText} | زوايا الرأس 3D: (Yaw: ${headPose3D.yaw}°, Pitch: ${headPose3D.pitch}°, Roll: ${headPose3D.roll}°) | الطول: ${faceH} | العرض: ${faceW} (${faceRatio}) | العين: ${eyesLen} | بين العينين: ${interEye} | الأنف: ${noseW} | الفم: ${mouthW} | الأثلاث: (${t1} / ${t2} / ${t3})`;
+            return `بنية الوجه: ${faceType} (${faceRatio}) | زوايا الرأس 3D: (Yaw: ${headPose3D.yaw}°, Pitch: ${headPose3D.pitch}°, Roll: ${headPose3D.roll}°) | الأثلاث: (${t1Pct} / ${t2Pct} / ${t3Pct}) | العين: ${eyesRatio} | بين العينين: ${interEyeRatio} | الأنف: ${noseRatio} | الفم: ${mouthRatio}`;
         }
 
         function applyAiVisualData(aiJson) {
@@ -1968,7 +1999,7 @@
 
             let taskGoal = '';
             if (taskType === 'blueprint') {
-                taskGoal = `أنت أستاذ أكاديمي في تقنية أندرو لوميس. بناءً على الصورة وهذه القياسات ثلاثية الأبعاد المحسوبة بدقة (${stats})، اكتب خطة رسم هندسية مرقمة بالسنتيمتر للرسام في explanation (قطر الكرة، وضعية القطع الجانبي بناءً على زاوية Yaw، مواقع الأثلاث، وأبعاد العين والفم والأنف). اجعل lightDir=null و shadowZones=[] و corrections=[].`;
+                taskGoal = `أنت أستاذ أكاديمي في تقنية أندرو لوميس. بناءً على الصورة وهذه النسب الفردية المحسوبة بدقة (${stats})، اكتب خطة رسم هندسية مرقمة للرسام في explanation توضح الفروق التشريحية الخاصة بهذا الشخص. اجعل lightDir=null و shadowZones=[] و corrections=[].`;
             } else if (taskType === 'shading') {
                 taskGoal = `حلل الإضاءة ومناطق الظل العميق (Core Shadows) في هذه الصورة. حدد زاوية قدوم الضوء في lightDir، واختر من القائمة المحددة أهم مناطق الظل الحقيقية الموجودة في الصورة في shadowZones ليرسمها التطبيق فوق تلك الأجزاء التشريحية بدقة، واشرح كتل الضوء والظل في explanation.`;
             } else if (taskType === 'tilt') {
@@ -3391,7 +3422,8 @@
 
             const faceHCm = (faceHPx * pxToCm).toFixed(1);
             const faceWCm = (faceWPx * pxToCm).toFixed(1);
-            const hwRatio = (faceHPx / faceWPx).toFixed(2);
+            const hwRatioNum = faceHPx / faceWPx;
+            const hwRatio = hwRatioNum.toFixed(2);
             const wPct = Math.round((faceWPx / faceHPx) * 100);
 
             document.getElementById('m_faceH').textContent = `${faceHCm} سم`;
@@ -3399,18 +3431,30 @@
             document.getElementById('m_faceRatio').textContent = `${hwRatio} : 1`;
             document.getElementById('m_facePct').textContent = `العرض ${wPct}% من الطول`;
 
+            let faceTypeLabel = `متوازن (${hwRatio} : 1)`;
+            if (hwRatioNum >= 1.48) {
+                faceTypeLabel = `طويل / نحيف (${hwRatio} : 1)`;
+            } else if (hwRatioNum <= 1.32) {
+                faceTypeLabel = `عريض / مستدير (${hwRatio} : 1)`;
+            }
+            document.getElementById('m_faceTypeTag').textContent = faceTypeLabel;
+
             const d1 = Math.abs(state.yOffsets.brow - state.yOffsets.hair);
             const d2 = Math.abs(state.yOffsets.nose - state.yOffsets.brow);
             const d3 = Math.abs(state.yOffsets.chin - state.yOffsets.nose);
             const totalD = Math.max(1, d1 + d2 + d3);
 
-            document.getElementById('m_t1').textContent = (d1 * pxToCm).toFixed(1) + ' سم';
-            document.getElementById('m_t2').textContent = (d2 * pxToCm).toFixed(1) + ' سم';
-            document.getElementById('m_t3').textContent = (d3 * pxToCm).toFixed(1) + ' سم';
+            const p1 = Math.round((d1 / totalD) * 100);
+            const p2 = Math.round((d2 / totalD) * 100);
+            const p3 = Math.round((d3 / totalD) * 100);
 
-            document.getElementById('m_t1Pct').textContent = Math.round((d1 / totalD) * 100) + '% من الوجه';
-            document.getElementById('m_t2Pct').textContent = Math.round((d2 / totalD) * 100) + '% من الوجه';
-            document.getElementById('m_t3Pct').textContent = Math.round((d3 / totalD) * 100) + '% من الوجه';
+            document.getElementById('m_t1Pct').textContent = `${p1}%`;
+            document.getElementById('m_t2Pct').textContent = `${p2}%`;
+            document.getElementById('m_t3Pct').textContent = `${p3}%`;
+
+            document.getElementById('m_t1').textContent = `${(d1 * pxToCm).toFixed(1)} سم (القياسي: 33%)`;
+            document.getElementById('m_t2').textContent = `${(d2 * pxToCm).toFixed(1)} سم (القياسي: 33%)`;
+            document.getElementById('m_t3').textContent = `${(d3 * pxToCm).toFixed(1)} سم (القياسي: 33%)`;
 
             if (features) {
                 const f = features;
@@ -3422,14 +3466,23 @@
                 const mouthPx = dist(f.mouthLeft, f.mouthRight);
                 const nosePx = dist(f.noseLeft, f.noseRight);
 
-                document.getElementById('m_eyesLen').textContent = `${(rightEyePx * pxToCm).toFixed(1)} / ${(leftEyePx * pxToCm).toFixed(1)} سم`;
-                document.getElementById('m_interEye').textContent = `${(interEyePx * pxToCm).toFixed(1)} سم`;
-                document.getElementById('m_mouthW').textContent = `${(mouthPx * pxToCm).toFixed(1)} سم`;
-                document.getElementById('m_noseW').textContent = `${(nosePx * pxToCm).toFixed(1)} سم`;
+                const rEyeUnit = (rightEyePx / avgEyePx).toFixed(2);
+                const lEyeUnit = (leftEyePx / avgEyePx).toFixed(2);
+                const interEyeUnit = (interEyePx / avgEyePx).toFixed(2);
+                const mouthUnit = (mouthPx / avgEyePx).toFixed(2);
+                const noseUnit = (nosePx / avgEyePx).toFixed(2);
 
-                document.getElementById('m_interEyeRatio').textContent = `${(interEyePx / avgEyePx).toFixed(2)} × طول العين`;
-                document.getElementById('m_mouthRatio').textContent = `${(mouthPx / avgEyePx).toFixed(2)} × طول العين`;
-                document.getElementById('m_noseRatio').textContent = `${(nosePx / avgEyePx).toFixed(2)} × طول العين`;
+                document.getElementById('m_eyesRatio').textContent = `${rEyeUnit} / ${lEyeUnit} وحدة`;
+                document.getElementById('m_eyesLen').textContent = `${(rightEyePx * pxToCm).toFixed(1)} / ${(leftEyePx * pxToCm).toFixed(1)} سم`;
+
+                document.getElementById('m_interEyeRatio').textContent = `${interEyeUnit} × العين`;
+                document.getElementById('m_interEye').textContent = `${(interEyePx * pxToCm).toFixed(1)} سم (القياسي: 1.0×)`;
+
+                document.getElementById('m_mouthRatio').textContent = `${mouthUnit} × العين`;
+                document.getElementById('m_mouthW').textContent = `${(mouthPx * pxToCm).toFixed(1)} سم (القياسي: 1.5×)`;
+
+                document.getElementById('m_noseRatio').textContent = `${noseUnit} × العين`;
+                document.getElementById('m_noseW').textContent = `${(nosePx * pxToCm).toFixed(1)} سم (القياسي: 1.0×)`;
             }
         }
 
