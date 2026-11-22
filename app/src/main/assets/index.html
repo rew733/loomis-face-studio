@@ -65,7 +65,6 @@
             color: #000;
             border-color: #00e5ff;
         }
-        /* شريط زوايا الرأس ثلاثية الأبعاد (Yaw / Pitch / Roll) */
         .pose-strip {
             display: flex;
             width: 96%;
@@ -242,7 +241,6 @@
             z-index: 10;
         }
 
-        /* بطاقة المسطرتين المتوازيتين */
         .ruler-card {
             display: none;
             width: 96%;
@@ -293,7 +291,6 @@
             direction: ltr;
         }
 
-        /* بطاقة الشاقول الذكي المزدوج */
         .plumb-card {
             display: none;
             width: 96%;
@@ -376,7 +373,6 @@
         }
         .snap-badge.orange { background: #ff9100; }
 
-        /* بطاقة قراءة الإحداثيات الفعلية لكل صورة جديدة */
         .coords-card {
             display: none;
             width: 96%;
@@ -846,7 +842,6 @@
         <button class="tab-btn coords-tab" id="tabCoords" onclick="setMode('coords', this)">📍 الإحداثيات</button>
     </div>
 
-    <!-- شريط زوايا الرأس ثلاثية الأبعاد الحية -->
     <div class="pose-strip">
         <div class="pose-chip">الالتفات (Yaw): <span id="poseYawVal">0°</span></div>
         <div class="pose-chip">الارتفاع (Pitch): <span id="posePitchVal">0°</span></div>
@@ -882,11 +877,10 @@
             <span id="lineartVal" style="color:#ffd700; font-weight:bold;">42</span>
         </div>
 
-        <div class="detect-banner" id="detectBanner">جاري تشغيل FaceLandmarker ثلاثي الأبعاد...</div>
+        <div class="detect-banner" id="detectBanner">جاري تحديث إحداثيات الصورة...</div>
         <canvas id="output_canvas" width="720" height="960"></canvas>
     </div>
 
-    <!-- بطاقة قراءة الإحداثيات الفعلية لكل صورة جديدة -->
     <div class="coords-card" id="coordsCard">
         <div class="coords-header-row">
             <span style="color:#00e5ff; font-weight:bold;">📍 إحداثيات المعالم الفعلية على الصورة:</span>
@@ -913,7 +907,6 @@
         </div>
     </div>
 
-    <!-- بطاقة المسطرتين المتوازيتين -->
     <div class="ruler-card" id="rulerCard">
         <div class="ruler-top-row">
             <button class="ruler-mode-btn active" id="btnRulerHoriz" onclick="setRulerOrientation('horizontal')">↕ خطان أفقيان (قياس الارتفاع)</button>
@@ -932,7 +925,6 @@
         </div>
     </div>
 
-    <!-- بطاقة الشاقول الذكي المزدوج -->
     <div class="plumb-card" id="plumbCard">
         <div class="plumb-controls-row">
             <button class="plumb-pill-btn" id="btnDualPlumb" onclick="toggleSecondPlumb()">➕ إضافة شاقول 2 (قياس بين نقطتين)</button>
@@ -960,7 +952,6 @@
         </div>
     </div>
 
-    <!-- بطاقة القياسات التشريحية المعايرة بالسنتيمتر -->
     <div class="proportions-card" id="propCard">
         <button class="recalc-btn" onclick="recalculateAllMeasurements()">🔄 إعادة رصد الزوايا ثلاثية الأبعاد والنسب</button>
 
@@ -1086,7 +1077,6 @@
         <div class="hint">💡 افتح تبويب "📍 الإحداثيات" لرؤية الإحداثيات الفعلية المرصودة فور رفع أي صورة جديدة</div>
     </div>
 
-    <!-- نافذة المرشد الذكي (Gemini + Hugging Face Qwen2.5-VL) -->
     <div class="ai-modal" id="aiModal">
         <div class="ai-dialog">
             <div class="ai-header">
@@ -1162,9 +1152,7 @@
         </div>
     </div>
 
-    <script type="module">
-        import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
-
+    <script>
         const canvas = document.getElementById('output_canvas');
         const ctx = canvas.getContext('2d');
         const detectBanner = document.getElementById('detectBanner');
@@ -1173,7 +1161,6 @@
         let lineartCanvasCache = null;
         let isLineartMode = false;
 
-        // أداة فهم التظليل (4-Value Shading Map)
         let shadingCache = null;
         let isShadingGuideActive = false;
 
@@ -1250,8 +1237,7 @@
         let initialViewScale = 1;
         let lastPinchCenter = null;
 
-        // --- أداة فهم التظليل (4-Value Shading Map) ---
-        window.toggleShadingGuide = function() {
+        function toggleShadingGuide() {
             if (!currentImage) {
                 alert('يرجى رفع صورة الوجه أولاً لتوليد خريطة الظل والنور.');
                 return;
@@ -1270,7 +1256,7 @@
             } else {
                 redraw();
             }
-        };
+        }
 
         function buildShadingGuideCache() {
             if (!currentImage) return;
@@ -1343,72 +1329,11 @@
 
             const shadowPct = Math.round((shadowCount / totalPixels) * 100);
             const lightPct = 100 - shadowPct;
-            document.getElementById('shadingRatioText').textContent = `ظل: ${shadowPct}% | نور: ${lightPct}%`;
-            redraw();
+            document.getElementById('shadingRatioText').textContent = `ظل: ${shadowPct}% | نور: ${lightPct}\%`; redraw(); }  function updatePoseStripUI() { document.getElementById('poseYawVal').textContent = `${headPose3D.yaw}°`;
+            document.getElementById('posePitchVal').textContent = `${headPose3D.pitch}°`; document.getElementById('poseRollVal').textContent = `${headPose3D.roll}°`;
         }
 
-        // --- تهيئة محرك MediaPipe FaceLandmarker 3D الرسمي ---
-        let faceLandmarker = null;
-        let isLandmarkerReady = false;
-
-        async function initFaceLandmarker3D() {
-            try {
-                const vision = await FilesetResolver.forVisionTasks(
-                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
-                );
-                faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
-                    baseOptions: {
-                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-                        delegate: "CPU"
-                    },
-                    outputFaceBlendshapes: false,
-                    outputFacialTransformationMatrixes: true,
-                    runningMode: "IMAGE",
-                    numFaces: 1
-                });
-                isLandmarkerReady = true;
-                if (currentImage && !hasDetectedOnce) {
-                    runAutoFeatureDetection();
-                }
-            } catch (e) {
-                console.warn("FaceLandmarker init warning:", e);
-            }
-        }
-        initFaceLandmarker3D();
-
-        function extractEulerFromMatrix(matrixData) {
-            const m00 = matrixData[0], m01 = matrixData[4], m02 = matrixData[8];
-            const m10 = matrixData[1], m11 = matrixData[5], m12 = matrixData[9];
-            const m20 = matrixData[2], m21 = matrixData[6], m22 = matrixData[10];
-
-            const sy = Math.hypot(m00, m10);
-            const singular = sy < 1e-6;
-            let pitchRad, yawRad, rollRad;
-
-            if (!singular) {
-                pitchRad = Math.atan2(m21, m22);
-                yawRad = Math.atan2(-m20, sy);
-                rollRad = Math.atan2(m10, m00);
-            } else {
-                pitchRad = Math.atan2(-m12, m11);
-                yawRad = Math.atan2(-m20, sy);
-                rollRad = 0;
-            }
-
-            return {
-                yaw: Math.round(yawRad * 180 / Math.PI),
-                pitch: Math.round(pitchRad * 180 / Math.PI),
-                roll: Math.round(rollRad * 180 / Math.PI)
-            };
-        }
-
-        function updatePoseStripUI() {
-            document.getElementById('poseYawVal').textContent = `${headPose3D.yaw}°`;
-            document.getElementById('posePitchVal').textContent = `${headPose3D.pitch}°`;
-            document.getElementById('poseRollVal').textContent = `${headPose3D.roll}°`;
-        }
-
-        window.toggleLineartMode = function() {
+        function toggleLineartMode() {
             if (!currentImage) {
                 alert('يرجى رفع صورة الوجه أولاً لاستخراج خطوط الكنتور.');
                 return;
@@ -1427,9 +1352,9 @@
             } else {
                 redraw();
             }
-        };
+        }
 
-        window.rebuildLineartCache = function() {
+        function rebuildLineartCache() {
             if (!currentImage) return;
             const thresholdVal = parseInt(document.getElementById('lineartSensitivity').value);
             document.getElementById('lineartVal').textContent = thresholdVal;
@@ -1502,9 +1427,9 @@
             oCtx.putImageData(outData, 0, 0);
             lineartCanvasCache = offCanvas;
             redraw();
-        };
+        }
 
-        window.setRulerOrientation = function(orient) {
+        function setRulerOrientation(orient) {
             parallelRuler.orientation = orient;
             document.getElementById('btnRulerHoriz').classList.toggle('active', orient === 'horizontal');
             document.getElementById('btnRulerVert').classList.toggle('active', orient === 'vertical');
@@ -1520,63 +1445,13 @@
                 parallelRuler.line2 = state.cx + state.radius * 0.55;
             }
             redraw();
-        };
+        }
 
-        window.toggleRulerTilt = function() {
+        function toggleRulerTilt() {
             parallelRuler.alignWithHead = !parallelRuler.alignWithHead;
             const btn = document.getElementById('btnRulerTilt');
             if (parallelRuler.alignWithHead) {
-                btn.textContent = `🧭 مائل مع الرأس (${state.angle}°)`;
-                btn.classList.add('active');
-            } else {
-                btn.textContent = '📐 مستقيم (0°)';
-                btn.classList.remove('active');
-            }
-            redraw();
-        };
-
-        window.resetParallelRulers = function() {
-            if (parallelRuler.orientation === 'horizontal') {
-                parallelRuler.line1 = state.cy + state.yOffsets.nose;
-                parallelRuler.line2 = state.cy + state.yOffsets.chin;
-            } else {
-                parallelRuler.line1 = state.cx;
-                parallelRuler.line2 = state.cx + state.radius * 0.55;
-            }
-            redraw();
-        };
-
-        function toRulerAxisSpace(px, py) {
-            const deg = parallelRuler.alignWithHead ? state.angle : 0;
-            const rad = -deg * Math.PI / 180;
-            const dx = px - state.cx;
-            const dy = py - state.cy;
-            return {
-                x: state.cx + (dx * Math.cos(rad) - dy * Math.sin(rad)),
-                y: state.cy + (dx * Math.sin(rad) + dy * Math.cos(rad))
-            };
-        }
-
-        function drawParallelRulers(pxToCm) {
-            const resFactor = Math.max(1, canvas.width / 600);
-            const lw = (2.8 * resFactor) / Math.sqrt(view.scale);
-            const handleR = (8.5 * resFactor) / Math.sqrt(view.scale);
-            const deg = parallelRuler.alignWithHead ? state.angle : 0;
-            const span = Math.max(canvas.width, canvas.height) * 1.5;
-
-            ctx.save();
-            ctx.translate(state.cx, state.cy);
-            ctx.rotate(deg * Math.PI / 180);
-            ctx.translate(-state.cx, -state.cy);
-
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-            ctx.shadowBlur = 4 * resFactor;
-
-            const l1 = parallelRuler.line1;
-            const l2 = parallelRuler.line2;
-            const distPx = Math.abs(l2 - l1);
-            const distCm = (distPx * pxToCm).toFixed(2);
-            document.getElementById('rulerDistanceVal').textContent = `${distCm} سم`;
+                btn.textContent = `🧭 مائل مع الرأس (${state.angle}°)`; btn.classList.add('active'); } else { btn.textContent = '📐 مستقيم (0°)'; btn.classList.remove('active'); } redraw(); }  function resetParallelRulers() { if (parallelRuler.orientation === 'horizontal') { parallelRuler.line1 = state.cy + state.yOffsets.nose; parallelRuler.line2 = state.cy + state.yOffsets.chin; } else { parallelRuler.line1 = state.cx; parallelRuler.line2 = state.cx + state.radius * 0.55; } redraw(); }  function toRulerAxisSpace(px, py) { const deg = parallelRuler.alignWithHead ? state.angle : 0; const rad = -deg * Math.PI / 180; const dx = px - state.cx; const dy = py - state.cy; return { x: state.cx + (dx * Math.cos(rad) - dy * Math.sin(rad)), y: state.cy + (dx * Math.sin(rad) + dy * Math.cos(rad)) }; }  function drawParallelRulers(pxToCm) { const resFactor = Math.max(1, canvas.width / 600); const lw = (2.8 * resFactor) / Math.sqrt(view.scale); const handleR = (8.5 * resFactor) / Math.sqrt(view.scale); const deg = parallelRuler.alignWithHead ? state.angle : 0; const span = Math.max(canvas.width, canvas.height) * 1.5;  ctx.save(); ctx.translate(state.cx, state.cy); ctx.rotate(deg * Math.PI / 180); ctx.translate(-state.cx, -state.cy);  ctx.shadowColor = 'rgba(0, 0, 0, 0.9)'; ctx.shadowBlur = 4 * resFactor;  const l1 = parallelRuler.line1; const l2 = parallelRuler.line2; const distPx = Math.abs(l2 - l1); const distCm = (distPx * pxToCm).toFixed(2); document.getElementById('rulerDistanceVal').textContent = `${distCm} سم`;
 
             if (parallelRuler.orientation === 'horizontal') {
                 const midX = state.cx;
@@ -1619,51 +1494,7 @@
                     drawArrowHead(midX, yTop, -Math.PI / 2, 10 * resFactor);
                     drawArrowHead(midX, yBot, Math.PI / 2, 10 * resFactor);
 
-                    drawLabelBadge(`↕ ${distCm} سم`, midX + 46 * resFactor, (yTop + yBot) / 2, 'rgba(0, 25, 15, 0.92)', '#00FF88', resFactor);
-                }
-
-            } else {
-                const midY = state.cy;
-                const xLeft = Math.min(l1, l2);
-                const xRight = Math.max(l1, l2);
-
-                ctx.fillStyle = 'rgba(0, 255, 136, 0.08)';
-                ctx.fillRect(xLeft, state.cy - span, xRight - xLeft, span * 2);
-
-                [
-                    { x: l1, color: '#00FF88' },
-                    { x: l2, color: '#00E5FF' }
-                ].forEach(item => {
-                    ctx.strokeStyle = item.color;
-                    ctx.fillStyle = item.color;
-                    ctx.lineWidth = lw;
-
-                    ctx.beginPath();
-                    ctx.moveTo(item.x, state.cy - span);
-                    ctx.lineTo(item.x, state.cy + span);
-                    ctx.stroke();
-
-                    const gripOffset = state.radius * 1.25;
-                    [state.cy - gripOffset, state.cy + gripOffset].forEach(gy => {
-                        ctx.beginPath();
-                        ctx.arc(item.x, gy, handleR, 0, Math.PI * 2);
-                        ctx.stroke();
-                    });
-                });
-
-                if (distPx > 8) {
-                    ctx.strokeStyle = '#FFD700';
-                    ctx.fillStyle = '#FFD700';
-                    ctx.lineWidth = lw * 0.9;
-                    ctx.beginPath();
-                    ctx.moveTo(xLeft, midY);
-                    ctx.lineTo(xRight, midY);
-                    ctx.stroke();
-
-                    drawArrowHead(xLeft, midY, Math.PI, 10 * resFactor);
-                    drawArrowHead(xRight, midY, 0, 10 * resFactor);
-
-                    drawLabelBadge(`↔ ${distCm} سم`, (xLeft + xRight) / 2, midY - 22 * resFactor, 'rgba(0, 25, 15, 0.92)', '#00FF88', resFactor);
+                    drawLabelBadge(`↕ ${distCm} سم`, midX + 46 * resFactor, (yTop + yBot) / 2, 'rgba(0, 25, 15, 0.92)', '#00FF88', resFactor); }  } else { const midY = state.cy; const xLeft = Math.min(l1, l2); const xRight = Math.max(l1, l2);  ctx.fillStyle = 'rgba(0, 255, 136, 0.08)'; ctx.fillRect(xLeft, state.cy - span, xRight - xLeft, span * 2);  [ { x: l1, color: '#00FF88' }, { x: l2, color: '#00E5FF' } ].forEach(item => { ctx.strokeStyle = item.color; ctx.fillStyle = item.color; ctx.lineWidth = lw;  ctx.beginPath(); ctx.moveTo(item.x, state.cy - span); ctx.lineTo(item.x, state.cy + span); ctx.stroke();  const gripOffset = state.radius * 1.25; [state.cy - gripOffset, state.cy + gripOffset].forEach(gy => { ctx.beginPath(); ctx.arc(item.x, gy, handleR, 0, Math.PI * 2); ctx.stroke(); }); });  if (distPx > 8) { ctx.strokeStyle = '#FFD700'; ctx.fillStyle = '#FFD700'; ctx.lineWidth = lw * 0.9; ctx.beginPath(); ctx.moveTo(xLeft, midY); ctx.lineTo(xRight, midY); ctx.stroke();  drawArrowHead(xLeft, midY, Math.PI, 10 * resFactor); drawArrowHead(xRight, midY, 0, 10 * resFactor);  drawLabelBadge(`↔ ${distCm} سم`, (xLeft + xRight) / 2, midY - 22 * resFactor, 'rgba(0, 25, 15, 0.92)', '#00FF88', resFactor);
                 }
             }
 
@@ -1679,7 +1510,7 @@
             ctx.fill();
         }
 
-        window.toggleGridVisibility = function() {
+        function toggleGridVisibility() {
             isGridVisible = !isGridVisible;
             const btn = document.getElementById('btnGridToggle');
             if (isGridVisible) {
@@ -1690,9 +1521,9 @@
                 btn.classList.remove('active');
             }
             redraw();
-        };
+        }
 
-        window.togglePlumbTool = function() {
+        function togglePlumbTool() {
             plumbState.active = !plumbState.active;
             const btn = document.getElementById('btnPlumbToggle');
             const card = document.getElementById('plumbCard');
@@ -1711,9 +1542,9 @@
                 card.classList.remove('show');
             }
             redraw();
-        };
+        }
 
-        window.toggleSecondPlumb = function() {
+        function toggleSecondPlumb() {
             plumbState.dual = !plumbState.dual;
             const btn = document.getElementById('btnDualPlumb');
             const statsBox = document.getElementById('plumbDualStats');
@@ -1730,108 +1561,13 @@
                 statsBox.classList.remove('show');
             }
             redraw();
-        };
+        }
 
-        window.togglePlumbAxis = function() {
+        function togglePlumbAxis() {
             plumbState.alignWithHead = !plumbState.alignWithHead;
             const btn = document.getElementById('btnPlumbAxis');
             if (plumbState.alignWithHead) {
-                btn.textContent = `🧭 مائل مع الرأس (${state.angle}°)`;
-                btn.classList.add('active-cyan');
-            } else {
-                btn.textContent = '📐 أرضي (0° / 90°)';
-                btn.classList.remove('active-cyan');
-            }
-            redraw();
-        };
-
-        window.togglePlumbSnap = function() {
-            plumbState.snapEnabled = !plumbState.snapEnabled;
-            const btn = document.getElementById('btnPlumbSnap');
-            btn.textContent = plumbState.snapEnabled ? '🧲 المغناطيس: مفعّل' : '🧲 المغناطيس: متوقف';
-            if (!plumbState.snapEnabled) {
-                plumbState.p1.snappedName = null;
-                plumbState.p2.snappedName = null;
-            }
-            redraw();
-        };
-
-        function buildAnatomicalLandmarksList() {
-            landmarksList = [];
-            if (features) {
-                const f = features;
-                const leftPupil = { x: (f.leftEyeOuter.x + f.leftEyeInner.x) / 2, y: (f.leftEyeOuter.y + f.leftEyeInner.y) / 2 };
-                const rightPupil = { x: (f.rightEyeInner.x + f.rightEyeOuter.x) / 2, y: (f.rightEyeInner.y + f.rightEyeOuter.y) / 2 };
-                const mouthCenter = { x: (f.mouthLeft.x + f.mouthRight.x) / 2, y: (f.mouthLeft.y + f.mouthRight.y) / 2 };
-                const noseTip = { x: (f.noseLeft.x + f.noseRight.x) / 2, y: (f.noseLeft.y + f.noseRight.y) / 2 };
-
-                landmarksList.push(
-                    { name: 'بؤبؤ العين اليسرى', x: leftPupil.x, y: leftPupil.y },
-                    { name: 'مدمع العين اليسرى', x: f.leftEyeInner.x, y: f.leftEyeInner.y },
-                    { name: 'طرف العين اليسرى الخارجي', x: f.leftEyeOuter.x, y: f.leftEyeOuter.y },
-                    { name: 'بؤبؤ العين اليمنى', x: rightPupil.x, y: rightPupil.y },
-                    { name: 'مدمع العين اليمنى', x: f.rightEyeInner.x, y: f.rightEyeInner.y },
-                    { name: 'طرف العين اليمنى الخارجي', x: f.rightEyeOuter.x, y: f.rightEyeOuter.y },
-                    { name: 'جناح الأنف الأيسر', x: f.noseLeft.x, y: f.noseLeft.y },
-                    { name: 'جناح الأنف الأيمن', x: f.noseRight.x, y: f.noseRight.y },
-                    { name: 'قاعدة الأنف', x: noseTip.x, y: noseTip.y },
-                    { name: 'زاوية الفم اليسرى', x: f.mouthLeft.x, y: f.mouthLeft.y },
-                    { name: 'زاوية الفم اليمنى', x: f.mouthRight.x, y: f.mouthRight.y },
-                    { name: 'منتصف الشفاه', x: mouthCenter.x, y: mouthCenter.y }
-                );
-            }
-
-            const rad = state.angle * Math.PI / 180;
-            const toWorld = (lx, ly) => ({
-                x: state.cx + (lx * Math.cos(rad) - ly * Math.sin(rad)),
-                y: state.cy + (lx * Math.sin(rad) + ly * Math.cos(rad))
-            });
-            const chinWorld = toWorld(0, state.yOffsets.chin);
-            const browWorld = toWorld(0, state.yOffsets.brow);
-            landmarksList.push(
-                { name: 'ذروة الذقن', x: chinWorld.x, y: chinWorld.y },
-                { name: 'منتصف الحاجبين', x: browWorld.x, y: browWorld.y }
-            );
-        }
-
-        function applyMagneticSnap(plumbPt) {
-            plumbPt.snappedName = null;
-            if (!plumbState.snapEnabled || landmarksList.length === 0) return;
-
-            const snapRadius = Math.max(18, canvas.width * 0.025) / view.scale;
-            let closest = null;
-            let minD = snapRadius;
-
-            for (let lm of landmarksList) {
-                const d = dist(plumbPt, lm);
-                if (d < minD) {
-                    minD = d;
-                    closest = lm;
-                }
-            }
-
-            if (closest) {
-                plumbPt.x = closest.x;
-                plumbPt.y = closest.y;
-                plumbPt.snappedName = closest.name;
-            }
-        }
-
-        function projectAlongPlumbAxis(pt, axisDeg) {
-            const rad = axisDeg * Math.PI / 180;
-            return {
-                u: pt.x * Math.cos(rad) + pt.y * Math.sin(rad),
-                v: -pt.x * Math.sin(rad) + pt.y * Math.cos(rad)
-            };
-        }
-
-        function updatePlumbAnalysisReport(pxToCm) {
-            if (!plumbState.active) return;
-
-            const axisDeg = plumbState.alignWithHead ? state.angle : 0;
-            const btnAxis = document.getElementById('btnPlumbAxis');
-            if (plumbState.alignWithHead) {
-                btnAxis.textContent = `🧭 مائل مع الرأس (${state.angle}°)`;
+                btn.textContent = `🧭 مائل مع الرأس (${state.angle}°)`; btn.classList.add('active-cyan'); } else { btn.textContent = '📐 أرضي (0° / 90°)'; btn.classList.remove('active-cyan'); } redraw(); }  function togglePlumbSnap() { plumbState.snapEnabled = !plumbState.snapEnabled; const btn = document.getElementById('btnPlumbSnap'); btn.textContent = plumbState.snapEnabled ? '🧲 المغناطيس: مفعّل' : '🧲 المغناطيس: متوقف'; if (!plumbState.snapEnabled) { plumbState.p1.snappedName = null; plumbState.p2.snappedName = null; } redraw(); }  function buildAnatomicalLandmarksList() { landmarksList = []; if (features) { const f = features; const leftPupil = { x: (f.leftEyeOuter.x + f.leftEyeInner.x) / 2, y: (f.leftEyeOuter.y + f.leftEyeInner.y) / 2 }; const rightPupil = { x: (f.rightEyeInner.x + f.rightEyeOuter.x) / 2, y: (f.rightEyeInner.y + f.rightEyeOuter.y) / 2 }; const mouthCenter = { x: (f.mouthLeft.x + f.mouthRight.x) / 2, y: (f.mouthLeft.y + f.mouthRight.y) / 2 }; const noseTip = { x: (f.noseLeft.x + f.noseRight.x) / 2, y: (f.noseLeft.y + f.noseRight.y) / 2 };  landmarksList.push( { name: 'بؤبؤ العين اليسرى', x: leftPupil.x, y: leftPupil.y }, { name: 'مدمع العين اليسرى', x: f.leftEyeInner.x, y: f.leftEyeInner.y }, { name: 'طرف العين اليسرى الخارجي', x: f.leftEyeOuter.x, y: f.leftEyeOuter.y }, { name: 'بؤبؤ العين اليمنى', x: rightPupil.x, y: rightPupil.y }, { name: 'مدمع العين اليمنى', x: f.rightEyeInner.x, y: f.rightEyeInner.y }, { name: 'طرف العين اليمنى الخارجي', x: f.rightEyeOuter.x, y: f.rightEyeOuter.y }, { name: 'جناح الأنف الأيسر', x: f.noseLeft.x, y: f.noseLeft.y }, { name: 'جناح الأنف الأيمن', x: f.noseRight.x, y: f.noseRight.y }, { name: 'قاعدة الأنف', x: noseTip.x, y: noseTip.y }, { name: 'زاوية الفم اليسرى', x: f.mouthLeft.x, y: f.mouthLeft.y }, { name: 'زاوية الفم اليمنى', x: f.mouthRight.x, y: f.mouthRight.y }, { name: 'منتصف الشفاه', x: mouthCenter.x, y: mouthCenter.y } ); }  const rad = state.angle * Math.PI / 180; const toWorld = (lx, ly) => ({ x: state.cx + (lx * Math.cos(rad) - ly * Math.sin(rad)), y: state.cy + (lx * Math.sin(rad) + ly * Math.cos(rad)) }); const chinWorld = toWorld(0, state.yOffsets.chin); const browWorld = toWorld(0, state.yOffsets.brow); landmarksList.push( { name: 'ذروة الذقن', x: chinWorld.x, y: chinWorld.y }, { name: 'منتصف الحاجبين', x: browWorld.x, y: browWorld.y } ); }  function applyMagneticSnap(plumbPt) { plumbPt.snappedName = null; if (!plumbState.snapEnabled \vert{}\vert{} landmarksList.length === 0) return;  const snapRadius = Math.max(18, canvas.width * 0.025) / view.scale; let closest = null; let minD = snapRadius;  for (let lm of landmarksList) { const d = dist(plumbPt, lm); if (d < minD) { minD = d; closest = lm; } }  if (closest) { plumbPt.x = closest.x; plumbPt.y = closest.y; plumbPt.snappedName = closest.name; } }  function projectAlongPlumbAxis(pt, axisDeg) { const rad = axisDeg * Math.PI / 180; return { u: pt.x * Math.cos(rad) + pt.y * Math.sin(rad), v: -pt.x * Math.sin(rad) + pt.y * Math.cos(rad) }; }  function updatePlumbAnalysisReport(pxToCm) { if (!plumbState.active) return;  const axisDeg = plumbState.alignWithHead ? state.angle : 0; const btnAxis = document.getElementById('btnPlumbAxis'); if (plumbState.alignWithHead) { btnAxis.textContent = `🧭 مائل مع الرأس (${state.angle}°)`;
             }
 
             if (plumbState.dual) {
@@ -1841,32 +1577,8 @@
                 const dxCm = (Math.abs(proj2.u - proj1.u) * pxToCm).toFixed(2);
                 const dyCm = (Math.abs(proj2.v - proj1.v) * pxToCm).toFixed(2);
 
-                document.getElementById('plumbDirectVal').textContent = `${directCm} سم`;
-                document.getElementById('plumbDxVal').textContent = `${dxCm} سم`;
-                document.getElementById('plumbDyVal').textContent = `${dyCm} سم`;
-            }
-
-            const activePt = plumbState.activeIndex === 1 && plumbState.dual ? plumbState.p2 : plumbState.p1;
-            const isSecond = plumbState.activeIndex === 1 && plumbState.dual;
-            const badgeClass = isSecond ? 'snap-badge orange' : 'snap-badge';
-            const titleName = activePt.snappedName || (isSecond ? 'الشاقول البرتقالي (2)' : 'الشاقول السماوي (1)');
-
-            const pProj = projectAlongPlumbAxis(activePt, axisDeg);
-            const vMatches = [];
-            const hMatches = [];
-            const nearVerticalNotes = [];
-
-            for (let lm of landmarksList) {
-                if (lm.name === activePt.snappedName) continue;
-                const lmProj = projectAlongPlumbAxis(lm, axisDeg);
-                const diffXCm = (lmProj.u - pProj.u) * pxToCm;
-                const diffYCm = (lmProj.v - pProj.v) * pxToCm;
-
-                if (Math.abs(diffXCm) <= 0.12) {
-                    vMatches.push(lm.name);
-                } else if (Math.abs(diffXCm) <= 0.65 && nearVerticalNotes.length < 2) {
-                    const dir = diffXCm > 0 ? 'يمين' : 'يسار';
-                    nearVerticalNotes.push(`يبعد ${Math.abs(diffXCm).toFixed(1)} سم ${dir} (${lm.name})`);
+                document.getElementById('plumbDirectVal').textContent = `${directCm} سم`; document.getElementById('plumbDxVal').textContent = `${dxCm} سم`;
+                document.getElementById('plumbDyVal').textContent = `${dyCm} سم`; }  const activePt = plumbState.activeIndex === 1 && plumbState.dual ? plumbState.p2 : plumbState.p1; const isSecond = plumbState.activeIndex === 1 && plumbState.dual; const badgeClass = isSecond ? 'snap-badge orange' : 'snap-badge'; const titleName = activePt.snappedName \vert{}\vert{} (isSecond ? 'الشاقول البرتقالي (2)' : 'الشاقول السماوي (1)');  const pProj = projectAlongPlumbAxis(activePt, axisDeg); const vMatches = []; const hMatches = []; const nearVerticalNotes = [];  for (let lm of landmarksList) { if (lm.name === activePt.snappedName) continue; const lmProj = projectAlongPlumbAxis(lm, axisDeg); const diffXCm = (lmProj.u - pProj.u) * pxToCm; const diffYCm = (lmProj.v - pProj.v) * pxToCm;  if (Math.abs(diffXCm) <= 0.12) { vMatches.push(lm.name); } else if (Math.abs(diffXCm) <= 0.65 && nearVerticalNotes.length < 2) { const dir = diffXCm > 0 ? 'يمين' : 'يسار'; nearVerticalNotes.push(`يبعد ${Math.abs(diffXCm).toFixed(1)} سم ${dir} (${lm.name})`);
                 }
 
                 if (Math.abs(diffYCm) <= 0.12) {
@@ -1897,7 +1609,6 @@
             document.getElementById('plumbReportBox').innerHTML = html;
         }
 
-        // --- إعدادات المرشد الذكي المزدوج (Gemini + Hugging Face) ---
         window.addEventListener('DOMContentLoaded', () => {
             const savedProvider = localStorage.getItem('loomis_ai_provider') || 'gemini';
             selectAiProvider(savedProvider);
@@ -1937,9 +1648,12 @@
             }
             if (savedCustomHf) document.getElementById('customHfModelInput').value = savedCustomHf;
             onHfModelSelectChange();
+
+            createDefaultFeaturesFromGrid();
+            redraw();
         });
 
-        window.selectAiProvider = function(prov) {
+        function selectAiProvider(prov) {
             activeAiProvider = prov;
             localStorage.setItem('loomis_ai_provider', prov);
 
@@ -1959,17 +1673,17 @@
                 hfBox.style.display = 'none';
                 gemBox.style.display = 'flex';
             }
-        };
+        }
 
-        window.onModelSelectChange = function() {
+        function onModelSelectChange() {
             const selectVal = document.getElementById('geminiModelSelect').value;
             document.getElementById('customModelBox').classList.toggle('show', selectVal === 'custom');
-        };
+        }
 
-        window.onHfModelSelectChange = function() {
+        function onHfModelSelectChange() {
             const selectVal = document.getElementById('hfModelSelect').value;
             document.getElementById('customHfModelBox').classList.toggle('show', selectVal === 'custom');
-        };
+        }
 
         function getSelectedGeminiModel() {
             const selectVal = document.getElementById('geminiModelSelect').value;
@@ -1987,7 +1701,7 @@
             return selectVal;
         }
 
-        window.saveAiSettings = function() {
+        function saveAiSettings() {
             if (activeAiProvider === 'huggingface') {
                 const hfToken = document.getElementById('hfTokenInput').value.trim();
                 const hfSel = document.getElementById('hfModelSelect').value;
@@ -1999,44 +1713,32 @@
                 localStorage.setItem('loomis_hf_token', hfToken);
                 localStorage.setItem('loomis_hf_model', hfSel);
                 if (hfCustom) localStorage.setItem('loomis_hf_custom_model', hfCustom);
-                alert(`تم حفظ توكن Hugging Face والنموذج (${getSelectedHfModel()}) بنجاح!`);
-            } else {
-                const keyVal = document.getElementById('geminiApiKeyInput').value.trim();
-                const selectVal = document.getElementById('geminiModelSelect').value;
-                const customVal = document.getElementById('customModelInput').value.trim();
-                if (!keyVal) {
-                    alert('يرجى إدخال مفتاح Gemini API أولاً.');
-                    return;
-                }
-                localStorage.setItem('loomis_gemini_api_key', keyVal);
-                localStorage.setItem('loomis_gemini_model', selectVal);
-                if (customVal) localStorage.setItem('loomis_gemini_custom_model', customVal);
-                alert(`تم حفظ مفتاح Gemini والنموذج (${getSelectedGeminiModel()}) بنجاح!`);
+                alert(`تم حفظ توكن Hugging Face والنموذج (${getSelectedHfModel()}) بنجاح!`); } else { const keyVal = document.getElementById('geminiApiKeyInput').value.trim(); const selectVal = document.getElementById('geminiModelSelect').value; const customVal = document.getElementById('customModelInput').value.trim(); if (!keyVal) { alert('يرجى إدخال مفتاح Gemini API أولاً.'); return; } localStorage.setItem('loomis_gemini_api_key', keyVal); localStorage.setItem('loomis_gemini_model', selectVal); if (customVal) localStorage.setItem('loomis_gemini_custom_model', customVal); alert(`تم حفظ مفتاح Gemini والنموذج (${getSelectedGeminiModel()}) بنجاح!`);
             }
-        };
+        }
 
-        window.openAiModal = function() {
+        function openAiModal() {
             document.getElementById('aiModal').classList.add('open');
-        };
+        }
 
-        window.closeAiModal = function() {
+        function closeAiModal() {
             document.getElementById('aiModal').classList.remove('open');
             redraw();
-        };
+        }
 
-        window.toggleAiOverlay = function() {
+        function toggleAiOverlay() {
             aiVisualOverlay.visible = !aiVisualOverlay.visible;
             const btn = document.getElementById('btnAiLayer');
             btn.classList.toggle('active', aiVisualOverlay.visible);
             redraw();
-        };
+        }
 
-        window.toggleSketchCompare = function(btn) {
+        function toggleSketchCompare(btn) {
             document.querySelectorAll('.ai-task-btn').forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
             document.getElementById('sketchUploadBox').classList.add('show');
             document.getElementById('aiResultBox').textContent = 'اختر صورة رسمتك من الزر أعلاه ليقارنها الذكاء الاصطناعي بالصورة الأصلية.';
-        };
+        }
 
         function getResizedBase64(imgSource, maxDim = 512) {
             const tempCanvas = document.createElement('canvas');
@@ -2069,7 +1771,7 @@
             const t2Pct = document.getElementById('m_t2Pct').textContent;
             const t3Pct = document.getElementById('m_t3Pct').textContent;
 
-            return `بنية الوجه: ${faceType} (${faceRatio}) | زوايا الرأس 3D: (Yaw: ${headPose3D.yaw}°, Pitch: ${headPose3D.pitch}°, Roll: ${headPose3D.roll}°) | الأثلاث: (${t1Pct} / ${t2Pct} / ${t3Pct}) | العين: ${eyesRatio} | بين العينين: ${interEyeRatio} | الأنف: ${noseRatio} | الفم: ${mouthRatio}`;
+            return `بنية الوجه: ${faceType} (${faceRatio}) | زوايا الرأس 3D: (Yaw: ${headPose3D.yaw}°, Pitch:${headPose3D.pitch}°, Roll: ${headPose3D.roll}°) \vert{} الأثلاث: (${t1Pct} / ${t2Pct} /${t3Pct}) | العين: ${eyesRatio} \vert{} بين العينين: ${interEyeRatio} | الأنف: ${noseRatio} \vert{} الفم: ${mouthRatio}`;
         }
 
         function applyAiVisualData(aiJson) {
@@ -2095,13 +1797,13 @@
             redraw();
         }
 
-        window.runAiAnalysis = function(taskType, btn, sketchBase64 = null) {
+        function runAiAnalysis(taskType, btn, sketchBase64 = null) {
             if (activeAiProvider === 'huggingface') {
                 askHuggingFace(taskType, btn, sketchBase64);
             } else {
                 askGemini(taskType, btn, sketchBase64);
             }
-        };
+        }
 
         function buildTaskPrompt(taskType) {
             const stats = buildCurrentMeasurementsSummary();
@@ -2120,1665 +1822,4 @@
 
             let taskGoal = '';
             if (taskType === 'blueprint') {
-                taskGoal = `أنت أستاذ أكاديمي في تقنية أندرو لوميس. بناءً على الصورة وهذه النسب الفردية المحسوبة بدقة (${stats})، اكتب خطة رسم هندسية مرقمة للرسام في explanation توضح الفروق التشريحية الخاصة بهذا الشخص. اجعل lightDir=null و shadowZones=[] و corrections=[].`;
-            } else if (taskType === 'shading') {
-                taskGoal = `حلل الإضاءة ومناطق الظل العميق (Core Shadows) في هذه الصورة. حدد زاوية قدوم الضوء في lightDir، واختر من القائمة المحددة أهم مناطق الظل الحقيقية الموجودة في الصورة في shadowZones ليرسمها التطبيق فوق تلك الأجزاء التشريحية بدقة، واشرح كتل الضوء والظل في explanation.`;
-            } else if (taskType === 'tilt') {
-                taskGoal = `انظر للصورة الأولى (الأصلية) والثانية (شبكة لوميس المطبقة عليها بزوايا Yaw=${headPose3D.yaw}°, Pitch=${headPose3D.pitch}°, Roll=${headPose3D.roll}°). اشرح للرسام في explanation كيف يرسم هذه الوضعية الفراغية للرأس وكيفية إمالة كرة لوميس وقطعيها الجانبيين. اجعل lightDir=null و shadowZones=[] و corrections=[].`;
-            } else if (taskType === 'compare') {
-                taskGoal = `قارن الصورة المرجعية الأولى برسمة المستخدم الثانية. حدد الأجزاء التي تحتاج تصحيحاً من القائمة المحددة في corrections مع ذكر مقدار التعديل، واشرح الفروقات في explanation.`;
-            }
-            return `${taskGoal}
-
-${jsonSchemaInstruction}`;
-        }
-
-        function handleAiJsonResponse(rawText, resultBox) {
-            try {
-                const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-                const cleanJsonStr = jsonMatch ? jsonMatch[0] : rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
-                const parsed = JSON.parse(cleanJsonStr);
-
-                aiVisualOverlay.lightDir = null;
-                aiVisualOverlay.shadowZones = [];
-                aiVisualOverlay.corrections = [];
-
-                applyAiVisualData(parsed);
-                resultBox.textContent = parsed.explanation || 'تم التحليل بنجاح.';
-            } catch (parseErr) {
-                resultBox.textContent = rawText || 'لم يتم استلام رد، حاول مجدداً.';
-            }
-        }
-
-        async function askGemini(taskType, btn, sketchBase64 = null) {
-            const apiKey = document.getElementById('geminiApiKeyInput').value.trim() || localStorage.getItem('loomis_gemini_api_key');
-            const modelName = getSelectedGeminiModel();
-            const resultBox = document.getElementById('aiResultBox');
-            const applyBtn = document.getElementById('applyCanvasBtn');
-
-            if (!apiKey) {
-                resultBox.textContent = '⚠️ يرجى إدخال مفتاح Gemini API أولاً، أو التبديل إلى تبويب Hugging Face في الأعلى.';
-                return;
-            }
-            if (!currentImage) {
-                resultBox.textContent = '⚠️ يرجى رفع صورة الوجه إلى اللوحة أولاً قبل طلب التحليل.';
-                return;
-            }
-
-            if (btn) {
-                document.querySelectorAll('.ai-task-btn').forEach(b => b.classList.remove('selected'));
-                btn.classList.add('selected');
-                if (taskType !== 'compare') document.getElementById('sketchUploadBox').classList.remove('show');
-            }
-
-            applyBtn.classList.remove('show');
-            resultBox.innerHTML = `<div class="ai-loading">⏳ جاري التحليل عبر Gemini (${modelName})...</div>`;
-
-            const refBase64 = getResizedBase64(currentImage, 512);
-            const gridOverlayBase64 = getResizedBase64(canvas, 512);
-            const fullPrompt = buildTaskPrompt(taskType);
-
-            const parts = [
-                { text: fullPrompt },
-                { inline_data: { mime_type: 'image/jpeg', data: refBase64 } }
-            ];
-            if (taskType === 'tilt') {
-                parts.push({ inline_data: { mime_type: 'image/jpeg', data: gridOverlayBase64 } });
-            } else if (taskType === 'compare' && sketchBase64) {
-                parts.push({ inline_data: { mime_type: 'image/jpeg', data: sketchBase64 } });
-            }
-
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 25000);
-
-            try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    signal: controller.signal,
-                    body: JSON.stringify({
-                        contents: [{ parts: parts }],
-                        generationConfig: {
-                            temperature: 0.3,
-                            maxOutputTokens: 1200,
-                            responseMimeType: "application/json"
-                        }
-                    })
-                });
-                clearTimeout(timeoutId);
-
-                const data = await response.json();
-                if (data.error) {
-                    resultBox.textContent = `❌ خطأ من Gemini: ${data.error.message}
-
-💡 نصيحة: إذا نفدت الحصة، اضغط على زر "🤗 Hugging Face (Qwen2.5-VL)" في أعلى النافذة لإكمال التحليل فوراً.`;
-                    return;
-                }
-
-                const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                handleAiJsonResponse(rawText, resultBox);
-            } catch (err) {
-                clearTimeout(timeoutId);
-                resultBox.textContent = err.name === 'AbortError'
-                    ? '⏱️ انتهت مهلة الانتظار (25 ثانية). جرب التبديل إلى Hugging Face أو أعد المحاولة.'
-                    : `❌ تعذر الاتصال بـ Gemini:
-${err.message}`;
-            }
-        }
-
-        async function askHuggingFace(taskType, btn, sketchBase64 = null) {
-            const hfToken = document.getElementById('hfTokenInput').value.trim() || localStorage.getItem('loomis_hf_token');
-            const modelId = getSelectedHfModel();
-            const resultBox = document.getElementById('aiResultBox');
-            const applyBtn = document.getElementById('applyCanvasBtn');
-
-            if (!hfToken) {
-                resultBox.textContent = '⚠️ يرجى إدخال توكن Hugging Face (hf_...) وحفظه في الخانة أعلاه أولاً.';
-                return;
-            }
-            if (!currentImage) {
-                resultBox.textContent = '⚠️ يرجى رفع صورة الوجه إلى اللوحة أولاً قبل طلب التحليل.';
-                return;
-            }
-
-            if (btn) {
-                document.querySelectorAll('.ai-task-btn').forEach(b => b.classList.remove('selected'));
-                btn.classList.add('selected');
-                if (taskType !== 'compare') document.getElementById('sketchUploadBox').classList.remove('show');
-            }
-
-            applyBtn.classList.remove('show');
-            resultBox.innerHTML = `<div class="ai-loading" style="color:#ffd54f;">🤗 جاري التحليل عبر Hugging Face (${modelId})...</div>`;
-
-            const refBase64 = getResizedBase64(currentImage, 512);
-            const gridOverlayBase64 = getResizedBase64(canvas, 512);
-            const fullPrompt = buildTaskPrompt(taskType);
-
-            const userContent = [
-                { type: 'text', text: fullPrompt },
-                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${refBase64}` } }
-            ];
-
-            if (taskType === 'tilt') {
-                userContent.push({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${gridOverlayBase64}` } });
-            } else if (taskType === 'compare' && sketchBase64) {
-                userContent.push({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${sketchBase64}` } });
-            }
-
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-            try {
-                const response = await fetch('https://router.huggingface.co/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${hfToken}`,
-                        'Content-Type': 'application/json'
-                    },
-                    signal: controller.signal,
-                    body: JSON.stringify({
-                        model: modelId,
-                        messages: [{ role: 'user', content: userContent }],
-                        max_tokens: 1100,
-                        temperature: 0.3
-                    })
-                });
-                clearTimeout(timeoutId);
-
-                const data = await response.json();
-                if (data.error) {
-                    const errMsg = typeof data.error === 'string' ? data.error : (data.error.message || JSON.stringify(data.error));
-                    resultBox.textContent = `❌ خطأ من Hugging Face (${modelId}):
-${errMsg}`;
-                    return;
-                }
-
-                const rawText = data?.choices?.[0]?.message?.content || '';
-                handleAiJsonResponse(rawText, resultBox);
-            } catch (err) {
-                clearTimeout(timeoutId);
-                resultBox.textContent = err.name === 'AbortError'
-                    ? '⏱️ انتهت مهلة الانتظار (30 ثانية) من خادم Hugging Face. حاول مرة أخرى.'
-                    : `❌ تعذر الاتصال بـ Hugging Face:
-${err.message}`;
-            }
-        }
-
-        window.handleSketchUpload = function(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const img = new Image();
-            img.onload = () => {
-                const sketchB64 = getResizedBase64(img, 512);
-                runAiAnalysis('compare', null, sketchB64);
-            };
-            img.src = URL.createObjectURL(file);
-        };
-
-        // --- معالجة نتائج FaceLandmarker 3D وضبط شبكة لوميس والوضع التلقائي ---
-        function createDefaultFeaturesFromGrid() {
-            const r = state.radius;
-            const faceWidth = r * 1.36;
-            const eyeW = faceWidth / 5;
-            const eyeY = state.yOffsets.brow + (state.yOffsets.nose - state.yOffsets.brow) * 0.28;
-            const mouthY = state.yOffsets.nose + (state.yOffsets.chin - state.yOffsets.nose) * 0.35;
-
-            const toWorld = (lx, ly) => {
-                const rad = state.angle * Math.PI / 180;
-                return {
-                    x: state.cx + (lx * Math.cos(rad) - ly * Math.sin(rad)),
-                    y: state.cy + (lx * Math.sin(rad) + ly * Math.cos(rad))
-                };
-            };
-
-            features = {
-                leftEyeOuter: toWorld(-eyeW * 1.5, eyeY),
-                leftEyeInner: toWorld(-eyeW * 0.5, eyeY),
-                rightEyeInner: toWorld(eyeW * 0.5, eyeY),
-                rightEyeOuter: toWorld(eyeW * 1.5, eyeY),
-                noseLeft: toWorld(-eyeW * 0.5, state.yOffsets.nose),
-                noseRight: toWorld(eyeW * 0.5, state.yOffsets.nose),
-                mouthLeft: toWorld(-eyeW * 0.75, mouthY),
-                mouthRight: toWorld(eyeW * 0.75, mouthY)
-            };
-            actualKeyPoints = {
-                topHead: toWorld(0, state.yOffsets.hair),
-                browCenter: toWorld(0, state.yOffsets.brow),
-                noseBase: toWorld(0, state.yOffsets.nose),
-                chin: toWorld(0, state.yOffsets.chin),
-                leftCheek: toWorld(state.bounds.leftX, 0),
-                rightCheek: toWorld(state.bounds.rightX, 0)
-            };
-            lastDetectedSource = currentImage ? 'تقدير هندسي من الشبكة' : 'افتراضي (قبل رفع صورة)';
-            buildAnatomicalLandmarksList();
-            updateActualCoordsPanel();
-        }
-
-        function processLandmarker3DResults(result) {
-            detectBanner.style.display = 'none';
-            if (result && result.faceLandmarks && result.faceLandmarks.length > 0 && currentImage) {
-                const lm = result.faceLandmarks[0];
-                const w = canvas.width;
-                const h = canvas.height;
-
-                const leftEyeOuter = { x: lm[33].x * w, y: lm[33].y * h };
-                const leftEyeInner = { x: lm[133].x * w, y: lm[133].y * h };
-
-                const rightEyeInner = { x: lm[362].x * w, y: lm[362].y * h };
-                const rightEyeOuter = { x: lm[263].x * w, y: lm[263].y * h };
-
-                const mouthLeft = { x: lm[61].x * w, y: lm[61].y * h };
-                const mouthRight = { x: lm[291].x * w, y: lm[291].y * h };
-
-                const noseLeft = { x: lm[129].x * w, y: lm[129].y * h };
-                const noseRight = { x: lm[358].x * w, y: lm[358].y * h };
-
-                const noseBase = { x: lm[2].x * w, y: lm[2].y * h };
-                const topHead = { x: lm[10].x * w, y: lm[10].y * h };
-                const chinPt = { x: lm[152].x * w, y: lm[152].y * h };
-                const browPt = { x: lm[9].x * w, y: lm[9].y * h };
-
-                const leftFaceEdge = { x: lm[234].x * w, y: lm[234].y * h };
-                const rightFaceEdge = { x: lm[454].x * w, y: lm[454].y * h };
-
-                features = {
-                    leftEyeOuter, leftEyeInner,
-                    rightEyeInner, rightEyeOuter,
-                    mouthLeft, mouthRight,
-                    noseLeft, noseRight
-                };
-
-                actualKeyPoints = {
-                    topHead: topHead,
-                    browCenter: browPt,
-                    noseBase: noseBase,
-                    chin: chinPt,
-                    leftCheek: leftFaceEdge,
-                    rightCheek: rightFaceEdge
-                };
-                lastDetectedSource = 'رصد فعلي حي (FaceLandmarker 3D)';
-
-                if (result.facialTransformationMatrixes && result.facialTransformationMatrixes.length > 0) {
-                    const mat = result.facialTransformationMatrixes[0].data;
-                    headPose3D = extractEulerFromMatrix(mat);
-                } else {
-                    const eyeAngleRad = Math.atan2(rightEyeOuter.y - leftEyeOuter.y, rightEyeOuter.x - leftEyeOuter.x);
-                    headPose3D = { yaw: 0, pitch: 0, roll: Math.round(eyeAngleRad * 180 / Math.PI) };
-                }
-                updatePoseStripUI();
-
-                const faceCenterX = (leftFaceEdge.x + rightFaceEdge.x) / 2;
-                const browCenterY = browPt.y;
-                const faceWidthPx = dist(leftFaceEdge, rightFaceEdge);
-                const faceHeightPx = dist(topHead, chinPt);
-
-                if (!isLocked) {
-                    const absYaw = Math.abs(headPose3D.yaw);
-                    if (currentMode === 'front' || currentMode === 'threeQuarter' || currentMode === 'side') {
-                        if (absYaw >= 52) {
-                            autoSwitchModeTab('side', document.getElementById('tabSide'));
-                        } else if (absYaw >= 12) {
-                            autoSwitchModeTab('threeQuarter', document.getElementById('tab3Q'));
-                        } else {
-                            autoSwitchModeTab('front', document.getElementById('tabFront'));
-                        }
-                    }
-
-                    state.cx = faceCenterX;
-                    state.cy = browCenterY + faceHeightPx * 0.08;
-                    const effectiveSpan = Math.max(faceWidthPx, faceHeightPx * 0.76);
-                    state.radius = Math.round(effectiveSpan * 0.58);
-                    radiusRange.value = state.radius;
-                    document.getElementById('radiusVal').textContent = state.radius;
-
-                    const rollDeg = Math.max(-60, Math.min(60, headPose3D.roll));
-                    state.angle = rollDeg;
-                    angleRange.value = rollDeg;
-                    document.getElementById('angleVal').textContent = rollDeg + '°';
-
-                    const localTop = toLocalGridSpace(topHead.x, topHead.y);
-                    const localChin = toLocalGridSpace(chinPt.x, chinPt.y);
-                    const localLeft = toLocalGridSpace(leftFaceEdge.x, leftFaceEdge.y);
-                    const localRight = toLocalGridSpace(rightFaceEdge.x, rightFaceEdge.y);
-
-                    state.yOffsets.brow = toLocalGridSpace(browPt.x, browPt.y).y;
-                    state.yOffsets.nose = toLocalGridSpace(noseBase.x, noseBase.y).y;
-                    state.yOffsets.chin = localChin.y;
-                    state.yOffsets.hair = localTop.y;
-
-                    const faceSpanY = localChin.y - localTop.y;
-                    state.bounds.topY = localTop.y - faceSpanY * 0.14;
-                    state.bounds.bottomY = localChin.y;
-                    state.bounds.leftX = localLeft.x;
-                    state.bounds.rightX = localRight.x;
-
-                    resetParallelRulers();
-                }
-
-                buildAnatomicalLandmarksList();
-                updateActualCoordsPanel();
-                hasDetectedOnce = true;
-                redraw();
-            } else {
-                if (!features) createDefaultFeaturesFromGrid();
-                updateActualCoordsPanel();
-                redraw();
-            }
-        }
-
-        function updateActualCoordsPanel() {
-            const tbody = document.getElementById('coordsTableBody');
-            const badge = document.getElementById('coordsSourceBadge');
-            const dimsEl = document.getElementById('coordsImageDims');
-            if (!tbody) return;
-
-            const w = Math.max(1, canvas.width);
-            const h = Math.max(1, canvas.height);
-            badge.textContent = lastDetectedSource;
-            dimsEl.textContent = `أبعاد الصورة/اللوحة الحالية: ${w} × ${h} بكسل`;
-
-            if (!features) return;
-            const kp = actualKeyPoints || {};
-            const rows = [
-                { label: 'أعلى الجبهة / منبت الشعر', pt: kp.topHead },
-                { label: 'منتصف الحاجبين', pt: kp.browCenter },
-                { label: 'طرف العين اليسرى الخارجي', pt: features.leftEyeOuter },
-                { label: 'مدمع العين اليسرى', pt: features.leftEyeInner },
-                { label: 'مدمع العين اليمنى', pt: features.rightEyeInner },
-                { label: 'طرف العين اليمنى الخارجي', pt: features.rightEyeOuter },
-                { label: 'قاعدة الأنف', pt: kp.noseBase },
-                { label: 'جناح الأنف الأيسر', pt: features.noseLeft },
-                { label: 'جناح الأنف الأيمن', pt: features.noseRight },
-                { label: 'زاوية الفم اليسرى', pt: features.mouthLeft },
-                { label: 'زاوية الفم اليمنى', pt: features.mouthRight },
-                { label: 'حافة الخد الأيسر', pt: kp.leftCheek },
-                { label: 'حافة الخد الأيمن', pt: kp.rightCheek },
-                { label: 'ذروة الذقن', pt: kp.chin }
-            ];
-
-            let html = '';
-            rows.forEach(r => {
-                if (!r.pt) return;
-                const pxX = Math.round(r.pt.x);
-                const pxY = Math.round(r.pt.y);
-                const pctX = ((r.pt.x / w) * 100).toFixed(1);
-                const pctY = ((r.pt.y / h) * 100).toFixed(1);
-                html += `<tr>
-                    <td>${r.label}</td>
-                    <td class="num">(${pxX}, ${pxY})</td>
-                    <td class="norm">(${pctX}%, ${pctY}%)</td>
-                </tr>`;
-            });
-            tbody.innerHTML = html;
-        }
-
-        window.copyActualCoordinates = function() {
-            const tbody = document.getElementById('coordsTableBody');
-            if (!tbody) return;
-            const lines = [`المصدر: ${lastDetectedSource}`, document.getElementById('coordsImageDims').textContent, '---'];
-            Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
-                const cells = tr.querySelectorAll('td');
-                if (cells.length === 3) {
-                    lines.push(`${cells[0].textContent}: ${cells[1].textContent} | ${cells[2].textContent}`);
-                }
-            });
-            const text = lines.join('
-');
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text).then(() => alert('تم نسخ إحداثيات الوجه الفعلية بنجاح!'));
-            } else {
-                alert(text);
-            }
-        };
-
-        function autoSwitchModeTab(mode, btn) {
-            currentMode = mode;
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            if (btn) btn.classList.add('active');
-        }
-
-        async function runAutoFeatureDetection() {
-            if (!currentImage) {
-                createDefaultFeaturesFromGrid();
-                redraw();
-                return;
-            }
-            if (isLandmarkerReady && faceLandmarker) {
-                detectBanner.style.display = 'block';
-                try {
-                    const result = faceLandmarker.detect(currentImage);
-                    processLandmarker3DResults(result);
-                } catch (err) {
-                    detectBanner.style.display = 'none';
-                    if (!features) createDefaultFeaturesFromGrid();
-                    redraw();
-                }
-            } else {
-                if (!features) createDefaultFeaturesFromGrid();
-                redraw();
-            }
-        }
-
-        window.recalculateAllMeasurements = async function() {
-            if (isLocked) {
-                alert('يرجى فتح القفل أولاً لتحديث القياسات.');
-                return;
-            }
-            if (currentImage) {
-                await runAutoFeatureDetection();
-            } else {
-                createDefaultFeaturesFromGrid();
-                redraw();
-            }
-        };
-
-        const radiusRange = document.getElementById('radiusRange');
-        const angleRange = document.getElementById('angleRange');
-        const thickRange = document.getElementById('thickRange');
-        const opacityRange = document.getElementById('opacityRange');
-
-        radiusRange.addEventListener('input', (e) => {
-            if (isLocked) return;
-            const oldR = state.radius;
-            state.radius = parseInt(e.target.value);
-            const ratio = state.radius / oldR;
-
-            state.yOffsets.hair *= ratio;
-            state.yOffsets.brow *= ratio;
-            state.yOffsets.nose *= ratio;
-            state.yOffsets.chin *= ratio;
-
-            state.bounds.topY *= ratio;
-            state.bounds.bottomY *= ratio;
-            state.bounds.leftX *= ratio;
-            state.bounds.rightX *= ratio;
-
-            if (features && !currentImage) {
-                for (let k in features) {
-                    features[k].x = state.cx + (features[k].x - state.cx) * ratio;
-                    features[k].y = state.cy + (features[k].y - state.cy) * ratio;
-                }
-            }
-
-            document.getElementById('radiusVal').textContent = state.radius;
-            buildAnatomicalLandmarksList();
-            updateActualCoordsPanel();
-            redraw();
-        });
-
-        angleRange.addEventListener('input', (e) => {
-            if (isLocked) return;
-            state.angle = parseInt(e.target.value);
-            document.getElementById('angleVal').textContent = state.angle + '°';
-            buildAnatomicalLandmarksList();
-            redraw();
-        });
-
-        thickRange.addEventListener('input', (e) => {
-            baseThickness = parseInt(e.target.value);
-            document.getElementById('thickVal').textContent = baseThickness;
-            redraw();
-        });
-
-        opacityRange.addEventListener('input', (e) => {
-            lineOpacity = parseInt(e.target.value) / 100;
-            document.getElementById('opacityVal').textContent = e.target.value + '%';
-            redraw();
-        });
-
-        document.getElementById('colorSelect').addEventListener('change', (e) => {
-            lineColor = e.target.value;
-            redraw();
-        });
-
-        window.toggleFullscreen = function() {
-            document.body.classList.toggle('fullscreen-mode');
-            const btn = document.getElementById('btnFullscreen');
-            if (document.body.classList.contains('fullscreen-mode')) {
-                btn.textContent = '✕';
-                btn.classList.add('active');
-            } else {
-                btn.textContent = '⛶';
-                btn.classList.remove('active');
-            }
-            redraw();
-        };
-
-        window.toggleLock = function() {
-            isLocked = !isLocked;
-            const btn = document.getElementById('btnLock');
-            if (isLocked) {
-                btn.textContent = '🔒';
-                btn.classList.add('locked');
-            } else {
-                btn.textContent = '🔓';
-                btn.classList.remove('locked');
-            }
-            redraw();
-        };
-
-        window.toggleGrayscale = function() {
-            isGrayscale = !isGrayscale;
-            document.getElementById('btnGrayscale').classList.toggle('active', isGrayscale);
-            redraw();
-        };
-
-        window.resetZoom = function() {
-            view.scale = 1;
-            view.offsetX = 0;
-            view.offsetY = 0;
-            document.getElementById('btnZoomReset').textContent = '100%';
-            redraw();
-        };
-
-        window.setMode = function(mode, btn) {
-            currentMode = mode;
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-
-            const propCard = document.getElementById('propCard');
-            const rulerCard = document.getElementById('rulerCard');
-            const coordsCard = document.getElementById('coordsCard');
-
-            propCard.classList.toggle('show', mode === 'anatomy');
-            rulerCard.classList.toggle('show', mode === 'ruler');
-            coordsCard.classList.toggle('show', mode === 'coords');
-
-            if ((mode === 'anatomy' || mode === 'coords') && !hasDetectedOnce) {
-                runAutoFeatureDetection();
-            } else if (mode === 'ruler') {
-                resetParallelRulers();
-            } else if (mode === 'coords') {
-                updateActualCoordsPanel();
-            }
-            redraw();
-        };
-
-        window.resetLines = function() {
-            if (isLocked) return;
-            const r = state.radius;
-            state.yOffsets = {
-                hair: -r * 1.15,
-                brow: -r * 0.25,
-                nose: r * 0.55,
-                chin: r * 1.35
-            };
-            state.bounds = {
-                topY: -r * 1.35,
-                bottomY: r * 1.35,
-                leftX: -r * 0.95,
-                rightX: r * 0.95
-            };
-            state.angle = 0;
-            headPose3D = { yaw: 0, pitch: 0, roll: 0 };
-            updatePoseStripUI();
-            angleRange.value = 0;
-            document.getElementById('angleVal').textContent = '0°';
-            hasDetectedOnce = false;
-            aiVisualOverlay.lightDir = null;
-            aiVisualOverlay.shadowZones = [];
-            aiVisualOverlay.corrections = [];
-            document.getElementById('btnAiLayer').style.display = 'none';
-
-            if (currentImage) {
-                runAutoFeatureDetection();
-            } else {
-                createDefaultFeaturesFromGrid();
-            }
-            resetParallelRulers();
-            redraw();
-        };
-
-        document.getElementById('imageUpload').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const img = new Image();
-            img.onload = () => {
-                currentImage = img;
-                lineartCanvasCache = null;
-                shadingCache = null;
-                features = null;
-                actualKeyPoints = null;
-                hasDetectedOnce = false;
-                canvas.width = img.width;
-                canvas.height = img.height;
-
-                state.cx = img.width / 2;
-                state.cy = img.height / 2.2;
-                state.radius = Math.round(Math.min(img.width, img.height) * 0.28);
-
-                radiusRange.max = Math.round(Math.max(img.width, img.height) * 0.65);
-                radiusRange.value = state.radius;
-                document.getElementById('radiusVal').textContent = state.radius;
-
-                if (isLineartMode) rebuildLineartCache();
-                if (isShadingGuideActive) buildShadingGuideCache();
-                resetZoom();
-                resetLines();
-            };
-            img.src = URL.createObjectURL(file);
-        });
-
-        function screenToImagePos(clientX, clientY) {
-            const rect = canvas.getBoundingClientRect();
-            const imgAspect = canvas.width / canvas.height;
-            const rectAspect = rect.width / rect.height;
-
-            let renderW, renderH, offsetLeft, offsetTop;
-            if (imgAspect > rectAspect) {
-                renderW = rect.width;
-                renderH = rect.width / imgAspect;
-                offsetLeft = 0;
-                offsetTop = (rect.height - renderH) / 2;
-            } else {
-                renderH = rect.height;
-                renderW = rect.height * imgAspect;
-                offsetTop = 0;
-                offsetLeft = (rect.width - renderW) / 2;
-            }
-
-            const relX = (clientX - rect.left - offsetLeft) / renderW;
-            const relY = (clientY - rect.top - offsetTop) / renderH;
-
-            const rawX = relX * canvas.width;
-            const rawY = relY * canvas.height;
-
-            return {
-                x: (rawX - view.offsetX) / view.scale,
-                y: (rawY - view.offsetY) / view.scale
-            };
-        }
-
-        function toLocalGridSpace(px, py) {
-            const dx = px - state.cx;
-            const dy = py - state.cy;
-            const rad = -state.angle * Math.PI / 180;
-            return {
-                x: dx * Math.cos(rad) - dy * Math.sin(rad),
-                y: dx * Math.sin(rad) + dy * Math.cos(rad)
-            };
-        }
-
-        function handleStart(clientX, clientY) {
-            const pos = screenToImagePos(clientX, clientY);
-            const ptHitThreshold = Math.max(32, canvas.width * 0.045) / view.scale;
-
-            if (currentMode === 'ruler') {
-                const rPos = toRulerAxisSpace(pos.x, pos.y);
-                const coord = parallelRuler.orientation === 'horizontal' ? rPos.y : rPos.x;
-                const d1 = Math.abs(coord - parallelRuler.line1);
-                const d2 = Math.abs(coord - parallelRuler.line2);
-                const lineThreshold = Math.max(36, canvas.width * 0.055) / view.scale;
-
-                if (d1 < lineThreshold || d2 < lineThreshold) {
-                    dragTarget = d1 <= d2 ? 'ruler:1' : 'ruler:2';
-                    return;
-                }
-            }
-
-            if (plumbState.active) {
-                if (plumbState.dual && dist(pos, plumbState.p2) < ptHitThreshold) {
-                    dragTarget = 'plumb:2';
-                    plumbState.activeIndex = 1;
-                    return;
-                }
-                if (dist(pos, plumbState.p1) < ptHitThreshold) {
-                    dragTarget = 'plumb:1';
-                    plumbState.activeIndex = 0;
-                    return;
-                }
-            }
-
-            if (isLocked || !isGridVisible || currentMode === 'ruler') return;
-
-            if ((currentMode === 'anatomy' || currentMode === 'coords') && features) {
-                const featureKeys = [
-                    'leftEyeOuter', 'leftEyeInner',
-                    'rightEyeInner', 'rightEyeOuter',
-                    'mouthLeft', 'mouthRight',
-                    'noseLeft', 'noseRight'
-                ];
-                let closestKey = null;
-                let minD = ptHitThreshold;
-                for (let k of featureKeys) {
-                    const d = dist(pos, features[k]);
-                    if (d < minD) {
-                        minD = d;
-                        closestKey = k;
-                    }
-                }
-                if (closestKey) {
-                    dragTarget = 'feat:' + closestKey;
-                    return;
-                }
-            }
-
-            const local = toLocalGridSpace(pos.x, pos.y);
-            const lineHitThreshold = Math.max(26, canvas.width * 0.04) / view.scale;
-
-            if (currentMode === 'anatomy') {
-                if (Math.abs(local.y - state.bounds.topY) < lineHitThreshold && Math.abs(local.x) < state.radius * 2) {
-                    dragTarget = 'bound:topY';
-                    return;
-                }
-                if (Math.abs(local.y - state.bounds.bottomY) < lineHitThreshold && Math.abs(local.x) < state.radius * 2) {
-                    dragTarget = 'bound:bottomY';
-                    return;
-                }
-                if (Math.abs(local.x - state.bounds.leftX) < lineHitThreshold && Math.abs(local.y) < state.radius * 2) {
-                    dragTarget = 'bound:leftX';
-                    return;
-                }
-                if (Math.abs(local.x - state.bounds.rightX) < lineHitThreshold && Math.abs(local.y) < state.radius * 2) {
-                    dragTarget = 'bound:rightX';
-                    return;
-                }
-            }
-
-            const lines = ['hair', 'brow', 'nose', 'chin'];
-            for (let key of lines) {
-                if (Math.abs(local.y - state.yOffsets[key]) < lineHitThreshold && Math.abs(local.x) < state.radius * 1.8) {
-                    dragTarget = key;
-                    return;
-                }
-            }
-
-            dragTarget = 'center';
-            dragStart = { x: pos.x - state.cx, y: pos.y - state.cy };
-        }
-
-        function handleMove(clientX, clientY) {
-            if (!dragTarget) return;
-            const pos = screenToImagePos(clientX, clientY);
-
-            if (dragTarget === 'ruler:1' || dragTarget === 'ruler:2') {
-                const rPos = toRulerAxisSpace(pos.x, pos.y);
-                const val = parallelRuler.orientation === 'horizontal' ? rPos.y : rPos.x;
-                if (dragTarget === 'ruler:1') parallelRuler.line1 = val;
-                else parallelRuler.line2 = val;
-                redraw();
-                return;
-            }
-
-            if (dragTarget === 'plumb:1') {
-                plumbState.p1.x = pos.x;
-                plumbState.p1.y = pos.y;
-                applyMagneticSnap(plumbState.p1);
-                redraw();
-                return;
-            } else if (dragTarget === 'plumb:2') {
-                plumbState.p2.x = pos.x;
-                plumbState.p2.y = pos.y;
-                applyMagneticSnap(plumbState.p2);
-                redraw();
-                return;
-            }
-
-            if (isLocked || !isGridVisible) return;
-
-            if (dragTarget.startsWith('feat:')) {
-                const key = dragTarget.split(':')[1];
-                features[key] = { x: pos.x, y: pos.y };
-                buildAnatomicalLandmarksList();
-                updateActualCoordsPanel();
-            } else if (dragTarget.startsWith('bound:')) {
-                const bKey = dragTarget.split(':')[1];
-                const localNow = toLocalGridSpace(pos.x, pos.y);
-                if (bKey === 'topY' || bKey === 'bottomY') {
-                    state.bounds[bKey] = localNow.y;
-                } else {
-                    state.bounds[bKey] = localNow.x;
-                }
-            } else if (dragTarget === 'center') {
-                const dx = (pos.x - dragStart.x) - state.cx;
-                const dy = (pos.y - dragStart.y) - state.cy;
-                state.cx += dx;
-                state.cy += dy;
-                if (features && !currentImage) {
-                    for (let k in features) {
-                        features[k].x += dx;
-                        features[k].y += dy;
-                    }
-                }
-                buildAnatomicalLandmarksList();
-                updateActualCoordsPanel();
-            } else {
-                const localNow = toLocalGridSpace(pos.x, pos.y);
-                state.yOffsets[dragTarget] = localNow.y;
-                buildAnatomicalLandmarksList();
-            }
-            redraw();
-        }
-
-        function handleEnd() {
-            dragTarget = null;
-            initialPinchDist = null;
-            lastPinchCenter = null;
-        }
-
-        canvas.addEventListener('mousedown', e => handleStart(e.clientX, e.clientY));
-        canvas.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY));
-        canvas.addEventListener('mouseup', handleEnd);
-
-        canvas.addEventListener('touchstart', e => {
-            if (e.touches.length === 1) {
-                handleStart(e.touches[0].clientX, e.touches[0].clientY);
-            } else if (e.touches.length === 2) {
-                dragTarget = null;
-                initialPinchDist = getPinchDist(e.touches);
-                initialViewScale = view.scale;
-                lastPinchCenter = getPinchCenter(e.touches);
-            }
-        });
-
-        canvas.addEventListener('touchmove', e => {
-            e.preventDefault();
-            if (e.touches.length === 1) {
-                handleMove(e.touches[0].clientX, e.touches[0].clientY);
-            } else if (e.touches.length === 2 && initialPinchDist) {
-                const currentDist = getPinchDist(e.touches);
-                const newScale = Math.min(5, Math.max(0.8, initialViewScale * (currentDist / initialPinchDist)));
-                const center = getPinchCenter(e.touches);
-                const rect = canvas.getBoundingClientRect();
-                const scaleFactor = canvas.width / rect.width;
-
-                if (lastPinchCenter) {
-                    view.offsetX += (center.x - lastPinchCenter.x) * scaleFactor;
-                    view.offsetY += (center.y - lastPinchCenter.y) * scaleFactor;
-                }
-                lastPinchCenter = center;
-                view.scale = newScale;
-                document.getElementById('btnZoomReset').textContent = `${Math.round(view.scale * 100)}%`;
-                redraw();
-            }
-        }, { passive: false });
-
-        canvas.addEventListener('touchend', handleEnd);
-
-        function getPinchDist(touches) {
-            return Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
-        }
-
-        function getPinchCenter(touches) {
-            return {
-                x: (touches[0].clientX + touches[1].clientX) / 2,
-                y: (touches[0].clientY + touches[1].clientY) / 2
-            };
-        }
-
-        function getPrecisePxToCm() {
-            const scaleVal = document.getElementById('headHeightScale').value;
-            const totalHeadPx = Math.max(80, Math.abs(state.bounds.bottomY - state.bounds.topY));
-
-            if (scaleVal === 'screen') {
-                const rect = canvas.getBoundingClientRect();
-                const displayedScale = (rect.width / canvas.width) * view.scale;
-                const cssPxPerCm = 37.795;
-                return displayedScale / cssPxPerCm;
-            } else {
-                const targetHeadCm = parseFloat(scaleVal) || 18.0;
-                return targetHeadCm / totalHeadPx;
-            }
-        }
-
-        function redraw() {
-            ctx.save();
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            ctx.translate(view.offsetX, view.offsetY);
-            ctx.scale(view.scale, view.scale);
-
-            if (currentImage) {
-                if (isShadingGuideActive && shadingCache) {
-                    ctx.drawImage(shadingCache, 0, 0, canvas.width, canvas.height);
-                } else if (isLineartMode && lineartCanvasCache) {
-                    ctx.drawImage(lineartCanvasCache, 0, 0, canvas.width, canvas.height);
-                } else {
-                    if (isGrayscale) {
-                        ctx.filter = 'grayscale(100%) contrast(115%)';
-                    }
-                    ctx.drawImage(currentImage, 0, 0, canvas.width, canvas.height);
-                    ctx.filter = 'none';
-                }
-            } else {
-                ctx.fillStyle = '#141414';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = '#777';
-                ctx.font = `${Math.round(canvas.width * 0.035)}px Tahoma`;
-                ctx.textAlign = 'center';
-                ctx.fillText('اضغط "رفع صورة من الاستديو" للبدء', canvas.width / 2, canvas.height / 2);
-            }
-
-            const pxToCm = getPrecisePxToCm();
-
-            if (currentMode === 'ruler') {
-                drawParallelRulers(pxToCm);
-            } else if (currentMode === 'coords') {
-                drawActualCoordinatesOverlay();
-            } else if (isGridVisible) {
-                drawGrid(pxToCm);
-                if (currentMode === 'anatomy' && features) {
-                    drawInteractiveAnatomy(pxToCm);
-                }
-            }
-
-            if (aiVisualOverlay.visible) {
-                drawAiVisualOverlayOnFace();
-            }
-
-            if (plumbState.active) {
-                drawPlumbLinesOverlay(pxToCm);
-            }
-
-            ctx.restore();
-            updateMeasurements(pxToCm);
-            updatePlumbAnalysisReport(pxToCm);
-        }
-
-        function drawActualCoordinatesOverlay() {
-            if (!features) return;
-            const resFactor = Math.max(1, canvas.width / 600);
-            const ptR = 4.5 * resFactor / Math.sqrt(view.scale);
-            const kp = actualKeyPoints || {};
-            const points = [
-                { pt: kp.topHead, color: '#FFD700', tag: 'قمة الجبهة' },
-                { pt: kp.browCenter, color: '#FFD700', tag: 'الحاجبين' },
-                { pt: features.leftEyeOuter, color: '#00E5FF', tag: '' },
-                { pt: features.leftEyeInner, color: '#00E5FF', tag: '' },
-                { pt: features.rightEyeInner, color: '#00E5FF', tag: '' },
-                { pt: features.rightEyeOuter, color: '#00E5FF', tag: '' },
-                { pt: kp.noseBase, color: '#FF9100', tag: 'الأنف' },
-                { pt: features.noseLeft, color: '#FF9100', tag: '' },
-                { pt: features.noseRight, color: '#FF9100', tag: '' },
-                { pt: features.mouthLeft, color: '#FF3366', tag: '' },
-                { pt: features.mouthRight, color: '#FF3366', tag: '' },
-                { pt: kp.leftCheek, color: '#A78BFA', tag: '' },
-                { pt: kp.rightCheek, color: '#A78BFA', tag: '' },
-                { pt: kp.chin, color: '#00FF88', tag: 'الذقن' }
-            ];
-
-            ctx.save();
-            ctx.shadowColor = 'rgba(0,0,0,0.9)';
-            ctx.shadowBlur = 3 * resFactor;
-
-            // محور المنتصف العمودي الفعلي بين الجبهة والذقن
-            if (kp.topHead && kp.chin) {
-                ctx.strokeStyle = 'rgba(0, 229, 255, 0.7)';
-                ctx.lineWidth = (1.8 * resFactor) / Math.sqrt(view.scale);
-                ctx.setLineDash([6 * resFactor, 4 * resFactor]);
-                ctx.beginPath();
-                ctx.moveTo(kp.topHead.x, kp.topHead.y);
-                ctx.lineTo(kp.chin.x, kp.chin.y);
-                ctx.stroke();
-                ctx.setLineDash([]);
-            }
-
-            // خط عرض الوجه الفعلي بين الخدين
-            if (kp.leftCheek && kp.rightCheek) {
-                ctx.strokeStyle = 'rgba(167, 139, 250, 0.7)';
-                ctx.lineWidth = (1.8 * resFactor) / Math.sqrt(view.scale);
-                ctx.setLineDash([6 * resFactor, 4 * resFactor]);
-                ctx.beginPath();
-                ctx.moveTo(kp.leftCheek.x, kp.leftCheek.y);
-                ctx.lineTo(kp.rightCheek.x, kp.rightCheek.y);
-                ctx.stroke();
-                ctx.setLineDash([]);
-            }
-
-            points.forEach(item => {
-                if (!item.pt) return;
-                ctx.fillStyle = item.color;
-                ctx.beginPath();
-                ctx.arc(item.pt.x, item.pt.y, ptR, 0, Math.PI * 2);
-                ctx.fill();
-
-                if (item.tag) {
-                    const label = `${item.tag} (${Math.round(item.pt.x)},${Math.round(item.pt.y)})`;
-                    drawLabelBadge(label, item.pt.x, item.pt.y - 16 * resFactor, 'rgba(0,0,0,0.85)', item.color, resFactor);
-                }
-            });
-
-            ctx.restore();
-        }
-
-        function drawPlumbLinesOverlay(pxToCm) {
-            const resFactor = Math.max(1, canvas.width / 600);
-            const axisDeg = plumbState.alignWithHead ? state.angle : 0;
-
-            if (plumbState.snapEnabled && landmarksList.length > 0) {
-                ctx.save();
-                ctx.fillStyle = 'rgba(0, 229, 255, 0.45)';
-                landmarksList.forEach(lm => {
-                    ctx.beginPath();
-                    ctx.arc(lm.x, lm.y, 2.5 * resFactor / Math.sqrt(view.scale), 0, Math.PI * 2);
-                    ctx.fill();
-                });
-                ctx.restore();
-            }
-
-            drawSinglePlumb(plumbState.p1, '#00E5FF', '1', axisDeg, pxToCm, resFactor);
-
-            if (plumbState.dual) {
-                drawSinglePlumb(plumbState.p2, '#FF9100', '2', axisDeg, pxToCm, resFactor);
-                drawDualPlumbBridge(plumbState.p1, plumbState.p2, axisDeg, pxToCm, resFactor);
-            }
-        }
-
-        function drawSinglePlumb(pt, color, numLabel, axisDeg, pxToCm, resFactor) {
-            const span = Math.max(canvas.width, canvas.height) * 1.5;
-            const lw = (1.8 * resFactor) / Math.sqrt(view.scale);
-            const handleR = (7.5 * resFactor) / Math.sqrt(view.scale);
-            const cmStepPx = 1 / Math.max(0.001, pxToCm);
-
-            ctx.save();
-            ctx.translate(pt.x, pt.y);
-            ctx.rotate(axisDeg * Math.PI / 180);
-
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
-            ctx.shadowBlur = 3 * resFactor;
-            ctx.strokeStyle = color;
-            ctx.fillStyle = color;
-            ctx.lineWidth = lw;
-
-            ctx.beginPath();
-            ctx.moveTo(0, -span);
-            ctx.lineTo(0, span);
-            ctx.moveTo(-span, 0);
-            ctx.lineTo(span, 0);
-            ctx.stroke();
-
-            if (cmStepPx > 12) {
-                const tickLen = 4 * resFactor / Math.sqrt(view.scale);
-                ctx.beginPath();
-                for (let d = cmStepPx; d < span * 0.6; d += cmStepPx) {
-                    ctx.moveTo(-tickLen, d); ctx.lineTo(tickLen, d);
-                    ctx.moveTo(-tickLen, -d); ctx.lineTo(tickLen, -d);
-                    ctx.moveTo(d, -tickLen); ctx.lineTo(d, tickLen);
-                    ctx.moveTo(-d, -tickLen); ctx.lineTo(-d, tickLen);
-                }
-                ctx.stroke();
-            }
-
-            ctx.beginPath();
-            ctx.arc(0, 0, handleR, 0, Math.PI * 2);
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.arc(0, 0, 1.5 * resFactor / Math.sqrt(view.scale), 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.restore();
-
-            const badgeText = pt.snappedName ? `🧲 ${pt.snappedName}` : `نقطة ${numLabel}`;
-            const offsetTop = (numLabel === '1') ? -22 : 22;
-            drawLabelBadge(badgeText, pt.x, pt.y + (offsetTop * resFactor / Math.sqrt(view.scale)), 'rgba(0,0,0,0.82)', color, resFactor);
-        }
-
-        function drawDualPlumbBridge(p1, p2, axisDeg, pxToCm, resFactor) {
-            const rad = axisDeg * Math.PI / 180;
-            const dxWorld = p2.x - p1.x;
-            const dyWorld = p2.y - p1.y;
-
-            const uDiff = dxWorld * Math.cos(rad) + dyWorld * Math.sin(rad);
-            const vDiff = -dxWorld * Math.sin(rad) + dyWorld * Math.cos(rad);
-
-            const cornerX = p1.x + uDiff * Math.cos(rad);
-            const cornerY = p1.y + uDiff * Math.sin(rad);
-
-            ctx.save();
-            ctx.strokeStyle = '#00FF88';
-            ctx.lineWidth = (2.4 * resFactor) / Math.sqrt(view.scale);
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.stroke();
-
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
-            ctx.lineWidth = (1.5 * resFactor) / Math.sqrt(view.scale);
-            ctx.setLineDash([5 * resFactor, 4 * resFactor]);
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(cornerX, cornerY);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.stroke();
-            ctx.restore();
-
-            const directCm = (dist(p1, p2) * pxToCm).toFixed(2);
-            const dxCm = (Math.abs(uDiff) * pxToCm).toFixed(2);
-            const dyCm = (Math.abs(vDiff) * pxToCm).toFixed(2);
-
-            if (dist(p1, p2) > 12) {
-                drawLabelBadge(`📏 ${directCm} سم`, (p1.x + p2.x) / 2, (p1.y + p2.y) / 2, 'rgba(0, 30, 15, 0.92)', '#00FF88', resFactor);
-            }
-            if (Math.abs(uDiff) > 25) {
-                drawLabelBadge(`↔ ${dxCm} سم`, (p1.x + cornerX) / 2, (p1.y + cornerY) / 2 - 14 * resFactor, 'rgba(0,0,0,0.85)', '#FF9100', resFactor);
-            }
-            if (Math.abs(vDiff) > 25) {
-                drawLabelBadge(`↕ ${dyCm} سم`, (cornerX + p2.x) / 2 + 30 * resFactor, (cornerY + p2.y) / 2, 'rgba(0,0,0,0.85)', '#FFD700', resFactor);
-            }
-        }
-
-        function getAnatomicalRegionCoords(partName) {
-            const r = state.radius;
-            const { hair, brow, nose, chin } = state.yOffsets;
-            const midEyeY = brow + (nose - brow) * 0.28;
-            const mouthY = nose + (chin - nose) * 0.35;
-
-            const regions = {
-                'cheek_left':       { lx: -r * 0.48, ly: (midEyeY + nose) / 2, rx: r * 0.22, ry: r * 0.28 },
-                'cheek_right':      { lx:  r * 0.48, ly: (midEyeY + nose) / 2, rx: r * 0.22, ry: r * 0.28 },
-                'nose_base':        { lx: 0,         ly: nose + r * 0.05,      rx: r * 0.24, ry: r * 0.12 },
-                'jaw_bottom':       { lx: 0,         ly: chin - r * 0.12,      rx: r * 0.42, ry: r * 0.15 },
-                'eye_socket_left':  { lx: -r * 0.32, ly: midEyeY,              rx: r * 0.20, ry: r * 0.14 },
-                'eye_socket_right': { lx:  r * 0.32, ly: midEyeY,              rx: r * 0.20, ry: r * 0.14 },
-                'forehead_left':    { lx: -r * 0.35, ly: (hair + brow) / 2,    rx: r * 0.25, ry: r * 0.22 },
-                'forehead_right':   { lx:  r * 0.35, ly: (hair + brow) / 2,    rx: r * 0.25, ry: r * 0.22 },
-                'left_eye':         { lx: -r * 0.32, ly: midEyeY,              rx: r * 0.18, ry: r * 0.12 },
-                'right_eye':        { lx:  r * 0.32, ly: midEyeY,              rx: r * 0.18, ry: r * 0.12 },
-                'nose':             { lx: 0,         ly: (brow + nose) / 2,    rx: r * 0.18, ry: r * 0.25 },
-                'mouth':            { lx: 0,         ly: mouthY,               rx: r * 0.28, ry: r * 0.14 },
-                'jaw':              { lx: 0,         ly: (nose + chin) / 2,    rx: r * 0.45, ry: r * 0.25 },
-                'brow':             { lx: 0,         ly: brow,                 rx: r * 0.50, ry: r * 0.10 }
-            };
-            return regions[partName] || { lx: 0, ly: 0, rx: r * 0.2, ry: r * 0.2 };
-        }
-
-        function drawAiVisualOverlayOnFace() {
-            const resFactor = Math.max(1, canvas.width / 600);
-            const lw = (3 * resFactor) / Math.sqrt(view.scale);
-            const r = state.radius;
-
-            ctx.save();
-            ctx.translate(state.cx, state.cy);
-            ctx.rotate(state.angle * Math.PI / 180);
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-            ctx.shadowBlur = 5 * resFactor;
-
-            if (aiVisualOverlay.lightDir) {
-                const ld = aiVisualOverlay.lightDir;
-                const rad = (ld.angleDeg || 45) * Math.PI / 180;
-                const startDist = r * 1.65;
-                const endDist = r * 1.05;
-
-                const x1 = Math.cos(rad) * startDist;
-                const y1 = -Math.sin(rad) * startDist;
-                const x2 = Math.cos(rad) * endDist;
-                const y2 = -Math.sin(rad) * endDist;
-
-                ctx.strokeStyle = '#FFD700';
-                ctx.fillStyle = '#FFD700';
-                ctx.lineWidth = lw * 1.4;
-
-                ctx.beginPath();
-                ctx.moveTo(x1, y1);
-                ctx.lineTo(x2, y2);
-                ctx.stroke();
-
-                const arrowAng = Math.atan2(y2 - y1, x2 - x1);
-                const headLen = 14 * resFactor;
-                ctx.beginPath();
-                ctx.moveTo(x2, y2);
-                ctx.lineTo(x2 - headLen * Math.cos(arrowAng - Math.PI / 6), y2 - headLen * Math.sin(arrowAng - Math.PI / 6));
-                ctx.lineTo(x2 - headLen * Math.cos(arrowAng + Math.PI / 6), y2 - headLen * Math.sin(arrowAng + Math.PI / 6));
-                ctx.closePath();
-                ctx.fill();
-
-                drawLabelBadge(`☀️ ${ld.label || 'اتجاه الضوء'}`, x1, y1 - 14 * resFactor, 'rgba(0,0,0,0.88)', '#FFD700', resFactor);
-            }
-
-            if (aiVisualOverlay.shadowZones && aiVisualOverlay.shadowZones.length > 0) {
-                aiVisualOverlay.shadowZones.forEach(sz => {
-                    const reg = getAnatomicalRegionCoords(sz.part);
-                    ctx.save();
-                    ctx.strokeStyle = '#4FACFE';
-                    ctx.fillStyle = 'rgba(79, 172, 254, 0.25)';
-                    ctx.lineWidth = lw;
-                    ctx.setLineDash([6 * resFactor, 4 * resFactor]);
-
-                    ctx.beginPath();
-                    ctx.ellipse(reg.lx, reg.ly, reg.rx, reg.ry, 0, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.stroke();
-                    ctx.restore();
-
-                    if (sz.label) {
-                        drawLabelBadge(`🌗 ${sz.label}`, reg.lx, reg.ly, 'rgba(0,0,0,0.88)', '#4FACFE', resFactor);
-                    }
-                });
-            }
-
-            if (aiVisualOverlay.corrections && aiVisualOverlay.corrections.length > 0) {
-                aiVisualOverlay.corrections.forEach((corr, idx) => {
-                    const reg = getAnatomicalRegionCoords(corr.part);
-                    ctx.strokeStyle = '#FF3366';
-                    ctx.fillStyle = 'rgba(255, 51, 102, 0.25)';
-                    ctx.lineWidth = lw * 1.2;
-
-                    ctx.beginPath();
-                    ctx.ellipse(reg.lx, reg.ly, reg.rx, reg.ry, 0, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.stroke();
-
-                    drawLabelBadge(`⚠️ ${idx + 1}: ${corr.text}`, reg.lx, reg.ly - reg.ry - 12 * resFactor, 'rgba(20,0,0,0.9)', '#FF6B8B', resFactor);
-                });
-            }
-
-            ctx.restore();
-        }
-
-        function drawLabelBadge(text, x, y, bgColor, textColor, resFactor) {
-            const fontSize = Math.round((11 * resFactor) / Math.sqrt(view.scale));
-            ctx.save();
-            ctx.font = `bold ${fontSize}px Tahoma`;
-            const metrics = ctx.measureText(text);
-            const padX = 5 * resFactor / Math.sqrt(view.scale);
-            const padY = 2.5 * resFactor / Math.sqrt(view.scale);
-            const w = metrics.width + padX * 2;
-            const h = fontSize + padY * 2;
-
-            ctx.fillStyle = bgColor;
-            ctx.beginPath();
-            ctx.roundRect(x - w / 2, y - h / 2, w, h, 4 * resFactor);
-            ctx.fill();
-
-            ctx.fillStyle = textColor;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(text, x, y);
-            ctx.restore();
-        }
-
-        function drawInteractiveAnatomy(pxToCm) {
-            const f = features;
-            const resFactor = Math.max(1, canvas.width / 600);
-            const lw = (baseThickness * 0.9 * resFactor) / Math.sqrt(view.scale);
-            const ptR = 5.5 * resFactor / Math.sqrt(view.scale);
-
-            ctx.save();
-            ctx.globalAlpha = lineOpacity;
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-            ctx.shadowBlur = 4 * resFactor;
-
-            ctx.strokeStyle = '#00FFFF';
-            ctx.fillStyle = '#00FFFF';
-            ctx.lineWidth = lw;
-
-            drawAdjustableEye(f.leftEyeOuter, f.leftEyeInner, ptR);
-            drawAdjustableEye(f.rightEyeInner, f.rightEyeOuter, ptR);
-
-            const leftEyeCm = (dist(f.leftEyeOuter, f.leftEyeInner) * pxToCm).toFixed(1);
-            const rightEyeCm = (dist(f.rightEyeInner, f.rightEyeOuter) * pxToCm).toFixed(1);
-            drawLabelBadge(`${leftEyeCm} سم`, (f.leftEyeOuter.x + f.leftEyeInner.x) / 2, (f.leftEyeOuter.y + f.leftEyeInner.y) / 2 - 18 * resFactor, 'rgba(0,0,0,0.85)', '#00FFFF', resFactor);
-            drawLabelBadge(`${rightEyeCm} سم`, (f.rightEyeInner.x + f.rightEyeOuter.x) / 2, (f.rightEyeInner.y + f.rightEyeOuter.y) / 2 - 18 * resFactor, 'rgba(0,0,0,0.85)', '#00FFFF', resFactor);
-
-            ctx.strokeStyle = '#00FF44';
-            ctx.beginPath();
-            ctx.moveTo(f.leftEyeInner.x, f.leftEyeInner.y);
-            ctx.lineTo(f.rightEyeInner.x, f.rightEyeInner.y);
-            ctx.stroke();
-
-            const interEyeCm = (dist(f.leftEyeInner, f.rightEyeInner) * pxToCm).toFixed(1);
-            drawLabelBadge(`${interEyeCm} سم`, (f.leftEyeInner.x + f.rightEyeInner.x) / 2, (f.leftEyeInner.y + f.rightEyeInner.y) / 2 + 18 * resFactor, 'rgba(0,0,0,0.85)', '#00FF44', resFactor);
-
-            ctx.strokeStyle = '#FF9900';
-            ctx.fillStyle = '#FF9900';
-            ctx.beginPath();
-            ctx.moveTo(f.noseLeft.x, f.noseLeft.y);
-            ctx.lineTo(f.noseRight.x, f.noseRight.y);
-            ctx.stroke();
-
-            [f.noseLeft, f.noseRight].forEach(pt => {
-                ctx.beginPath();
-                ctx.arc(pt.x, pt.y, ptR, 0, Math.PI * 2);
-                ctx.fill();
-            });
-
-            const noseCm = (dist(f.noseLeft, f.noseRight) * pxToCm).toFixed(1);
-            drawLabelBadge(`${noseCm} سم`, (f.noseLeft.x + f.noseRight.x) / 2, (f.noseLeft.y + f.noseRight.y) / 2 - 16 * resFactor, 'rgba(0,0,0,0.85)', '#FF9900', resFactor);
-
-            ctx.strokeStyle = '#FF3366';
-            ctx.fillStyle = '#FF3366';
-            ctx.beginPath();
-            ctx.moveTo(f.mouthLeft.x, f.mouthLeft.y);
-            ctx.lineTo(f.mouthRight.x, f.mouthRight.y);
-            ctx.stroke();
-
-            [f.mouthLeft, f.mouthRight].forEach(pt => {
-                ctx.beginPath();
-                ctx.arc(pt.x, pt.y, ptR, 0, Math.PI * 2);
-                ctx.fill();
-            });
-
-            const mouthCm = (dist(f.mouthLeft, f.mouthRight) * pxToCm).toFixed(1);
-            drawLabelBadge(`${mouthCm} سم`, (f.mouthLeft.x + f.mouthRight.x) / 2, (f.mouthLeft.y + f.mouthRight.y) / 2 + 18 * resFactor, 'rgba(0,0,0,0.85)', '#FF3366', resFactor);
-
-            ctx.restore();
-        }
-
-        function drawAdjustableEye(p1, p2, ptR) {
-            const midX = (p1.x + p2.x) / 2;
-            const midY = (p1.y + p2.y) / 2;
-            const len = dist(p1, p2);
-            const ang = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-
-            ctx.save();
-            ctx.translate(midX, midY);
-            ctx.rotate(ang);
-            ctx.beginPath();
-            ctx.ellipse(0, 0, len / 2, len * 0.22, 0, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.restore();
-
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.stroke();
-
-            [p1, p2].forEach(pt => {
-                ctx.beginPath();
-                ctx.arc(pt.x, pt.y, ptR, 0, Math.PI * 2);
-                ctx.fill();
-            });
-        }
-
-        // رسم شبكة لوميس الديناميكية المستجيبة لزوايا Yaw و Pitch ثلاثية الأبعاد
-        function drawGrid(pxToCm) {
-            ctx.save();
-            ctx.globalAlpha = lineOpacity;
-
-            const resFactor = Math.max(1, canvas.width / 600);
-            const lw = (baseThickness * resFactor) / Math.sqrt(view.scale);
-            const fontSize = Math.round((14 * resFactor) / Math.sqrt(view.scale));
-
-            ctx.translate(state.cx, state.cy);
-            ctx.rotate(state.angle * Math.PI / 180);
-
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-            ctx.shadowBlur = 4 * resFactor;
-            ctx.shadowOffsetX = 1 * resFactor;
-            ctx.shadowOffsetY = 1 * resFactor;
-
-            ctx.strokeStyle = lineColor;
-            ctx.fillStyle = lineColor;
-            ctx.lineWidth = lw;
-
-            const r = state.radius;
-            const { hair, brow, nose, chin } = state.yOffsets;
-            const yawRatio = Math.max(-1, Math.min(1, headPose3D.yaw / 65));
-            const pitchCurve = (headPose3D.pitch / 45) * (r * 0.22);
-
-            if (currentMode === 'front' || currentMode === 'anatomy') {
-                ctx.beginPath();
-                ctx.arc(0, 0, r, 0, Math.PI * 2);
-                ctx.stroke();
-
-                ctx.save();
-                ctx.setLineDash([8 * resFactor, 6 * resFactor]);
-                ctx.beginPath();
-                ctx.ellipse(0, 0, r * 0.68, r * 0.85, 0, 0, Math.PI * 2);
-                ctx.stroke();
-                ctx.restore();
-
-                ctx.beginPath();
-                ctx.moveTo(0, hair - r * 0.2);
-                ctx.lineTo(0, chin + r * 0.2);
-                ctx.stroke();
-
-                ctx.beginPath();
-                ctx.moveTo(-r * 0.68, 0);
-                ctx.lineTo(-r * 0.45, nose);
-                ctx.lineTo(0, chin);
-                ctx.moveTo(r * 0.68, 0);
-                ctx.lineTo(r * 0.45, nose);
-                ctx.lineTo(0, chin);
-                ctx.stroke();
-
-            } else if (currentMode === 'threeQuarter') {
-                ctx.beginPath();
-                ctx.arc(0, 0, r, 0, Math.PI * 2);
-                ctx.stroke();
-
-                const dir = yawRatio >= 0 ? 1 : -1;
-                const absY = Math.max(0.25, Math.abs(yawRatio));
-                const sidePlaneX = -dir * r * (0.28 + absY * 0.22);
-                const sidePlaneRx = r * (0.48 - absY * 0.14);
-                const centerCurveX = dir * r * (0.22 + absY * 0.35);
-
-                ctx.save();
-                ctx.setLineDash([8 * resFactor, 6 * resFactor]);
-                ctx.beginPath();
-                ctx.ellipse(sidePlaneX, 0, sidePlaneRx, r * 0.72, 0, 0, Math.PI * 2);
-                ctx.stroke();
-                ctx.restore();
-
-                ctx.beginPath();
-                ctx.moveTo(centerCurveX * 0.85, hair - r * 0.1);
-                ctx.quadraticCurveTo(centerCurveX * 1.25, 0, centerCurveX * 0.7, chin);
-                ctx.stroke();
-
-                ctx.beginPath();
-                ctx.moveTo(sidePlaneX, r * 0.35);
-                ctx.lineTo(sidePlaneX + dir * r * 0.2, nose * 1.15);
-                ctx.lineTo(centerCurveX * 0.7, chin);
-                ctx.stroke();
-
-            } else if (currentMode === 'side') {
-                const dir = yawRatio >= 0 ? 1 : -1;
-                ctx.beginPath();
-                ctx.arc(0, 0, r, 0, Math.PI * 2);
-                ctx.stroke();
-
-                ctx.beginPath();
-                ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2);
-                ctx.stroke();
-
-                ctx.beginPath();
-                ctx.moveTo(0, hair - r * 0.1);
-                ctx.lineTo(0, chin);
-                ctx.moveTo(dir * r, brow);
-                ctx.lineTo(dir * r * 0.85, chin);
-                ctx.stroke();
-            }
-
-            const lineSpan = r * 1.5;
-            drawCurvedOrFlatLine(hair, lineSpan, pitchCurve * 0.6, 'الشعر', lw, fontSize, resFactor);
-            drawCurvedOrFlatLine(brow, lineSpan, pitchCurve, 'الحواجب', lw, fontSize, resFactor);
-            drawCurvedOrFlatLine(nose, lineSpan, pitchCurve * 0.7, 'الأنف', lw, fontSize, resFactor);
-            drawCurvedOrFlatLine(chin, lineSpan, 0, 'الذقن', lw, fontSize, resFactor);
-
-            if (currentMode === 'anatomy') {
-                drawFaceDimensionFrame(pxToCm, lw, resFactor);
-
-                const t1Cm = (Math.abs(brow - hair) * pxToCm).toFixed(1);
-                const t2Cm = (Math.abs(nose - brow) * pxToCm).toFixed(1);
-                const t3Cm = (Math.abs(chin - nose) * pxToCm).toFixed(1);
-
-                const bracketX = lineSpan + (18 * resFactor);
-                drawVerticalSpanBracket(bracketX, hair, brow, `${t1Cm} سم`, resFactor);
-                drawVerticalSpanBracket(bracketX, brow, nose, `${t2Cm} سم`, resFactor);
-                drawVerticalSpanBracket(bracketX, nose, chin, `${t3Cm} سم`, resFactor);
-            }
-
-            ctx.beginPath();
-            ctx.arc(0, 0, 7 * resFactor, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.restore();
-        }
-
-        function drawCurvedOrFlatLine(y, span, curveOffset, label, lw, fontSize, resFactor) {
-            ctx.lineWidth = lw;
-            ctx.beginPath();
-            ctx.moveTo(-span, y);
-            if (Math.abs(curveOffset) > 2 && currentMode !== 'anatomy') {
-                ctx.quadraticCurveTo(0, y - curveOffset, span, y);
-            } else {
-                ctx.lineTo(span, y);
-            }
-            ctx.stroke();
-
-            if (!isLocked) {
-                ctx.beginPath();
-                ctx.arc(-span, y, 6 * resFactor, 0, Math.PI * 2);
-                ctx.arc(span, y, 6 * resFactor, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            ctx.font = `bold ${fontSize}px Tahoma`;
-            ctx.textAlign = 'right';
-            ctx.fillText(label, -span - (10 * resFactor), y + (4 * resFactor));
-        }
-
-        function drawFaceDimensionFrame(pxToCm, lw, resFactor) {
-            const { topY, bottomY, leftX, rightX } = state.bounds;
-            const hSpan = Math.max(Math.abs(leftX), Math.abs(rightX)) + 45 * resFactor;
-            const vTop = Math.min(topY, bottomY) - 35 * resFactor;
-            const vBot = Math.max(topY, bottomY) + 35 * resFactor;
-            const handleR = 6.5 * resFactor / Math.sqrt(view.scale);
-
-            ctx.save();
-            ctx.strokeStyle = '#FF55FF';
-            ctx.fillStyle = '#FF55FF';
-            ctx.lineWidth = lw * 0.9;
-            ctx.setLineDash([10 * resFactor, 6 * resFactor]);
-
-            [topY, bottomY].forEach(y => {
-                ctx.beginPath();
-                ctx.moveTo(-hSpan, y);
-                ctx.lineTo(hSpan, y);
-                ctx.stroke();
-
-                if (!isLocked) {
-                    ctx.save();
-                    ctx.setLineDash([]);
-                    ctx.beginPath();
-                    ctx.arc(-hSpan, y, handleR, 0, Math.PI * 2);
-                    ctx.arc(hSpan, y, handleR, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.restore();
-                }
-            });
-
-            [leftX, rightX].forEach(x => {
-                ctx.beginPath();
-                ctx.moveTo(x, vTop);
-                ctx.lineTo(x, vBot);
-                ctx.stroke();
-
-                if (!isLocked) {
-                    ctx.save();
-                    ctx.setLineDash([]);
-                    ctx.beginPath();
-                    ctx.arc(x, vTop, handleR, 0, Math.PI * 2);
-                    ctx.arc(x, vBot, handleR, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.restore();
-                }
-            });
-
-            ctx.setLineDash([]);
-
-            const totalHCm = (Math.abs(bottomY - topY) * pxToCm).toFixed(1);
-            const totalWCm = (Math.abs(rightX - leftX) * pxToCm).toFixed(1);
-
-            drawLabelBadge(`العرض: ${totalWCm} سم`, (leftX + rightX) / 2, vTop - 16 * resFactor, 'rgba(0,0,0,0.85)', '#FF55FF', resFactor);
-            drawLabelBadge(`الطول: ${totalHCm} سم`, -hSpan - 42 * resFactor, (topY + bottomY) / 2, 'rgba(0,0,0,0.85)', '#FF55FF', resFactor);
-
-            ctx.restore();
-        }
-
-        function drawVerticalSpanBracket(x, y1, y2, label, resFactor) {
-            ctx.save();
-            ctx.strokeStyle = '#FFD700';
-            ctx.lineWidth = 2 * resFactor / Math.sqrt(view.scale);
-            ctx.beginPath();
-            ctx.moveTo(x - 5 * resFactor, y1);
-            ctx.lineTo(x, y1);
-            ctx.lineTo(x, y2);
-            ctx.lineTo(x - 5 * resFactor, y2);
-            ctx.stroke();
-
-            drawLabelBadge(label, x + 28 * resFactor, (y1 + y2) / 2, 'rgba(0,0,0,0.85)', '#FFD700', resFactor);
-            ctx.restore();
-        }
-
-        function dist(p1, p2) {
-            return Math.hypot(p2.x - p1.x, p2.y - p1.y);
-        }
-
-        function updateMeasurements(pxToCm) {
-            const faceHPx = Math.max(1, Math.abs(state.bounds.bottomY - state.bounds.topY));
-            const faceWPx = Math.max(1, Math.abs(state.bounds.rightX - state.bounds.leftX));
-
-            const faceHCm = (faceHPx * pxToCm).toFixed(1);
-            const faceWCm = (faceWPx * pxToCm).toFixed(1);
-            const hwRatioNum = faceHPx / faceWPx;
-            const hwRatio = hwRatioNum.toFixed(2);
-            const wPct = Math.round((faceWPx / faceHPx) * 100);
-
-            document.getElementById('m_faceH').textContent = `${faceHCm} سم`;
-            document.getElementById('m_faceW').textContent = `${faceWCm} سم`;
-            document.getElementById('m_faceRatio').textContent = `${hwRatio} : 1`;
-            document.getElementById('m_facePct').textContent = `العرض ${wPct}% من الطول`;
-
-            let faceTypeLabel = `متوازن (${hwRatio} : 1)`;
-            if (hwRatioNum >= 1.48) {
-                faceTypeLabel = `طويل / نحيف (${hwRatio} : 1)`;
-            } else if (hwRatioNum <= 1.32) {
-                faceTypeLabel = `عريض / مستدير (${hwRatio} : 1)`;
-            }
-            document.getElementById('m_faceTypeTag').textContent = faceTypeLabel;
-
-            const d1 = Math.abs(state.yOffsets.brow - state.yOffsets.hair);
-            const d2 = Math.abs(state.yOffsets.nose - state.yOffsets.brow);
-            const d3 = Math.abs(state.yOffsets.chin - state.yOffsets.nose);
-            const totalD = Math.max(1, d1 + d2 + d3);
-
-            const p1 = Math.round((d1 / totalD) * 100);
-            const p2 = Math.round((d2 / totalD) * 100);
-            const p3 = Math.round((d3 / totalD) * 100);
-
-            document.getElementById('m_t1Pct').textContent = `${p1}%`;
-            document.getElementById('m_t2Pct').textContent = `${p2}%`;
-            document.getElementById('m_t3Pct').textContent = `${p3}%`;
-
-            document.getElementById('m_t1').textContent = `${(d1 * pxToCm).toFixed(1)} سم (القياسي: 33%)`;
-            document.getElementById('m_t2').textContent = `${(d2 * pxToCm).toFixed(1)} سم (القياسي: 33%)`;
-            document.getElementById('m_t3').textContent = `${(d3 * pxToCm).toFixed(1)} سم (القياسي: 33%)`;
-
-            if (features) {
-                const f = features;
-                const leftEyePx = dist(f.leftEyeOuter, f.leftEyeInner);
-                const rightEyePx = dist(f.rightEyeInner, f.rightEyeOuter);
-                const avgEyePx = Math.max(1, (leftEyePx + rightEyePx) / 2);
-
-                const interEyePx = dist(f.leftEyeInner, f.rightEyeInner);
-                const mouthPx = dist(f.mouthLeft, f.mouthRight);
-                const nosePx = dist(f.noseLeft, f.noseRight);
-
-                const rEyeUnit = (rightEyePx / avgEyePx).toFixed(2);
-                const lEyeUnit = (leftEyePx / avgEyePx).toFixed(2);
-                const interEyeUnit = (interEyePx / avgEyePx).toFixed(2);
-                const mouthUnit = (mouthPx / avgEyePx).toFixed(2);
-                const noseUnit = (nosePx / avgEyePx).toFixed(2);
-
-                document.getElementById('m_eyesRatio').textContent = `${rEyeUnit} / ${lEyeUnit} وحدة`;
-                document.getElementById('m_eyesLen').textContent = `${(rightEyePx * pxToCm).toFixed(1)} / ${(leftEyePx * pxToCm).toFixed(1)} سم`;
-
-                document.getElementById('m_interEyeRatio').textContent = `${interEyeUnit} × العين`;
-                document.getElementById('m_interEye').textContent = `${(interEyePx * pxToCm).toFixed(1)} سم (القياسي: 1.0×)`;
-
-                document.getElementById('m_mouthRatio').textContent = `${mouthUnit} × العين`;
-                document.getElementById('m_mouthW').textContent = `${(mouthPx * pxToCm).toFixed(1)} سم (القياسي: 1.5×)`;
-
-                document.getElementById('m_noseRatio').textContent = `${noseUnit} × العين`;
-                document.getElementById('m_noseW').textContent = `${(nosePx * pxToCm).toFixed(1)} سم (القياسي: 1.0×)`;
-            }
-        }
-
-        createDefaultFeaturesFromGrid();
-        redraw();
-    </script>
-</body>
-</html>
+                taskGoal = `أنت أستاذ أكاديمي في تقنية أندرو لوميس. بناءً على
