@@ -985,7 +985,7 @@
         </table>
 
         <div class="coords-actions">
-            <button class="coords-btn gold" onclick="applyCoordsToLoomisGrid()">📐 ضبط الشبكة وفق هذه القياسات</button>
+            <button class="coords-btn gold" id="btnToggleCoordsGrid" onclick="toggleCoordsGridOverlay()">🕸️ شبكة الإحداثيات (مقاسات حية)</button>
             <button class="coords-btn primary" onclick="recalculateAllMeasurements()">🔄 تحديث القراءة</button>
             <button class="coords-btn" onclick="copyActualCoordinates()">📋 نسخ (cm)</button>
         </div>
@@ -1343,6 +1343,9 @@
             line2: 420
         };
 
+        // حالة شبكة لوميس المعتمدة على الإحداثيات داخل تبويب الإحداثيات
+        let isCoordsGridActive = false;
+
         let features = null;
         let actualKeyPoints = null;
         let landmarksList = [];
@@ -1401,17 +1404,35 @@
             redraw();
         }
 
-        // --- ضبط شبكة لوميس تلقائياً وفق القياسات والإحداثيات الفعلية المرصودة ---
-        function applyCoordsToLoomisGrid() {
-            if (isLocked) {
-                alert('يرجى فتح القفل أولاً لضبط الشبكة.');
-                return;
-            }
+        // --- زر تفاعلي داخل تبويب الإحداثيات لعرض/إخفاء شبكة لوميس مع المقاسات الحية جوار كل خط ---
+        function toggleCoordsGridOverlay() {
             if (!features) {
-                alert('لا توجد إحداثيات مرصودة حالياً.');
+                alert('يرجى رفع صورة أو تحديث القراءة أولاً.');
                 return;
             }
+            isCoordsGridActive = !isCoordsGridActive;
+            const btn = document.getElementById('btnToggleCoordsGrid');
+            if (btn) {
+                if (isCoordsGridActive) {
+                    btn.textContent = '✅ إخفاء شبكة الإحداثيات';
+                    btn.style.background = '#00ff88';
+                    btn.style.color = '#000';
+                    btn.style.borderColor = '#00ff88';
+                } else {
+                    btn.textContent = '🕸️ شبكة الإحداثيات (مقاسات حية)';
+                    btn.style.background = '#ffd700';
+                    btn.style.color = '#000';
+                    btn.style.borderColor = '#ffd700';
+                }
+            }
+            redraw();
+        }
+
+        function drawCoordsGridWithMeasurements(resFactor) {
+            if (!features) return;
+            const f = features;
             const kp = actualKeyPoints || {};
+
             const topPt = kp.topHead || { x: state.cx, y: state.cy + state.yOffsets.hair };
             const browPt = kp.browCenter || { x: state.cx, y: state.cy + state.yOffsets.brow };
             const nosePt = kp.noseBase || { x: state.cx, y: state.cy + state.yOffsets.nose };
@@ -1419,50 +1440,135 @@
             const leftCheek = kp.leftCheek || { x: state.cx + state.bounds.leftX, y: state.cy };
             const rightCheek = kp.rightCheek || { x: state.cx + state.bounds.rightX, y: state.cy };
 
-            const eyeAngleDeg = Math.round(
-                Math.atan2(features.rightEyeOuter.y - features.leftEyeOuter.y, features.rightEyeOuter.x - features.leftEyeOuter.x) * 180 / Math.PI
-            );
-            const rollDeg = Math.max(-60, Math.min(60, headPose3D.roll || eyeAngleDeg));
+            const faceWpx = Math.max(40, dist(leftCheek, rightCheek));
+            const faceHpx = Math.max(60, dist(topPt, chinPt));
+            const cx = (leftCheek.x + rightCheek.x) / 2;
+            const cy = browPt.y + faceHpx * 0.08;
+            const r = Math.max(faceWpx, faceHpx * 0.76) * 0.58;
 
-            const centerX = (leftCheek.x + rightCheek.x) / 2;
-            const faceWidthPx = Math.max(40, dist(leftCheek, rightCheek));
-            const faceHeightPx = Math.max(60, dist(topPt, chinPt));
+            const eyeAngleRad = Math.atan2(f.rightEyeOuter.y - f.leftEyeOuter.y, f.rightEyeOuter.x - f.leftEyeOuter.x);
+            const deg = Math.max(-60, Math.min(60, headPose3D.roll || Math.round(eyeAngleRad * 180 / Math.PI)));
+            const rad = deg * Math.PI / 180;
 
-            state.cx = centerX;
-            state.cy = browPt.y + faceHeightPx * 0.08;
-            state.radius = Math.round(Math.max(faceWidthPx, faceHeightPx * 0.76) * 0.58);
-            state.angle = rollDeg;
+            const toLocal = (pt) => {
+                const dx = pt.x - cx;
+                const dy = pt.y - cy;
+                return {
+                    x: dx * Math.cos(-rad) - dy * Math.sin(-rad),
+                    y: dx * Math.sin(-rad) + dy * Math.cos(-rad)
+                };
+            };
 
-            radiusRange.max = Math.max(600, Math.round(Math.max(canvas.width, canvas.height) * 0.65));
-            radiusRange.value = state.radius;
-            document.getElementById('radiusVal').textContent = state.radius;
+            const lTop = toLocal(topPt);
+            const lBrow = toLocal(browPt);
+            const lNose = toLocal(nosePt);
+            const lChin = toLocal(chinPt);
+            const lLeft = toLocal(leftCheek);
+            const lRight = toLocal(rightCheek);
 
-            angleRange.value = rollDeg;
-            document.getElementById('angleVal').textContent = rollDeg + '°';
+            // حساب المقاسات الفعلية بالسنتيمتر من الإحداثيات المرصودة
+            const t1Cm = spanCmBetween(topPt, browPt).dy.toFixed(2);
+            const t2Cm = spanCmBetween(browPt, nosePt).dy.toFixed(2);
+            const t3Cm = spanCmBetween(nosePt, chinPt).dy.toFixed(2);
+            const totalHCm = spanCmBetween(topPt, chinPt).direct.toFixed(2);
+            const totalWCm = spanCmBetween(leftCheek, rightCheek).direct.toFixed(2);
+            const rEyeCm = spanCmBetween(f.rightEyeInner, f.rightEyeOuter).direct.toFixed(2);
+            const lEyeCm = spanCmBetween(f.leftEyeOuter, f.leftEyeInner).direct.toFixed(2);
+            const interEyeCm = spanCmBetween(f.leftEyeInner, f.rightEyeInner).direct.toFixed(2);
+            const noseWCm = spanCmBetween(f.noseLeft, f.noseRight).direct.toFixed(2);
+            const mouthWCm = spanCmBetween(f.mouthLeft, f.mouthRight).direct.toFixed(2);
 
-            const localTop = toLocalGridSpace(topPt.x, topPt.y);
-            const localBrow = toLocalGridSpace(browPt.x, browPt.y);
-            const localNose = toLocalGridSpace(nosePt.x, nosePt.y);
-            const localChin = toLocalGridSpace(chinPt.x, chinPt.y);
-            const localLeft = toLocalGridSpace(leftCheek.x, leftCheek.y);
-            const localRight = toLocalGridSpace(rightCheek.x, rightCheek.y);
+            const lw = (baseThickness * 0.85 * resFactor) / Math.sqrt(view.scale);
+            const lineSpan = r * 1.38;
 
-            state.yOffsets.hair = localTop.y;
-            state.yOffsets.brow = localBrow.y;
-            state.yOffsets.nose = localNose.y;
-            state.yOffsets.chin = localChin.y;
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+            ctx.shadowBlur = 4 * resFactor;
 
-            const spanY = Math.max(40, localChin.y - localTop.y);
-            state.bounds.topY = localTop.y - spanY * 0.14;
-            state.bounds.bottomY = localChin.y;
-            state.bounds.leftX = localLeft.x;
-            state.bounds.rightX = localRight.x;
+            // 1. دائرة لوميس الأساسية والقطع الجانبي وخط المنتصف
+            ctx.strokeStyle = lineColor;
+            ctx.lineWidth = lw;
+            ctx.beginPath();
+            ctx.arc(0, 0, r, 0, Math.PI * 2);
+            ctx.stroke();
 
-            buildAnatomicalLandmarksList();
-            resetParallelRulers();
+            ctx.save();
+            ctx.setLineDash([7 * resFactor, 5 * resFactor]);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, r * 0.68, r * 0.85, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
 
-            // الانتقال لعرض الشبكة المطبقة مباشرة
-            setMode('front', document.getElementById('tabFront'));
+            // خط المنتصف العمودي + قياس الطول الكلي للوجه
+            ctx.beginPath();
+            ctx.moveTo(0, lTop.y - r * 0.14);
+            ctx.lineTo(0, lChin.y + r * 0.14);
+            ctx.stroke();
+
+            // خطوط الفك السفلي
+            ctx.beginPath();
+            ctx.moveTo(lLeft.x, 0);
+            ctx.lineTo(lLeft.x * 0.66, lNose.y);
+            ctx.lineTo(0, lChin.y);
+            ctx.moveTo(lRight.x, 0);
+            ctx.lineTo(lRight.x * 0.66, lNose.y);
+            ctx.lineTo(0, lChin.y);
+            ctx.stroke();
+
+            // 2. الخطوط الأفقية الأربعة مع تسمياتها وأرقام مقاساتها جوار كل خط
+            const horizLines = [
+                { y: lTop.y,  name: 'الشعر',   posCm: imagePointToScreenCm(topPt).yCm.toFixed(1) },
+                { y: lBrow.y, name: 'الحواجب', posCm: imagePointToScreenCm(browPt).yCm.toFixed(1) },
+                { y: lNose.y, name: 'الأنف',   posCm: imagePointToScreenCm(nosePt).yCm.toFixed(1) },
+                { y: lChin.y, name: 'الذقن',   posCm: imagePointToScreenCm(chinPt).yCm.toFixed(1) }
+            ];
+
+            horizLines.forEach(item => {
+                ctx.strokeStyle = lineColor;
+                ctx.lineWidth = lw;
+                ctx.beginPath();
+                ctx.moveTo(-lineSpan, item.y);
+                ctx.lineTo(lineSpan, item.y);
+                ctx.stroke();
+
+                // بطاقة اسم الخط + موقعه العمودي بالسنتيمتر جوار طرف الخط الأيسر
+                drawLabelBadge(`${item.name} (${item.posCm} cm)`, -lineSpan - 42 * resFactor, item.y, 'rgba(0,0,0,0.88)', lineColor, resFactor);
+            });
+
+            // 3. أقواس الأثلاث العمودية على يمين الشبكة مع رقم مقاس كل ثلث بالسنتيمتر
+            const bx = lineSpan + 12 * resFactor;
+            drawVerticalSpanBracket(bx, lTop.y, lBrow.y, `${t1Cm} cm`, resFactor);
+            drawVerticalSpanBracket(bx, lBrow.y, lNose.y, `${t2Cm} cm`, resFactor);
+            drawVerticalSpanBracket(bx, lNose.y, lChin.y, `${t3Cm} cm`, resFactor);
+
+            // 4. خطي عرض الوجه الأرجوانيين مع رقم العرض الكلي والطول الكلي جوار الخطوط
+            ctx.save();
+            ctx.strokeStyle = '#FF55FF';
+            ctx.lineWidth = lw * 0.85;
+            ctx.setLineDash([6 * resFactor, 4 * resFactor]);
+            const vTop = lTop.y - 22 * resFactor;
+            const vBot = lChin.y + 22 * resFactor;
+            ctx.beginPath();
+            ctx.moveTo(lLeft.x, vTop); ctx.lineTo(lLeft.x, vBot);
+            ctx.moveTo(lRight.x, vTop); ctx.lineTo(lRight.x, vBot);
+            ctx.stroke();
+            ctx.restore();
+
+            drawLabelBadge(`عرض الوجه = ${totalWCm} cm`, 0, vTop - 12 * resFactor, 'rgba(20,0,25,0.92)', '#FF55FF', resFactor);
+            drawLabelBadge(`طول الوجه = ${totalHCm} cm`, 0, vBot + 14 * resFactor, 'rgba(20,0,25,0.92)', '#FF55FF', resFactor);
+
+            ctx.restore();
+
+            // 5. أرقام المقاسات جوار الملامح الدقيقة (العينين، بين العينين، الأنف، الفم)
+            ctx.save();
+            drawLabelBadge(`ع.يسرى ${lEyeCm}cm`, (f.leftEyeOuter.x + f.leftEyeInner.x) / 2, (f.leftEyeOuter.y + f.leftEyeInner.y) / 2 - 16 * resFactor, 'rgba(0,15,25,0.9)', '#00E5FF', resFactor);
+            drawLabelBadge(`ع.يمنى ${rEyeCm}cm`, (f.rightEyeInner.x + f.rightEyeOuter.x) / 2, (f.rightEyeInner.y + f.rightEyeOuter.y) / 2 - 16 * resFactor, 'rgba(0,15,25,0.9)', '#00E5FF', resFactor);
+            drawLabelBadge(`بينهما ${interEyeCm}cm`, (f.leftEyeInner.x + f.rightEyeInner.x) / 2, (f.leftEyeInner.y + f.rightEyeInner.y) / 2 + 16 * resFactor, 'rgba(0,25,15,0.9)', '#00FF88', resFactor);
+            drawLabelBadge(`أنف ${noseWCm}cm`, (f.noseLeft.x + f.noseRight.x) / 2, (f.noseLeft.y + f.noseRight.y) / 2 - 14 * resFactor, 'rgba(25,15,0,0.9)', '#FF9100', resFactor);
+            drawLabelBadge(`فم ${mouthWCm}cm`, (f.mouthLeft.x + f.mouthRight.x) / 2, (f.mouthLeft.y + f.mouthRight.y) / 2 + 16 * resFactor, 'rgba(25,0,10,0.9)', '#FF3366', resFactor);
+            ctx.restore();
         }
 
         // --- تهيئة اختيارية آمنة لمحرك FaceLandmarker 3D دون تعطيل اللوحة أبداً ---
@@ -3629,6 +3735,10 @@
                     drawLabelBadge(label, item.pt.x, item.pt.y - 16 * resFactor, 'rgba(0,0,0,0.85)', item.color, resFactor);
                 }
             });
+
+            if (isCoordsGridActive) {
+                drawCoordsGridWithMeasurements(resFactor);
+            }
 
             if (coordsRulerState.active) {
                 drawCoordsActiveRulers(resFactor);
