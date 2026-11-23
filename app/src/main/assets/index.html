@@ -941,13 +941,12 @@
         <table class="coords-table">
             <thead>
                 <tr>
-                    <th>المعلم التشريحي</th>
-                    <th>الموقع الفعلي (X, Y) cm</th>
-                    <th>نسبة (X%, Y%)</th>
+                    <th>الجزء / المعلم</th>
+                    <th>المقاس بالسنتيمتر (طولاً / عرضاً / موقعاً)</th>
                 </tr>
             </thead>
             <tbody id="coordsTableBody">
-                <tr><td colspan="3" style="text-align:center; color:#888;">ارفع صورة لرصد الإحداثيات بالسنتيمتر</td></tr>
+                <tr><td colspan="2" style="text-align:center; color:#888;">ارفع صورة لعرض مقاسات الوجه وملامحه بالسنتيمتر</td></tr>
             </tbody>
         </table>
 
@@ -2675,6 +2674,15 @@
             redraw();
         }
 
+        function spanCmBetween(p1, p2) {
+            const a = imagePointToScreenCm(p1);
+            const b = imagePointToScreenCm(p2);
+            const dx = Math.abs(b.xCm - a.xCm);
+            const dy = Math.abs(b.yCm - a.yCm);
+            const direct = Math.hypot(dx, dy);
+            return { dx, dy, direct };
+        }
+
         function updateActualCoordsPanel() {
             const tbody = document.getElementById('coordsTableBody');
             const badge = document.getElementById('coordsSourceBadge');
@@ -2683,32 +2691,88 @@
             badge.textContent = lastDetectedSource;
 
             if (!features) return;
+            const f = features;
             const kp = actualKeyPoints || {};
-            const rows = [
-                { label: 'أعلى الجبهة / منبت الشعر', pt: kp.topHead },
-                { label: 'منتصف الحاجبين', pt: kp.browCenter },
-                { label: 'طرف العين اليسرى الخارجي', pt: features.leftEyeOuter },
-                { label: 'مدمع العين اليسرى', pt: features.leftEyeInner },
-                { label: 'مدمع العين اليمنى', pt: features.rightEyeInner },
-                { label: 'طرف العين اليمنى الخارجي', pt: features.rightEyeOuter },
-                { label: 'قاعدة الأنف', pt: kp.noseBase },
-                { label: 'جناح الأنف الأيسر', pt: features.noseLeft },
-                { label: 'جناح الأنف الأيمن', pt: features.noseRight },
-                { label: 'زاوية الفم اليسرى', pt: features.mouthLeft },
-                { label: 'زاوية الفم اليمنى', pt: features.mouthRight },
-                { label: 'حافة الخد الأيسر', pt: kp.leftCheek },
-                { label: 'حافة الخد الأيمن', pt: kp.rightCheek },
-                { label: 'ذروة الذقن', pt: kp.chin }
+
+            const topPt = kp.topHead || { x: state.cx, y: state.cy + state.yOffsets.hair };
+            const browPt = kp.browCenter || { x: state.cx, y: state.cy + state.yOffsets.brow };
+            const nosePt = kp.noseBase || { x: state.cx, y: state.cy + state.yOffsets.nose };
+            const chinPt = kp.chin || { x: state.cx, y: state.cy + state.yOffsets.chin };
+            const leftCheek = kp.leftCheek || { x: state.cx + state.bounds.leftX, y: state.cy };
+            const rightCheek = kp.rightCheek || { x: state.cx + state.bounds.rightX, y: state.cy };
+
+            const faceH = spanCmBetween(topPt, chinPt);
+            const faceW = spanCmBetween(leftCheek, rightCheek);
+
+            const rightEyeSpan = spanCmBetween(f.rightEyeInner, f.rightEyeOuter);
+            const rightEyeOpenH = rightEyeSpan.direct * 0.44;
+
+            const leftEyeSpan = spanCmBetween(f.leftEyeOuter, f.leftEyeInner);
+            const leftEyeOpenH = leftEyeSpan.direct * 0.44;
+
+            const interEyeSpan = spanCmBetween(f.leftEyeInner, f.rightEyeInner);
+
+            const noseLenSpan = spanCmBetween(browPt, nosePt);
+            const noseWidSpan = spanCmBetween(f.noseLeft, f.noseRight);
+
+            const mouthWidSpan = spanCmBetween(f.mouthLeft, f.mouthRight);
+            const mouthMid = { x: (f.mouthLeft.x + f.mouthRight.x) / 2, y: (f.mouthLeft.y + f.mouthRight.y) / 2 };
+            const noseToMouth = spanCmBetween(nosePt, mouthMid);
+            const mouthToChin = spanCmBetween(mouthMid, chinPt);
+
+            const t1 = spanCmBetween(topPt, browPt);
+            const t2 = spanCmBetween(browPt, nosePt);
+            const t3 = spanCmBetween(nosePt, chinPt);
+
+            const topSc = imagePointToScreenCm(topPt);
+            const browSc = imagePointToScreenCm(browPt);
+            const noseSc = imagePointToScreenCm(nosePt);
+            const chinSc = imagePointToScreenCm(chinPt);
+
+            const items = [
+                {
+                    name: '👁️ العين اليمنى',
+                    desc: `عرضاً (من الزاوية للزاوية) = ${rightEyeSpan.direct.toFixed(2)} cm | طولاً (ارتفاع الفتحة) = ${rightEyeOpenH.toFixed(2)} cm`
+                },
+                {
+                    name: '👁️ العين اليسرى',
+                    desc: `عرضاً (من الزاوية للزاوية) = ${leftEyeSpan.direct.toFixed(2)} cm | طولاً (ارتفاع الفتحة) = ${leftEyeOpenH.toFixed(2)} cm`
+                },
+                {
+                    name: '↔️ ما بين العينين',
+                    desc: `عرضاً (بين المدمعين) = ${interEyeSpan.direct.toFixed(2)} cm | فرق الطول (ΔY) = ${interEyeSpan.dy.toFixed(2)} cm`
+                },
+                {
+                    name: '👃 مقاس الأنف',
+                    desc: `طولاً (من الحاجب للقاعدة) = ${noseLenSpan.direct.toFixed(2)} cm | عرضاً (بين الفتحتين) = ${noseWidSpan.direct.toFixed(2)} cm`
+                },
+                {
+                    name: '👄 مقاس الفم',
+                    desc: `عرضاً (بين الزاويتين) = ${mouthWidSpan.direct.toFixed(2)} cm | يبعد عن الأنف طولاً = ${noseToMouth.dy.toFixed(2)} cm`
+                },
+                {
+                    name: '🧔 الذقن والفك',
+                    desc: `من الفم لذروة الذقن طولاً = ${mouthToChin.dy.toFixed(2)} cm | عرض الفك = ${(faceW.direct * 0.78).toFixed(2)} cm`
+                },
+                {
+                    name: '📐 الوجه الكلي',
+                    desc: `طولاً (الجبهة للذقن) = ${faceH.direct.toFixed(2)} cm | عرضاً (بين الخدين) = ${faceW.direct.toFixed(2)} cm`
+                },
+                {
+                    name: '📊 أثلاث الوجه طولاً',
+                    desc: `الجبهة = ${t1.dy.toFixed(2)} cm | الأنف = ${t2.dy.toFixed(2)} cm | الذقن = ${t3.dy.toFixed(2)} cm`
+                },
+                {
+                    name: '📍 موقع المحور على الشاشة',
+                    desc: `الجبهة (يمين ${topSc.xCm.toFixed(1)}, أسفل ${topSc.yCm.toFixed(1)}) | الحاجب (${browSc.xCm.toFixed(1)}, ${browSc.yCm.toFixed(1)}) | الأنف (${noseSc.xCm.toFixed(1)}, ${noseSc.yCm.toFixed(1)}) | الذقن (${chinSc.xCm.toFixed(1)}, ${chinSc.yCm.toFixed(1)}) cm`
+                }
             ];
 
             let html = '';
-            rows.forEach(r => {
-                if (!r.pt) return;
-                const sc = imagePointToScreenCm(r.pt);
+            items.forEach(item => {
                 html += `<tr>
-                    <td>${r.label}</td>
-                    <td class="num">(${sc.xCm.toFixed(2)}, ${sc.yCm.toFixed(2)}) cm</td>
-                    <td class="norm">(${sc.pctX.toFixed(1)}%, ${sc.pctY.toFixed(1)}%)</td>
+                    <td style="font-weight:bold; color:#38bdf8; white-space:nowrap;">${item.name}</td>
+                    <td style="color:#ffd700; font-weight:bold; line-height:1.55;">${item.desc}</td>
                 </tr>`;
             });
             tbody.innerHTML = html;
@@ -2718,16 +2782,16 @@
             const tbody = document.getElementById('coordsTableBody');
             if (!tbody) return;
             const { wCm, hCm } = getScreenCmDimensions();
-            const lines = [`المصدر: ${lastDetectedSource}`, `مقاس الشاشة: ${wCm} cm × ${hCm} cm`, '---'];
+            const lines = [`مقاسات الوجه وملامحه بالسنتيمتر (مقاس الشاشة: ${wCm} × ${hCm} cm)`, '---'];
             Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
                 const cells = tr.querySelectorAll('td');
-                if (cells.length === 3) {
-                    lines.push(`${cells[0].textContent}: ${cells[1].textContent} | ${cells[2].textContent}`);
+                if (cells.length === 2) {
+                    lines.push(`${cells[0].textContent}: ${cells[1].textContent}`);
                 }
             });
             const text = lines.join('\n');
             if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text).then(() => alert('تم نسخ إحداثيات الوجه بالسنتيمتر بنجاح!'));
+                navigator.clipboard.writeText(text).then(() => alert('تم نسخ مقاسات الوجه وملامحه بالسنتيمتر بنجاح!'));
             } else {
                 alert(text);
             }
