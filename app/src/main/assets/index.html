@@ -2937,8 +2937,7 @@
                     lines.push(`${cells[0].textContent}: ${cells[1].textContent}`);
                 }
             });
-            const text = lines.join('
-');
+            const text = lines.join('\n');
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(text).then(() => alert('تم نسخ مقاسات الوجه وملامحه بالسنتيمتر بنجاح!'));
             } else {
