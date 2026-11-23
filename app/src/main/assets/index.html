@@ -403,6 +403,39 @@
             font-size: 10px;
             font-weight: bold;
         }
+        .coords-screen-box {
+            background: #0b141b;
+            border: 1px solid #1e3a52;
+            border-radius: 6px;
+            padding: 7px 8px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            font-size: 10.5px;
+            color: #cbd5e1;
+        }
+        .coords-screen-inputs {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .coords-dim-input {
+            width: 44px;
+            background: #13222e;
+            border: 1px solid #38bdf8;
+            color: #ffd700;
+            border-radius: 4px;
+            padding: 3px 4px;
+            font-size: 11px;
+            font-weight: bold;
+            text-align: center;
+            direction: ltr;
+            user-select: text;
+            -webkit-user-select: text;
+        }
         .coords-table {
             width: 100%;
             border-collapse: collapse;
@@ -440,13 +473,15 @@
             display: flex;
             gap: 6px;
             margin-top: 8px;
+            flex-wrap: wrap;
         }
         .coords-btn {
             flex: 1;
+            min-width: 120px;
             background: #1c3144;
             color: #e0f2fe;
             border: 1px solid #0284c7;
-            padding: 7px 6px;
+            padding: 8px 6px;
             border-radius: 6px;
             font-size: 11px;
             font-weight: bold;
@@ -457,6 +492,11 @@
             background: #00e5ff;
             color: #000;
             border-color: #00e5ff;
+        }
+        .coords-btn.gold {
+            background: #ffd700;
+            color: #000;
+            border-color: #ffd700;
         }
 
         .proportions-card {
@@ -883,27 +923,38 @@
 
     <div class="coords-card" id="coordsCard">
         <div class="coords-header-row">
-            <span style="color:#00e5ff; font-weight:bold;">📍 إحداثيات المعالم الفعلية على الصورة:</span>
+            <span style="color:#00e5ff; font-weight:bold;">📍 إحداثيات المعالم الفعلية بالسنتيمتر (cm):</span>
             <span class="coords-status-badge" id="coordsSourceBadge">في انتظار رفع صورة</span>
         </div>
-        <div style="color:#94a3b8; font-size:10px; margin-bottom:6px;" id="coordsImageDims">أبعاد اللوحة الحالية: 720 × 960 بكسل</div>
+
+        <div class="coords-screen-box">
+            <span>مقاس شاشة العرض الفعلي:</span>
+            <div class="coords-screen-inputs">
+                <span>العرض:</span>
+                <input type="number" id="screenWidthCmInput" class="coords-dim-input" value="6" step="0.5" min="1" max="50" oninput="onScreenCmDimsChange()">
+                <span>cm × الطول:</span>
+                <input type="number" id="screenHeightCmInput" class="coords-dim-input" value="8" step="0.5" min="1" max="50" oninput="onScreenCmDimsChange()">
+                <span>cm</span>
+            </div>
+        </div>
 
         <table class="coords-table">
             <thead>
                 <tr>
                     <th>المعلم التشريحي</th>
-                    <th>بكسل (X, Y)</th>
+                    <th>الموقع الفعلي (X, Y) cm</th>
                     <th>نسبة (X%, Y%)</th>
                 </tr>
             </thead>
             <tbody id="coordsTableBody">
-                <tr><td colspan="3" style="text-align:center; color:#888;">ارفع صورة لرصد الإحداثيات الفعلية</td></tr>
+                <tr><td colspan="3" style="text-align:center; color:#888;">ارفع صورة لرصد الإحداثيات بالسنتيمتر</td></tr>
             </tbody>
         </table>
 
         <div class="coords-actions">
-            <button class="coords-btn primary" onclick="recalculateAllMeasurements()">🔄 تحديث القراءة من الصورة</button>
-            <button class="coords-btn" onclick="copyActualCoordinates()">📋 نسخ الإحداثيات</button>
+            <button class="coords-btn gold" onclick="applyCoordsToLoomisGrid()">📐 ضبط الشبكة وفق هذه القياسات</button>
+            <button class="coords-btn primary" onclick="recalculateAllMeasurements()">🔄 تحديث القراءة</button>
+            <button class="coords-btn" onclick="copyActualCoordinates()">📋 نسخ (cm)</button>
         </div>
     </div>
 
@@ -948,7 +999,7 @@
         </div>
 
         <div class="plumb-report-box" id="plumbReportBox">
-            اسحب الدائرة السماوية (أو البرتقالية) فوق أي معلم في الوجه لرؤية المحاذاة والمسافة بين النقطتين بالسنتيمتر.
+            اسحب الدائرة السماوية (أو البرتقالية) من أي مكان على خطيها الأفقي أو العمودي فوق أي معلم في الوجه.
         </div>
     </div>
 
@@ -962,7 +1013,7 @@
                 <option value="18.0" selected>ورقة A4 قياسي (طول الرأس 18 سم)</option>
                 <option value="22.0">ورقة A4 كبير (طول الرأس 22 سم)</option>
                 <option value="26.0">ورقة A3 (طول الرأس 26 سم)</option>
-                <option value="screen">مقياس شاشة الهاتف الفعلي (1:1)</option>
+                <option value="screen">مقياس شاشة الهاتف الفعلي (6×8 cm)</option>
             </select>
         </div>
 
@@ -1074,7 +1125,7 @@
             </select>
         </div>
 
-        <div class="hint">💡 افتح تبويب "📍 الإحداثيات" لرؤية الإحداثيات الفعلية المرصودة فور رفع أي صورة جديدة</div>
+        <div class="hint">💡 افتح تبويب "📍 الإحداثيات" لرؤية الإحداثيات الفعلية بالسنتيمتر (6×8 cm) وضبط الشبكة عليها</div>
     </div>
 
     <div class="ai-modal" id="aiModal">
@@ -1236,6 +1287,101 @@
         let initialPinchDist = null;
         let initialViewScale = 1;
         let lastPinchCenter = null;
+
+        // --- دوال تحويل إحداثيات الصورة إلى سنتيمترات شاشة العرض الفعلية (افتراضي 6cm عرض × 8cm طول) ---
+        function getScreenCmDimensions() {
+            const wEl = document.getElementById('screenWidthCmInput');
+            const hEl = document.getElementById('screenHeightCmInput');
+            const wCm = Math.max(0.5, parseFloat(wEl ? wEl.value : 6) || 6.0);
+            const hCm = Math.max(0.5, parseFloat(hEl ? hEl.value : 8) || 8.0);
+            return { wCm, hCm };
+        }
+
+        function imagePointToScreenCm(pt) {
+            const { wCm, hCm } = getScreenCmDimensions();
+            const w = Math.max(1, canvas.width);
+            const h = Math.max(1, canvas.height);
+
+            // تحويل إحداثيات الصورة إلى موضعها الفعلي داخل إطار شاشة العرض (مع مراعاة التكبير والتمرير)
+            const screenNormX = (pt.x * view.scale + view.offsetX) / w;
+            const screenNormY = (pt.y * view.scale + view.offsetY) / h;
+
+            return {
+                xCm: screenNormX * wCm,
+                yCm: screenNormY * hCm,
+                pctX: (pt.x / w) * 100,
+                pctY: (pt.y / h) * 100
+            };
+        }
+
+        function onScreenCmDimsChange() {
+            updateActualCoordsPanel();
+            redraw();
+        }
+
+        // --- ضبط شبكة لوميس تلقائياً وفق القياسات والإحداثيات الفعلية المرصودة ---
+        function applyCoordsToLoomisGrid() {
+            if (isLocked) {
+                alert('يرجى فتح القفل أولاً لضبط الشبكة.');
+                return;
+            }
+            if (!features) {
+                alert('لا توجد إحداثيات مرصودة حالياً.');
+                return;
+            }
+            const kp = actualKeyPoints || {};
+            const topPt = kp.topHead || { x: state.cx, y: state.cy + state.yOffsets.hair };
+            const browPt = kp.browCenter || { x: state.cx, y: state.cy + state.yOffsets.brow };
+            const nosePt = kp.noseBase || { x: state.cx, y: state.cy + state.yOffsets.nose };
+            const chinPt = kp.chin || { x: state.cx, y: state.cy + state.yOffsets.chin };
+            const leftCheek = kp.leftCheek || { x: state.cx + state.bounds.leftX, y: state.cy };
+            const rightCheek = kp.rightCheek || { x: state.cx + state.bounds.rightX, y: state.cy };
+
+            const eyeAngleDeg = Math.round(
+                Math.atan2(features.rightEyeOuter.y - features.leftEyeOuter.y, features.rightEyeOuter.x - features.leftEyeOuter.x) * 180 / Math.PI
+            );
+            const rollDeg = Math.max(-60, Math.min(60, headPose3D.roll || eyeAngleDeg));
+
+            const centerX = (leftCheek.x + rightCheek.x) / 2;
+            const faceWidthPx = Math.max(40, dist(leftCheek, rightCheek));
+            const faceHeightPx = Math.max(60, dist(topPt, chinPt));
+
+            state.cx = centerX;
+            state.cy = browPt.y + faceHeightPx * 0.08;
+            state.radius = Math.round(Math.max(faceWidthPx, faceHeightPx * 0.76) * 0.58);
+            state.angle = rollDeg;
+
+            radiusRange.max = Math.max(600, Math.round(Math.max(canvas.width, canvas.height) * 0.65));
+            radiusRange.value = state.radius;
+            document.getElementById('radiusVal').textContent = state.radius;
+
+            angleRange.value = rollDeg;
+            document.getElementById('angleVal').textContent = rollDeg + '°';
+
+            const localTop = toLocalGridSpace(topPt.x, topPt.y);
+            const localBrow = toLocalGridSpace(browPt.x, browPt.y);
+            const localNose = toLocalGridSpace(nosePt.x, nosePt.y);
+            const localChin = toLocalGridSpace(chinPt.x, chinPt.y);
+            const localLeft = toLocalGridSpace(leftCheek.x, leftCheek.y);
+            const localRight = toLocalGridSpace(rightCheek.x, rightCheek.y);
+
+            state.yOffsets.hair = localTop.y;
+            state.yOffsets.brow = localBrow.y;
+            state.yOffsets.nose = localNose.y;
+            state.yOffsets.chin = localChin.y;
+
+            const spanY = Math.max(40, localChin.y - localTop.y);
+            state.bounds.topY = localTop.y - spanY * 0.14;
+            state.bounds.bottomY = localChin.y;
+            state.bounds.leftX = localLeft.x;
+            state.bounds.rightX = localRight.x;
+
+            buildAnatomicalLandmarksList();
+            resetParallelRulers();
+
+            // الانتقال لعرض الشبكة المطبقة مباشرة
+            setMode('front', document.getElementById('tabFront'));
+        }
 
         // --- تهيئة اختيارية آمنة لمحرك FaceLandmarker 3D دون تعطيل اللوحة أبداً ---
         let faceLandmarker = null;
@@ -1742,6 +1888,17 @@
                 plumbState.p2.snappedName = null;
             }
             redraw();
+        }
+
+        // فحص ما إذا كانت نقطة اللمس قريبة من المركز أو أي مكان على خطي الشاقول (الأفقي أو العمودي)
+        function isNearPlumbCrosshair(pos, plumbPt, lineHitRadius) {
+            const axisDeg = plumbState.alignWithHead ? state.angle : 0;
+            const rad = -axisDeg * Math.PI / 180;
+            const dx = pos.x - plumbPt.x;
+            const dy = pos.y - plumbPt.y;
+            const localX = dx * Math.cos(rad) - dy * Math.sin(rad);
+            const localY = dx * Math.sin(rad) + dy * Math.cos(rad);
+            return Math.abs(localX) <= lineHitRadius || Math.abs(localY) <= lineHitRadius;
         }
 
         function buildAnatomicalLandmarksList() {
@@ -2491,7 +2648,7 @@
                 leftCheek: { x: cx - faceW * 0.5, y: (eyeY + noseY) * 0.5 },
                 rightCheek: { x: cx + faceW * 0.5, y: (eyeY + noseY) * 0.5 }
             };
-            lastDetectedSource = `إحداثيات الصورة (${w}×${h})`;
+            lastDetectedSource = `إحداثيات الصورة (${getScreenCmDimensions().wCm}×${getScreenCmDimensions().hCm} cm)`;
 
             if (!isLocked) {
                 state.cx = cx;
@@ -2521,13 +2678,9 @@
         function updateActualCoordsPanel() {
             const tbody = document.getElementById('coordsTableBody');
             const badge = document.getElementById('coordsSourceBadge');
-            const dimsEl = document.getElementById('coordsImageDims');
             if (!tbody) return;
 
-            const w = Math.max(1, canvas.width);
-            const h = Math.max(1, canvas.height);
             badge.textContent = lastDetectedSource;
-            dimsEl.textContent = `أبعاد الصورة/اللوحة الحالية: ${w} × ${h} بكسل`;
 
             if (!features) return;
             const kp = actualKeyPoints || {};
@@ -2551,14 +2704,11 @@
             let html = '';
             rows.forEach(r => {
                 if (!r.pt) return;
-                const pxX = Math.round(r.pt.x);
-                const pxY = Math.round(r.pt.y);
-                const pctX = ((r.pt.x / w) * 100).toFixed(1);
-                const pctY = ((r.pt.y / h) * 100).toFixed(1);
+                const sc = imagePointToScreenCm(r.pt);
                 html += `<tr>
                     <td>${r.label}</td>
-                    <td class="num">(${pxX}, ${pxY})</td>
-                    <td class="norm">(${pctX}%, ${pctY}%)</td>
+                    <td class="num">(${sc.xCm.toFixed(2)}, ${sc.yCm.toFixed(2)}) cm</td>
+                    <td class="norm">(${sc.pctX.toFixed(1)}%, ${sc.pctY.toFixed(1)}%)</td>
                 </tr>`;
             });
             tbody.innerHTML = html;
@@ -2567,7 +2717,8 @@
         function copyActualCoordinates() {
             const tbody = document.getElementById('coordsTableBody');
             if (!tbody) return;
-            const lines = [`المصدر: ${lastDetectedSource}`, document.getElementById('coordsImageDims').textContent, '---'];
+            const { wCm, hCm } = getScreenCmDimensions();
+            const lines = [`المصدر: ${lastDetectedSource}`, `مقاس الشاشة: ${wCm} cm × ${hCm} cm`, '---'];
             Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
                 const cells = tr.querySelectorAll('td');
                 if (cells.length === 3) {
@@ -2576,7 +2727,7 @@
             });
             const text = lines.join('\n');
             if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text).then(() => alert('تم نسخ إحداثيات الوجه الفعلية بنجاح!'));
+                navigator.clipboard.writeText(text).then(() => alert('تم نسخ إحداثيات الوجه بالسنتيمتر بنجاح!'));
             } else {
                 alert(text);
             }
@@ -2710,6 +2861,7 @@
             view.offsetX = 0;
             view.offsetY = 0;
             document.getElementById('btnZoomReset').textContent = '100%';
+            updateActualCoordsPanel();
             redraw();
         }
 
@@ -2859,15 +3011,19 @@
                 }
             }
 
+            // التقاط الشاقول من المركز أو من أي نقطة على خطيه الأفقي أو العمودي
             if (plumbState.active) {
-                if (plumbState.dual && dist(pos, plumbState.p2) < ptHitThreshold) {
+                const plumbLineHit = Math.max(30, canvas.width * 0.045) / view.scale;
+                if (plumbState.dual && (dist(pos, plumbState.p2) < ptHitThreshold || isNearPlumbCrosshair(pos, plumbState.p2, plumbLineHit))) {
                     dragTarget = 'plumb:2';
                     plumbState.activeIndex = 1;
+                    dragStart = { x: pos.x - plumbState.p2.x, y: pos.y - plumbState.p2.y };
                     return;
                 }
-                if (dist(pos, plumbState.p1) < ptHitThreshold) {
+                if (dist(pos, plumbState.p1) < ptHitThreshold || isNearPlumbCrosshair(pos, plumbState.p1, plumbLineHit)) {
                     dragTarget = 'plumb:1';
                     plumbState.activeIndex = 0;
+                    dragStart = { x: pos.x - plumbState.p1.x, y: pos.y - plumbState.p1.y };
                     return;
                 }
             }
@@ -2944,14 +3100,14 @@
             }
 
             if (dragTarget === 'plumb:1') {
-                plumbState.p1.x = pos.x;
-                plumbState.p1.y = pos.y;
+                plumbState.p1.x = pos.x - dragStart.x;
+                plumbState.p1.y = pos.y - dragStart.y;
                 applyMagneticSnap(plumbState.p1);
                 redraw();
                 return;
             } else if (dragTarget === 'plumb:2') {
-                plumbState.p2.x = pos.x;
-                plumbState.p2.y = pos.y;
+                plumbState.p2.x = pos.x - dragStart.x;
+                plumbState.p2.y = pos.y - dragStart.y;
                 applyMagneticSnap(plumbState.p2);
                 redraw();
                 return;
@@ -3032,6 +3188,7 @@
                 lastPinchCenter = center;
                 view.scale = newScale;
                 document.getElementById('btnZoomReset').textContent = `${Math.round(view.scale * 100)}%`;
+                updateActualCoordsPanel();
                 redraw();
             }
         }, { passive: false });
@@ -3054,10 +3211,8 @@
             const totalHeadPx = Math.max(80, Math.abs(state.bounds.bottomY - state.bounds.topY));
 
             if (scaleVal === 'screen') {
-                const rect = canvas.getBoundingClientRect();
-                const displayedScale = (rect.width / canvas.width) * view.scale;
-                const cssPxPerCm = 37.795;
-                return displayedScale / cssPxPerCm;
+                const { hCm } = getScreenCmDimensions();
+                return (hCm / Math.max(1, canvas.height)) * view.scale;
             } else {
                 const targetHeadCm = parseFloat(scaleVal) || 18.0;
                 return targetHeadCm / totalHeadPx;
@@ -3174,7 +3329,8 @@
                 ctx.fill();
 
                 if (item.tag) {
-                    const label = `${item.tag} (${Math.round(item.pt.x)},${Math.round(item.pt.y)})`;
+                    const sc = imagePointToScreenCm(item.pt);
+                    const label = `${item.tag} (${sc.xCm.toFixed(1)}, ${sc.yCm.toFixed(1)} cm)`;
                     drawLabelBadge(label, item.pt.x, item.pt.y - 16 * resFactor, 'rgba(0,0,0,0.85)', item.color, resFactor);
                 }
             });
