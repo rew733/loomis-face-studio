@@ -94,8 +94,8 @@
             margin-top: 6px;
             width: 96%;
             max-width: 480px;
-            height: 58vh;
-            min-height: 410px;
+            height: auto;
+            min-height: 360px;
             border-radius: 10px;
             overflow: hidden;
             background-color: #141414;
@@ -1241,22 +1241,40 @@
         function fitCanvasAspectToContainer() {
             const cont = document.getElementById('canvasContainer');
             if (!cont || !canvas.width || !canvas.height) return;
-            const cRect = cont.getBoundingClientRect();
-            const cw = Math.max(1, cRect.width);
-            const ch = Math.max(1, cRect.height);
             const imgRatio = canvas.width / canvas.height;
-            const contRatio = cw / ch;
 
-            let dispW, dispH;
-            if (imgRatio > contRatio) {
-                dispW = cw;
-                dispH = cw / imgRatio;
-            } else {
-                dispH = ch;
-                dispW = ch * imgRatio;
+            if (document.body.classList.contains('fullscreen-mode')) {
+                const vw = window.innerWidth;
+                const vh = window.innerHeight;
+                const vRatio = vw / vh;
+                let dispW, dispH;
+                if (imgRatio > vRatio) {
+                    dispW = vw;
+                    dispH = vw / imgRatio;
+                } else {
+                    dispH = vh;
+                    dispW = vh * imgRatio;
+                }
+                cont.style.height = `${vh}px`;
+                canvas.style.width = `${Math.round(dispW)}px`;
+                canvas.style.height = `${Math.round(dispH)}px`;
+                return;
             }
-            canvas.style.width = `${Math.round(dispW)}px`;
-            canvas.style.height = `${Math.round(dispH)}px`;
+
+            // ملء عرض الحاوية بالكامل وضبط الارتفاع تلقائياً حسب نسبة أبعاد الصورة لمنع أي فراغ أسود جانبي
+            const cw = Math.max(240, cont.clientWidth || Math.min(window.innerWidth * 0.96, 480));
+            const maxAllowedH = Math.round(window.innerHeight * 0.78);
+            let dispW = cw;
+            let dispH = Math.round(cw / imgRatio);
+
+            if (dispH > maxAllowedH) {
+                dispH = maxAllowedH;
+                dispW = Math.round(dispH * imgRatio);
+            }
+
+            cont.style.height = `${dispH}px`;
+            canvas.style.width = `${dispW}px`;
+            canvas.style.height = `${dispH}px`;
         }
         window.addEventListener('resize', () => { fitCanvasAspectToContainer(); redraw(); });
 
@@ -2640,17 +2658,32 @@
                     document.getElementById('angleVal').textContent = rollDeg + '°';
 
                     const localTop = toLocalGridSpace(topHead.x, topHead.y);
+                    const localBrow = toLocalGridSpace(browPt.x, browPt.y);
+                    const localNose = toLocalGridSpace(noseBase.x, noseBase.y);
                     const localChin = toLocalGridSpace(chinPt.x, chinPt.y);
                     const localLeft = toLocalGridSpace(leftFaceEdge.x, leftFaceEdge.y);
                     const localRight = toLocalGridSpace(rightFaceEdge.x, rightFaceEdge.y);
 
-                    state.yOffsets.brow = toLocalGridSpace(browPt.x, browPt.y).y;
-                    state.yOffsets.nose = toLocalGridSpace(noseBase.x, noseBase.y).y;
-                    state.yOffsets.chin = localChin.y;
-                    state.yOffsets.hair = localTop.y;
+                    // حساب منبت الشعر التشريحي الصحيح (نقطة lm[10] في MediaPipe تقع أسفل منبت الشعر الفعلي)
+                    const midThird = Math.max(10, localNose.y - localBrow.y);
+                    const lowerThird = Math.max(10, localChin.y - localNose.y);
+                    const avgThird = (midThird + lowerThird) * 0.5;
+                    const trueHairY = Math.min(localTop.y - avgThird * 0.22, localBrow.y - avgThird * 0.96);
 
-                    const faceSpanY = localChin.y - localTop.y;
-                    state.bounds.topY = localTop.y - faceSpanY * 0.14;
+                    state.yOffsets.brow = localBrow.y;
+                    state.yOffsets.nose = localNose.y;
+                    state.yOffsets.chin = localChin.y;
+                    state.yOffsets.hair = trueHairY;
+
+                    // تحديث نقطة منبت الشعر في الإحداثيات الفعلية لتطابق المنبت الصحيح
+                    const radHair = state.angle * Math.PI / 180;
+                    actualKeyPoints.topHead = {
+                        x: state.cx - trueHairY * Math.sin(radHair),
+                        y: state.cy + trueHairY * Math.cos(radHair)
+                    };
+
+                    const faceSpanY = localChin.y - trueHairY;
+                    state.bounds.topY = trueHairY - faceSpanY * 0.10;
                     state.bounds.bottomY = localChin.y;
                     state.bounds.leftX = localLeft.x;
                     state.bounds.rightX = localRight.x;
@@ -2683,8 +2716,8 @@
             const w = canvas.width;
             const h = canvas.height;
             const cx = w * 0.5;
-            const topY = h * 0.16;
-            const browY = h * 0.33;
+            const topY = h * 0.13;
+            const browY = h * 0.34;
             const eyeY = h * 0.38;
             const noseY = h * 0.54;
             const mouthY = h * 0.67;
@@ -3064,6 +3097,7 @@
 
         function toggleFullscreen() {
             document.body.classList.toggle('fullscreen-mode');
+            fitCanvasAspectToContainer();
             const btn = document.getElementById('btnFullscreen');
             if (document.body.classList.contains('fullscreen-mode')) {
                 btn.textContent = '✕';
