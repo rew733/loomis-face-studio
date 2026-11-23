@@ -101,6 +101,9 @@
             background-color: #141414;
             border: 1px solid #333;
             touch-action: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             transition: all 0.25s ease;
         }
         body.fullscreen-mode header,
@@ -126,6 +129,7 @@
         canvas {
             width: 100%;
             height: 100%;
+            object-fit: contain;
             display: block;
         }
 
@@ -1234,6 +1238,28 @@
 
     <script>
         const canvas = document.getElementById('output_canvas');
+        function fitCanvasAspectToContainer() {
+            const cont = document.getElementById('canvasContainer');
+            if (!cont || !canvas.width || !canvas.height) return;
+            const cRect = cont.getBoundingClientRect();
+            const cw = Math.max(1, cRect.width);
+            const ch = Math.max(1, cRect.height);
+            const imgRatio = canvas.width / canvas.height;
+            const contRatio = cw / ch;
+
+            let dispW, dispH;
+            if (imgRatio > contRatio) {
+                dispW = cw;
+                dispH = cw / imgRatio;
+            } else {
+                dispH = ch;
+                dispW = ch * imgRatio;
+            }
+            canvas.style.width = `${Math.round(dispW)}px`;
+            canvas.style.height = `${Math.round(dispH)}px`;
+        }
+        window.addEventListener('resize', () => { fitCanvasAspectToContainer(); redraw(); });
+
         const ctx = canvas.getContext('2d');
         const detectBanner = document.getElementById('detectBanner');
 
@@ -3147,14 +3173,17 @@
                 features = null;
                 actualKeyPoints = null;
                 hasDetectedOnce = false;
-                canvas.width = img.width || 720;
-                canvas.height = img.height || 960;
+                const exactW = img.naturalWidth || img.width || 720;
+                const exactH = img.naturalHeight || img.height || 960;
+                canvas.width = exactW;
+                canvas.height = exactH;
+                fitCanvasAspectToContainer();
 
-                state.cx = canvas.width / 2;
-                state.cy = canvas.height / 2.2;
-                state.radius = Math.round(Math.min(canvas.width, canvas.height) * 0.28);
+                state.cx = exactW / 2;
+                state.cy = exactH / 2.2;
+                state.radius = Math.round(Math.min(exactW, exactH) * 0.28);
 
-                radiusRange.max = Math.max(600, Math.round(Math.max(canvas.width, canvas.height) * 0.65));
+                radiusRange.max = Math.max(600, Math.round(Math.max(exactW, exactH) * 0.65));
                 radiusRange.value = state.radius;
                 document.getElementById('radiusVal').textContent = state.radius;
 
@@ -4306,6 +4335,7 @@
             }
         }
 
+        fitCanvasAspectToContainer();
         createDefaultFeaturesFromGrid();
         redraw();
     </script>
