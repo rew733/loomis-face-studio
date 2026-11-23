@@ -469,6 +469,35 @@
             font-family: monospace;
             color: #7dd3fc;
         }
+        .coords-ruler-btns {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 62px;
+        }
+        .mini-ruler-btn {
+            background: #172a3a;
+            color: #e0f2fe;
+            border: 1px solid #0284c7;
+            border-radius: 5px;
+            padding: 4px 5px;
+            font-size: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap;
+            text-align: center;
+            transition: 0.15s;
+        }
+        .mini-ruler-btn.active-w {
+            background: #00e5ff;
+            color: #000;
+            border-color: #00e5ff;
+        }
+        .mini-ruler-btn.active-h {
+            background: #00ff88;
+            color: #000;
+            border-color: #00ff88;
+        }
         .coords-actions {
             display: flex;
             gap: 6px;
@@ -942,11 +971,12 @@
             <thead>
                 <tr>
                     <th>الجزء / المعلم</th>
-                    <th>المقاس بالسنتيمتر (طولاً / عرضاً / موقعاً)</th>
+                    <th>المقاس بالسنتيمتر</th>
+                    <th style="text-align:center;">المسطرة</th>
                 </tr>
             </thead>
             <tbody id="coordsTableBody">
-                <tr><td colspan="2" style="text-align:center; color:#888;">ارفع صورة لعرض مقاسات الوجه وملامحه بالسنتيمتر</td></tr>
+                <tr><td colspan="3" style="text-align:center; color:#888;">ارفع صورة لعرض مقاسات الوجه وملامحه بالسنتيمتر</td></tr>
             </tbody>
         </table>
 
@@ -1258,6 +1288,15 @@
             alignWithHead: false,
             line1: 380,
             line2: 520
+        };
+
+        // حالة المسطرتين المدمجتين داخل تبويب الإحداثيات
+        let coordsRulerState = {
+            active: false,
+            key: null,
+            orientation: 'vertical',
+            line1: 300,
+            line2: 420
         };
 
         let features = null;
@@ -2683,6 +2722,98 @@
             return { dx, dy, direct };
         }
 
+        function getCoordsPartBounds(partKey) {
+            if (!features) return null;
+            const f = features;
+            const kp = actualKeyPoints || {};
+
+            const topPt = kp.topHead || { x: state.cx, y: state.cy + state.yOffsets.hair };
+            const browPt = kp.browCenter || { x: state.cx, y: state.cy + state.yOffsets.brow };
+            const nosePt = kp.noseBase || { x: state.cx, y: state.cy + state.yOffsets.nose };
+            const chinPt = kp.chin || { x: state.cx, y: state.cy + state.yOffsets.chin };
+            const leftCheek = kp.leftCheek || { x: state.cx + state.bounds.leftX, y: state.cy };
+            const rightCheek = kp.rightCheek || { x: state.cx + state.bounds.rightX, y: state.cy };
+            const mouthMid = { x: (f.mouthLeft.x + f.mouthRight.x) / 2, y: (f.mouthLeft.y + f.mouthRight.y) / 2 };
+
+            const rEyeLenPx = dist(f.rightEyeInner, f.rightEyeOuter);
+            const rEyeMidY = (f.rightEyeInner.y + f.rightEyeOuter.y) / 2;
+
+            const lEyeLenPx = dist(f.leftEyeOuter, f.leftEyeInner);
+            const lEyeMidY = (f.leftEyeOuter.y + f.leftEyeInner.y) / 2;
+
+            const jawHalfW = Math.abs(rightCheek.x - leftCheek.x) * 0.39;
+            const centerX = (leftCheek.x + rightCheek.x) / 2;
+
+            const map = {
+                'rightEye': {
+                    w1: f.rightEyeInner.x, w2: f.rightEyeOuter.x,
+                    h1: rEyeMidY - rEyeLenPx * 0.22, h2: rEyeMidY + rEyeLenPx * 0.22
+                },
+                'leftEye': {
+                    w1: f.leftEyeOuter.x, w2: f.leftEyeInner.x,
+                    h1: lEyeMidY - lEyeLenPx * 0.22, h2: lEyeMidY + lEyeLenPx * 0.22
+                },
+                'interEye': {
+                    w1: f.leftEyeInner.x, w2: f.rightEyeInner.x,
+                    h1: Math.min(f.leftEyeInner.y, f.rightEyeInner.y), h2: Math.max(f.leftEyeInner.y, f.rightEyeInner.y)
+                },
+                'nose': {
+                    w1: f.noseLeft.x, w2: f.noseRight.x,
+                    h1: browPt.y, h2: nosePt.y
+                },
+                'mouth': {
+                    w1: f.mouthLeft.x, w2: f.mouthRight.x,
+                    h1: nosePt.y, h2: mouthMid.y
+                },
+                'chinJaw': {
+                    w1: centerX - jawHalfW, w2: centerX + jawHalfW,
+                    h1: mouthMid.y, h2: chinPt.y
+                },
+                'fullFace': {
+                    w1: leftCheek.x, w2: rightCheek.x,
+                    h1: topPt.y, h2: chinPt.y
+                },
+                'thirds': {
+                    w1: leftCheek.x, w2: rightCheek.x,
+                    h1: topPt.y, h2: browPt.y
+                },
+                'axis': {
+                    w1: Math.min(topPt.x, chinPt.x), w2: Math.max(topPt.x, chinPt.x),
+                    h1: topPt.y, h2: chinPt.y
+                }
+            };
+            return map[partKey] || null;
+        }
+
+        function toggleCoordsPartRuler(partKey, dir) {
+            const toggleId = `${partKey}:${dir}`;
+            if (coordsRulerState.active && coordsRulerState.key === toggleId) {
+                coordsRulerState.active = false;
+                coordsRulerState.key = null;
+                updateActualCoordsPanel();
+                redraw();
+                return;
+            }
+
+            const bounds = getCoordsPartBounds(partKey);
+            if (!bounds) return;
+
+            coordsRulerState.active = true;
+            coordsRulerState.key = toggleId;
+            if (dir === 'w') {
+                coordsRulerState.orientation = 'vertical';
+                coordsRulerState.line1 = bounds.w1;
+                coordsRulerState.line2 = bounds.w2;
+            } else {
+                coordsRulerState.orientation = 'horizontal';
+                coordsRulerState.line1 = bounds.h1;
+                coordsRulerState.line2 = bounds.h2;
+            }
+
+            updateActualCoordsPanel();
+            redraw();
+        }
+
         function updateActualCoordsPanel() {
             const tbody = document.getElementById('coordsTableBody');
             const badge = document.getElementById('coordsSourceBadge');
@@ -2731,38 +2862,47 @@
 
             const items = [
                 {
+                    key: 'rightEye',
                     name: '👁️ العين اليمنى',
                     desc: `عرضاً (من الزاوية للزاوية) = ${rightEyeSpan.direct.toFixed(2)} cm | طولاً (ارتفاع الفتحة) = ${rightEyeOpenH.toFixed(2)} cm`
                 },
                 {
+                    key: 'leftEye',
                     name: '👁️ العين اليسرى',
                     desc: `عرضاً (من الزاوية للزاوية) = ${leftEyeSpan.direct.toFixed(2)} cm | طولاً (ارتفاع الفتحة) = ${leftEyeOpenH.toFixed(2)} cm`
                 },
                 {
+                    key: 'interEye',
                     name: '↔️ ما بين العينين',
                     desc: `عرضاً (بين المدمعين) = ${interEyeSpan.direct.toFixed(2)} cm | فرق الطول (ΔY) = ${interEyeSpan.dy.toFixed(2)} cm`
                 },
                 {
+                    key: 'nose',
                     name: '👃 مقاس الأنف',
                     desc: `طولاً (من الحاجب للقاعدة) = ${noseLenSpan.direct.toFixed(2)} cm | عرضاً (بين الفتحتين) = ${noseWidSpan.direct.toFixed(2)} cm`
                 },
                 {
+                    key: 'mouth',
                     name: '👄 مقاس الفم',
                     desc: `عرضاً (بين الزاويتين) = ${mouthWidSpan.direct.toFixed(2)} cm | يبعد عن الأنف طولاً = ${noseToMouth.dy.toFixed(2)} cm`
                 },
                 {
+                    key: 'chinJaw',
                     name: '🧔 الذقن والفك',
                     desc: `من الفم لذروة الذقن طولاً = ${mouthToChin.dy.toFixed(2)} cm | عرض الفك = ${(faceW.direct * 0.78).toFixed(2)} cm`
                 },
                 {
+                    key: 'fullFace',
                     name: '📐 الوجه الكلي',
                     desc: `طولاً (الجبهة للذقن) = ${faceH.direct.toFixed(2)} cm | عرضاً (بين الخدين) = ${faceW.direct.toFixed(2)} cm`
                 },
                 {
+                    key: 'thirds',
                     name: '📊 أثلاث الوجه طولاً',
                     desc: `الجبهة = ${t1.dy.toFixed(2)} cm | الأنف = ${t2.dy.toFixed(2)} cm | الذقن = ${t3.dy.toFixed(2)} cm`
                 },
                 {
+                    key: 'axis',
                     name: '📍 موقع المحور على الشاشة',
                     desc: `الجبهة (يمين ${topSc.xCm.toFixed(1)}, أسفل ${topSc.yCm.toFixed(1)}) | الحاجب (${browSc.xCm.toFixed(1)}, ${browSc.yCm.toFixed(1)}) | الأنف (${noseSc.xCm.toFixed(1)}, ${noseSc.yCm.toFixed(1)}) | الذقن (${chinSc.xCm.toFixed(1)}, ${chinSc.yCm.toFixed(1)}) cm`
                 }
@@ -2770,9 +2910,17 @@
 
             let html = '';
             items.forEach(item => {
+                const isWActive = coordsRulerState.active && coordsRulerState.key === `${item.key}:w`;
+                const isHActive = coordsRulerState.active && coordsRulerState.key === `${item.key}:h`;
                 html += `<tr>
                     <td style="font-weight:bold; color:#38bdf8; white-space:nowrap;">${item.name}</td>
                     <td style="color:#ffd700; font-weight:bold; line-height:1.55;">${item.desc}</td>
+                    <td>
+                        <div class="coords-ruler-btns">
+                            <button class="mini-ruler-btn ${isWActive ? 'active-w' : ''}" onclick="toggleCoordsPartRuler('${item.key}', 'w')">↔ عرض</button>
+                            <button class="mini-ruler-btn ${isHActive ? 'active-h' : ''}" onclick="toggleCoordsPartRuler('${item.key}', 'h')">↕ طول</button>
+                        </div>
+                    </td>
                 </tr>`;
             });
             tbody.innerHTML = html;
@@ -2785,11 +2933,12 @@
             const lines = [`مقاسات الوجه وملامحه بالسنتيمتر (مقاس الشاشة: ${wCm} × ${hCm} cm)`, '---'];
             Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
                 const cells = tr.querySelectorAll('td');
-                if (cells.length === 2) {
+                if (cells.length >= 2) {
                     lines.push(`${cells[0].textContent}: ${cells[1].textContent}`);
                 }
             });
-            const text = lines.join('\n');
+            const text = lines.join('
+');
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(text).then(() => alert('تم نسخ مقاسات الوجه وملامحه بالسنتيمتر بنجاح!'));
             } else {
@@ -3075,6 +3224,18 @@
                 }
             }
 
+            if (currentMode === 'coords' && coordsRulerState.active) {
+                const coord = coordsRulerState.orientation === 'horizontal' ? pos.y : pos.x;
+                const d1 = Math.abs(coord - coordsRulerState.line1);
+                const d2 = Math.abs(coord - coordsRulerState.line2);
+                const lineThreshold = Math.max(34, canvas.width * 0.05) / view.scale;
+
+                if (d1 < lineThreshold || d2 < lineThreshold) {
+                    dragTarget = d1 <= d2 ? 'coordsRuler:1' : 'coordsRuler:2';
+                    return;
+                }
+            }
+
             // التقاط الشاقول من المركز أو من أي نقطة على خطيه الأفقي أو العمودي
             if (plumbState.active) {
                 const plumbLineHit = Math.max(30, canvas.width * 0.045) / view.scale;
@@ -3159,6 +3320,14 @@
                 const val = parallelRuler.orientation === 'horizontal' ? rPos.y : rPos.x;
                 if (dragTarget === 'ruler:1') parallelRuler.line1 = val;
                 else parallelRuler.line2 = val;
+                redraw();
+                return;
+            }
+
+            if (dragTarget === 'coordsRuler:1' || dragTarget === 'coordsRuler:2') {
+                const val = coordsRulerState.orientation === 'horizontal' ? pos.y : pos.x;
+                if (dragTarget === 'coordsRuler:1') coordsRulerState.line1 = val;
+                else coordsRulerState.line2 = val;
                 redraw();
                 return;
             }
@@ -3398,6 +3567,108 @@
                     drawLabelBadge(label, item.pt.x, item.pt.y - 16 * resFactor, 'rgba(0,0,0,0.85)', item.color, resFactor);
                 }
             });
+
+            if (coordsRulerState.active) {
+                drawCoordsActiveRulers(resFactor);
+            }
+
+            ctx.restore();
+        }
+
+        function drawCoordsActiveRulers(resFactor) {
+            const { wCm, hCm } = getScreenCmDimensions();
+            const lw = (2.8 * resFactor) / Math.sqrt(view.scale);
+            const handleR = (8 * resFactor) / Math.sqrt(view.scale);
+            const span = Math.max(canvas.width, canvas.height) * 1.5;
+
+            const l1 = coordsRulerState.line1;
+            const l2 = coordsRulerState.line2;
+
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+            ctx.shadowBlur = 4 * resFactor;
+
+            if (coordsRulerState.orientation === 'horizontal') {
+                const yTop = Math.min(l1, l2);
+                const yBot = Math.max(l1, l2);
+                const distCm = ((yBot - yTop) * view.scale / Math.max(1, canvas.height)) * hCm;
+
+                ctx.fillStyle = 'rgba(0, 255, 136, 0.12)';
+                ctx.fillRect(state.cx - span, yTop, span * 2, yBot - yTop);
+
+                [
+                    { y: l1, color: '#00FF88' },
+                    { y: l2, color: '#00FF88' }
+                ].forEach(item => {
+                    ctx.strokeStyle = item.color;
+                    ctx.fillStyle = item.color;
+                    ctx.lineWidth = lw;
+                    ctx.beginPath();
+                    ctx.moveTo(state.cx - span, item.y);
+                    ctx.lineTo(state.cx + span, item.y);
+                    ctx.stroke();
+
+                    const gripOffset = state.radius * 1.15;
+                    [state.cx - gripOffset, state.cx + gripOffset].forEach(gx => {
+                        ctx.beginPath();
+                        ctx.arc(gx, item.y, handleR, 0, Math.PI * 2);
+                        ctx.stroke();
+                    });
+                });
+
+                ctx.strokeStyle = '#FFD700';
+                ctx.fillStyle = '#FFD700';
+                ctx.lineWidth = lw * 0.9;
+                ctx.beginPath();
+                ctx.moveTo(state.cx, yTop);
+                ctx.lineTo(state.cx, yBot);
+                ctx.stroke();
+
+                drawArrowHead(state.cx, yTop, -Math.PI / 2, 10 * resFactor);
+                drawArrowHead(state.cx, yBot, Math.PI / 2, 10 * resFactor);
+
+                drawLabelBadge(`↕ طولاً = ${distCm.toFixed(2)} cm`, state.cx + 56 * resFactor, (yTop + yBot) / 2, 'rgba(0, 25, 15, 0.94)', '#00FF88', resFactor);
+            } else {
+                const xLeft = Math.min(l1, l2);
+                const xRight = Math.max(l1, l2);
+                const distCm = ((xRight - xLeft) * view.scale / Math.max(1, canvas.width)) * wCm;
+
+                ctx.fillStyle = 'rgba(0, 229, 255, 0.12)';
+                ctx.fillRect(xLeft, state.cy - span, xRight - xLeft, span * 2);
+
+                [
+                    { x: l1, color: '#00E5FF' },
+                    { x: l2, color: '#00E5FF' }
+                ].forEach(item => {
+                    ctx.strokeStyle = item.color;
+                    ctx.fillStyle = item.color;
+                    ctx.lineWidth = lw;
+                    ctx.beginPath();
+                    ctx.moveTo(item.x, state.cy - span);
+                    ctx.lineTo(item.x, state.cy + span);
+                    ctx.stroke();
+
+                    const gripOffset = state.radius * 1.15;
+                    [state.cy - gripOffset, state.cy + gripOffset].forEach(gy => {
+                        ctx.beginPath();
+                        ctx.arc(item.x, gy, handleR, 0, Math.PI * 2);
+                        ctx.stroke();
+                    });
+                });
+
+                ctx.strokeStyle = '#FFD700';
+                ctx.fillStyle = '#FFD700';
+                ctx.lineWidth = lw * 0.9;
+                ctx.beginPath();
+                ctx.moveTo(xLeft, state.cy);
+                ctx.lineTo(xRight, state.cy);
+                ctx.stroke();
+
+                drawArrowHead(xLeft, state.cy, Math.PI, 10 * resFactor);
+                drawArrowHead(xRight, state.cy, 0, 10 * resFactor);
+
+                drawLabelBadge(`↔ عرضاً = ${distCm.toFixed(2)} cm`, (xLeft + xRight) / 2, state.cy - 24 * resFactor, 'rgba(0, 20, 30, 0.94)', '#00E5FF', resFactor);
+            }
 
             ctx.restore();
         }
