@@ -2158,6 +2158,47 @@
             };
         }
 
+        // توحيد قياس الشاقول مع قياسات الإحداثيات الحية (cm) عند استخدامه داخل تبويب الإحداثيات
+        function measurePlumbDeltaCm(p1, p2, axisDeg, pxToCm) {
+            const rad = axisDeg * Math.PI / 180;
+            const dxWorld = p2.x - p1.x;
+            const dyWorld = p2.y - p1.y;
+            const uDiffPx = dxWorld * Math.cos(rad) + dyWorld * Math.sin(rad);
+            const vDiffPx = -dxWorld * Math.sin(rad) + dyWorld * Math.cos(rad);
+
+            if (currentMode === 'coords') {
+                const { wCm, hCm } = getScreenCmDimensions();
+                const sx = (view.scale / Math.max(1, canvas.width)) * wCm;
+                const sy = (view.scale / Math.max(1, canvas.height)) * hCm;
+
+                // تحويل مركبتي u و v إلى السنتيمتر الفعلي للشاشة بدقة متطابقة مع جدول الإحداثيات
+                const uVecXCm = (uDiffPx * Math.cos(rad)) * sx;
+                const uVecYCm = (uDiffPx * Math.sin(rad)) * sy;
+                const signedDxCm = (uDiffPx >= 0 ? 1 : -1) * Math.hypot(uVecXCm, uVecYCm);
+
+                const vVecXCm = (-vDiffPx * Math.sin(rad)) * sx;
+                const vVecYCm = (vDiffPx * Math.cos(rad)) * sy;
+                const signedDyCm = (vDiffPx >= 0 ? 1 : -1) * Math.hypot(vVecXCm, vVecYCm);
+
+                const directCm = Math.hypot(dxWorld * sx, dyWorld * sy);
+                return {
+                    signedDxCm,
+                    signedDyCm,
+                    absDxCm: Math.abs(signedDxCm),
+                    absDyCm: Math.abs(signedDyCm),
+                    directCm
+                };
+            }
+
+            return {
+                signedDxCm: uDiffPx * pxToCm,
+                signedDyCm: vDiffPx * pxToCm,
+                absDxCm: Math.abs(uDiffPx) * pxToCm,
+                absDyCm: Math.abs(vDiffPx) * pxToCm,
+                directCm: Math.hypot(dxWorld, dyWorld) * pxToCm
+            };
+        }
+
         function updatePlumbAnalysisReport(pxToCm) {
             if (!plumbState.active) return;
 
@@ -2168,15 +2209,10 @@
             }
 
             if (plumbState.dual) {
-                const proj1 = projectAlongPlumbAxis(plumbState.p1, axisDeg);
-                const proj2 = projectAlongPlumbAxis(plumbState.p2, axisDeg);
-                const directCm = (dist(plumbState.p1, plumbState.p2) * pxToCm).toFixed(2);
-                const dxCm = (Math.abs(proj2.u - proj1.u) * pxToCm).toFixed(2);
-                const dyCm = (Math.abs(proj2.v - proj1.v) * pxToCm).toFixed(2);
-
-                document.getElementById('plumbDirectVal').textContent = `${directCm} سم`;
-                document.getElementById('plumbDxVal').textContent = `${dxCm} سم`;
-                document.getElementById('plumbDyVal').textContent = `${dyCm} سم`;
+                const m = measurePlumbDeltaCm(plumbState.p1, plumbState.p2, axisDeg, pxToCm);
+                document.getElementById('plumbDirectVal').textContent = `${m.directCm.toFixed(2)} سم`;
+                document.getElementById('plumbDxVal').textContent = `${m.absDxCm.toFixed(2)} سم`;
+                document.getElementById('plumbDyVal').textContent = `${m.absDyCm.toFixed(2)} سم`;
             }
 
             const activePt = plumbState.activeIndex === 1 && plumbState.dual ? plumbState.p2 : plumbState.p1;
@@ -2184,25 +2220,26 @@
             const badgeClass = isSecond ? 'snap-badge orange' : 'snap-badge';
             const titleName = activePt.snappedName || (isSecond ? 'الشاقول البرتقالي (2)' : 'الشاقول السماوي (1)');
 
-            const pProj = projectAlongPlumbAxis(activePt, axisDeg);
+            const tolCm = currentMode === 'coords' ? 0.04 : 0.12;
+            const nearMaxCm = currentMode === 'coords' ? 0.35 : 0.65;
             const vMatches = [];
             const hMatches = [];
             const nearVerticalNotes = [];
 
             for (let lm of landmarksList) {
                 if (lm.name === activePt.snappedName) continue;
-                const lmProj = projectAlongPlumbAxis(lm, axisDeg);
-                const diffXCm = (lmProj.u - pProj.u) * pxToCm;
-                const diffYCm = (lmProj.v - pProj.v) * pxToCm;
+                const dLm = measurePlumbDeltaCm(activePt, lm, axisDeg, pxToCm);
+                const diffXCm = dLm.signedDxCm;
+                const diffYCm = dLm.signedDyCm;
 
-                if (Math.abs(diffXCm) <= 0.12) {
+                if (Math.abs(diffXCm) <= tolCm) {
                     vMatches.push(lm.name);
-                } else if (Math.abs(diffXCm) <= 0.65 && nearVerticalNotes.length < 2) {
+                } else if (Math.abs(diffXCm) <= nearMaxCm && nearVerticalNotes.length < 2) {
                     const dir = diffXCm > 0 ? 'يمين' : 'يسار';
-                    nearVerticalNotes.push(`يبعد ${Math.abs(diffXCm).toFixed(1)} سم ${dir} (${lm.name})`);
+                    nearVerticalNotes.push(`يبعد ${Math.abs(diffXCm).toFixed(2)} سم ${dir} (${lm.name})`);
                 }
 
-                if (Math.abs(diffYCm) <= 0.12) {
+                if (Math.abs(diffYCm) <= tolCm) {
                     hMatches.push(lm.name);
                 }
             }
@@ -3872,7 +3909,12 @@
             const span = Math.max(canvas.width, canvas.height) * 1.5;
             const lw = (1.8 * resFactor) / Math.sqrt(view.scale);
             const handleR = (7.5 * resFactor) / Math.sqrt(view.scale);
-            const cmStepPx = 1 / Math.max(0.001, pxToCm);
+            let effectivePxToCm = pxToCm;
+            if (currentMode === 'coords') {
+                const { hCm } = getScreenCmDimensions();
+                effectivePxToCm = (hCm / Math.max(1, canvas.height)) * view.scale;
+            }
+            const cmStepPx = 1 / Math.max(0.001, effectivePxToCm);
 
             ctx.save();
             ctx.translate(pt.x, pt.y);
@@ -3947,9 +3989,10 @@
             ctx.stroke();
             ctx.restore();
 
-            const directCm = (dist(p1, p2) * pxToCm).toFixed(2);
-            const dxCm = (Math.abs(uDiff) * pxToCm).toFixed(2);
-            const dyCm = (Math.abs(vDiff) * pxToCm).toFixed(2);
+            const m = measurePlumbDeltaCm(p1, p2, axisDeg, pxToCm);
+            const directCm = m.directCm.toFixed(2);
+            const dxCm = m.absDxCm.toFixed(2);
+            const dyCm = m.absDyCm.toFixed(2);
 
             if (dist(p1, p2) > 12) {
                 drawLabelBadge(`📏 ${directCm} سم`, (p1.x + p2.x) / 2, (p1.y + p2.y) / 2, 'rgba(0, 30, 15, 0.92)', '#00FF88', resFactor);
