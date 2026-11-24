@@ -1385,7 +1385,7 @@
         function getUniformScreenCmPerPx() {
             const { wCm } = getScreenCmDimensions();
             const w = Math.max(1, canvas.width);
-            return (wCm / w) * view.scale;
+            return wCm / w;
         }
 
         function imagePointToScreenCm(pt) {
@@ -1394,9 +1394,9 @@
             const h = Math.max(1, canvas.height);
             const cmPerPx = wCm / w;
 
-            // تحويل إحداثيات الصورة إلى سنتيمترات موحدة (نفس مقياس الطول والعرض لمنع تشويه النسب)
-            const screenXCm = (pt.x * view.scale + view.offsetX) * cmPerPx;
-            const screenYCm = (pt.y * view.scale + view.offsetY) * cmPerPx;
+            // تحويل إحداثيات الصورة إلى سنتيمترات موحدة وثابتة (لا تتضخم بالتكبير البصري)
+            const screenXCm = pt.x * cmPerPx;
+            const screenYCm = pt.y * cmPerPx;
 
             return {
                 xCm: screenXCm,
@@ -1473,12 +1473,16 @@
             const lLeft = toLocal(leftCheek);
             const lRight = toLocal(rightCheek);
 
-            // حساب المقاسات الفعلية بالسنتيمتر من الإحداثيات المرصودة
-            const t1Cm = spanCmBetween(topPt, browPt).dy.toFixed(2);
-            const t2Cm = spanCmBetween(browPt, nosePt).dy.toFixed(2);
-            const t3Cm = spanCmBetween(nosePt, chinPt).dy.toFixed(2);
-            const totalHCm = spanCmBetween(topPt, chinPt).direct.toFixed(2);
-            const totalWCm = spanCmBetween(leftCheek, rightCheek).direct.toFixed(2);
+            // حساب المقاسات الفعلية بالسنتيمتر الموحد بحيث يطابق الطول الكلي مجموع الأثلاث الثلاثة تماماً
+            const uCm = getUniformScreenCmPerPx();
+            const t1Val = Math.abs(lBrow.y - lTop.y) * uCm;
+            const t2Val = Math.abs(lNose.y - lBrow.y) * uCm;
+            const t3Val = Math.abs(lChin.y - lNose.y) * uCm;
+            const t1Cm = t1Val.toFixed(2);
+            const t2Cm = t2Val.toFixed(2);
+            const t3Cm = t3Val.toFixed(2);
+            const totalHCm = (t1Val + t2Val + t3Val).toFixed(2);
+            const totalWCm = (Math.abs(lRight.x - lLeft.x) * uCm).toFixed(2);
             const rEyeCm = spanCmBetween(f.rightEyeInner, f.rightEyeOuter).direct.toFixed(2);
             const lEyeCm = spanCmBetween(f.leftEyeOuter, f.leftEyeInner).direct.toFixed(2);
             const interEyeCm = spanCmBetween(f.leftEyeInner, f.rightEyeInner).direct.toFixed(2);
@@ -1540,8 +1544,8 @@
                 ctx.lineTo(lineSpan, item.y);
                 ctx.stroke();
 
-                // بطاقة اسم الخط + موقعه العمودي بالسنتيمتر جوار طرف الخط الأيسر
-                drawLabelBadge(`${item.name} (${item.posCm} cm)`, -lineSpan - 42 * resFactor, item.y, 'rgba(0,0,0,0.88)', lineColor, resFactor);
+                // بطاقة اسم الخط + بعده عن أعلى الصورة بالسنتيمتر جوار طرف الخط
+                drawLabelBadge(`${item.name} (من الأعلى ${item.posCm} cm)`, -lineSpan - 58 * resFactor, item.y, 'rgba(0,0,0,0.88)', lineColor, resFactor);
             });
 
             // 3. أقواس الأثلاث العمودية على يمين الشبكة مع رقم مقاس كل ثلث بالسنتيمتر
