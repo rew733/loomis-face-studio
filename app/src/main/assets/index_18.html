@@ -1,0 +1,4577 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Loomis Face Studio - الاستوديو التشريحي ثلاثي الأبعاد</title>
+    <style>
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0d0d0d;
+            color: #f0f0f0;
+            font-family: Tahoma, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding-bottom: 18px;
+        }
+        header {
+            width: 100%;
+            background: #181818;
+            padding: 10px;
+            text-align: center;
+            font-size: 15px;
+            font-weight: bold;
+            color: #ffd700;
+            border-bottom: 1px solid #2a2a2a;
+        }
+        .tabs {
+            display: flex;
+            width: 96%;
+            max-width: 480px;
+            gap: 3px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            flex: 1;
+            min-width: 54px;
+            background: #202020;
+            color: #bbb;
+            border: 1px solid #383838;
+            padding: 8px 2px;
+            border-radius: 6px;
+            font-size: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .tab-btn.active {
+            background: #ffd700;
+            color: #000;
+            border-color: #ffd700;
+        }
+        .tab-btn.ruler-tab.active {
+            background: #00ff88;
+            color: #000;
+            border-color: #00ff88;
+        }
+        .tab-btn.coords-tab.active {
+            background: #00e5ff;
+            color: #000;
+            border-color: #00e5ff;
+        }
+        .pose-strip {
+            display: flex;
+            width: 96%;
+            max-width: 480px;
+            background: #161b22;
+            border: 1px solid #2b3544;
+            border-radius: 7px;
+            padding: 6px 8px;
+            margin-top: 6px;
+            justify-content: space-around;
+            align-items: center;
+            font-size: 11px;
+        }
+        .pose-chip {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: #cbd5e1;
+        }
+        .pose-chip span {
+            color: #38bdf8;
+            font-weight: bold;
+            direction: ltr;
+        }
+        .container {
+            position: relative;
+            margin-top: 6px;
+            width: 96%;
+            max-width: 480px;
+            height: auto;
+            min-height: 360px;
+            border-radius: 10px;
+            overflow: hidden;
+            background-color: #141414;
+            border: 1px solid #333;
+            touch-action: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.25s ease;
+        }
+        body.fullscreen-mode header,
+        body.fullscreen-mode .tabs,
+        body.fullscreen-mode .pose-strip,
+        body.fullscreen-mode .controls,
+        body.fullscreen-mode .proportions-card,
+        body.fullscreen-mode .plumb-card,
+        body.fullscreen-mode .ruler-card,
+        body.fullscreen-mode .coords-card {
+            display: none !important;
+        }
+        body.fullscreen-mode { padding-bottom: 0; }
+        body.fullscreen-mode .container {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            max-width: none; margin: 0;
+            border-radius: 0; border: none;
+            z-index: 9999;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .floating-toolbar {
+            position: absolute;
+            top: 8px; left: 8px; right: 8px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            z-index: 10;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .tool-group {
+            display: flex;
+            gap: 4px;
+            pointer-events: auto;
+            flex-wrap: wrap;
+        }
+        .float-btn {
+            background: rgba(20, 20, 20, 0.88);
+            color: #fff;
+            border: 1px solid #444;
+            padding: 6px 7px;
+            border-radius: 7px;
+            font-size: 10.5px;
+            font-weight: bold;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+        .float-btn.active {
+            background: #ffd700;
+            color: #000;
+            border-color: #ffd700;
+        }
+        .float-btn.lineart-active {
+            background: #ffffff;
+            color: #000;
+            border-color: #00e5ff;
+        }
+        .float-btn.shading-active {
+            background: #38bdf8;
+            color: #000;
+            border-color: #7dd3fc;
+        }
+        .float-btn.plumb-active {
+            background: #00e5ff;
+            color: #000;
+            border-color: #00e5ff;
+        }
+        .float-btn.locked {
+            background: #e74c3c;
+            color: #fff;
+            border-color: #ff6b6b;
+        }
+        .float-btn.ai-btn {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            border-color: #4facfe;
+            color: #fff;
+        }
+
+        .lineart-bar {
+            display: none;
+            position: absolute;
+            bottom: 10px;
+            left: 12px;
+            right: 12px;
+            background: rgba(15, 15, 15, 0.92);
+            border: 1px solid #00e5ff;
+            border-radius: 8px;
+            padding: 6px 10px;
+            z-index: 12;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+        }
+        .lineart-bar.show { display: flex; }
+
+        .shading-bar {
+            display: none;
+            position: absolute;
+            bottom: 10px;
+            left: 12px;
+            right: 12px;
+            background: rgba(15, 23, 42, 0.94);
+            border: 1px solid #38bdf8;
+            border-radius: 8px;
+            padding: 6px 10px;
+            z-index: 12;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+        }
+        .shading-bar.show { display: flex; }
+
+        .detect-banner {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            color: #00ffff;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            border: 1px solid #00ffff;
+            display: none;
+            white-space: nowrap;
+            z-index: 10;
+        }
+
+        .ruler-card {
+            display: none;
+            width: 96%;
+            max-width: 480px;
+            background: #12211a;
+            border: 1px solid #00ff88;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 8px;
+            font-size: 11px;
+        }
+        .ruler-card.show { display: block; }
+        .ruler-top-row {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+        .ruler-mode-btn {
+            flex: 1;
+            background: #1b3328;
+            color: #b9f6ca;
+            border: 1px solid #2e7d32;
+            padding: 8px 6px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+        }
+        .ruler-mode-btn.active {
+            background: #00ff88;
+            color: #000;
+            border-color: #00ff88;
+        }
+        .ruler-readout {
+            background: #0a1410;
+            border: 1px solid #1b5e20;
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .ruler-big-val {
+            font-size: 20px;
+            font-weight: bold;
+            color: #00ff88;
+            direction: ltr;
+        }
+
+        .plumb-card {
+            display: none;
+            width: 96%;
+            max-width: 480px;
+            background: #141c24;
+            border: 1px solid #00e5ff;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 8px;
+            font-size: 11px;
+        }
+        .plumb-card.show { display: block; }
+        .plumb-controls-row {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .plumb-pill-btn {
+            flex: 1;
+            min-width: 100px;
+            background: #1f2b38;
+            color: #e0f7fa;
+            border: 1px solid #37474f;
+            padding: 7px 6px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+        }
+        .plumb-pill-btn.active-orange {
+            background: #ff9100;
+            color: #000;
+            border-color: #ff9100;
+        }
+        .plumb-pill-btn.active-cyan {
+            background: #00e5ff;
+            color: #000;
+            border-color: #00e5ff;
+        }
+        .plumb-dual-stats {
+            display: none;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 5px;
+            margin-bottom: 8px;
+        }
+        .plumb-dual-stats.show { display: grid; }
+        .plumb-stat-box {
+            background: #1b2631;
+            border-right: 3px solid #ff9100;
+            padding: 6px 7px;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .plumb-stat-box.direct {
+            border-right-color: #00ff88;
+            background: #152b24;
+        }
+        .plumb-report-box {
+            background: #0f151b;
+            border: 1px solid #263238;
+            border-radius: 6px;
+            padding: 8px;
+            line-height: 1.6;
+            color: #eceff1;
+            font-size: 11px;
+        }
+        .snap-badge {
+            display: inline-block;
+            background: #00e5ff;
+            color: #000;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 10px;
+            margin-left: 4px;
+        }
+        .snap-badge.orange { background: #ff9100; }
+
+        .coords-card {
+            display: none;
+            width: 96%;
+            max-width: 480px;
+            background: #101d26;
+            border: 1px solid #00e5ff;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 8px;
+            font-size: 11px;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+        .coords-card.show { display: block; }
+        .coords-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            gap: 6px;
+        }
+        .coords-status-badge {
+            background: #163042;
+            color: #38bdf8;
+            border: 1px solid #0284c7;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .coords-screen-box {
+            background: #0b141b;
+            border: 1px solid #1e3a52;
+            border-radius: 6px;
+            padding: 7px 8px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            font-size: 10.5px;
+            color: #cbd5e1;
+        }
+        .coords-screen-inputs {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .coords-dim-input {
+            width: 44px;
+            background: #13222e;
+            border: 1px solid #38bdf8;
+            color: #ffd700;
+            border-radius: 4px;
+            padding: 3px 4px;
+            font-size: 11px;
+            font-weight: bold;
+            text-align: center;
+            direction: ltr;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+        .coords-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #0b141b;
+            border-radius: 6px;
+            overflow: hidden;
+            font-size: 10.5px;
+        }
+        .coords-table th {
+            background: #172a3a;
+            color: #00e5ff;
+            padding: 6px 5px;
+            text-align: right;
+            border-bottom: 1px solid #26435a;
+        }
+        .coords-table td {
+            padding: 5px 5px;
+            border-bottom: 1px solid #182836;
+            color: #e2e8f0;
+        }
+        .coords-table td.num {
+            direction: ltr;
+            text-align: left;
+            font-family: monospace;
+            color: #ffd700;
+            font-weight: bold;
+        }
+        .coords-table td.norm {
+            direction: ltr;
+            text-align: left;
+            font-family: monospace;
+            color: #7dd3fc;
+        }
+        .coords-ruler-btns {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 62px;
+        }
+        .mini-ruler-btn {
+            background: #172a3a;
+            color: #e0f2fe;
+            border: 1px solid #0284c7;
+            border-radius: 5px;
+            padding: 4px 5px;
+            font-size: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap;
+            text-align: center;
+            transition: 0.15s;
+        }
+        .mini-ruler-btn.active-w {
+            background: #00e5ff;
+            color: #000;
+            border-color: #00e5ff;
+        }
+        .mini-ruler-btn.active-h {
+            background: #00ff88;
+            color: #000;
+            border-color: #00ff88;
+        }
+        .coords-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .coords-btn {
+            flex: 1;
+            min-width: 120px;
+            background: #1c3144;
+            color: #e0f2fe;
+            border: 1px solid #0284c7;
+            padding: 8px 6px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+        }
+        .coords-btn.primary {
+            background: #00e5ff;
+            color: #000;
+            border-color: #00e5ff;
+        }
+        .coords-btn.gold {
+            background: #ffd700;
+            color: #000;
+            border-color: #ffd700;
+        }
+
+        .proportions-card {
+            display: none;
+            width: 96%;
+            max-width: 480px;
+            background: #181818;
+            border: 1px solid #ffd700;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 8px;
+            font-size: 11px;
+        }
+        .proportions-card.show { display: block; }
+        .recalc-btn {
+            width: 100%;
+            background: linear-gradient(90deg, #00c6ff, #0072ff);
+            color: #fff;
+            border: none;
+            padding: 9px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            margin-bottom: 8px;
+            box-shadow: 0 2px 8px rgba(0, 198, 255, 0.3);
+        }
+        .recalc-btn:active { opacity: 0.85; }
+        .paper-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #2e2e2e;
+            gap: 8px;
+        }
+        .paper-select {
+            background: #262626;
+            color: #ffd700;
+            border: 1px solid #555;
+            padding: 5px 8px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .face-structure-banner {
+            background: #1f1b2e;
+            border: 1px solid #a78bfa;
+            border-radius: 6px;
+            padding: 7px 9px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 6px;
+        }
+        .face-structure-title {
+            color: #ddd6fe;
+            font-size: 10.5px;
+            font-weight: bold;
+        }
+        .face-structure-tag {
+            background: #a78bfa;
+            color: #111;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 10.5px;
+            font-weight: bold;
+            direction: ltr;
+        }
+        .section-subtitle {
+            color: #00ffff;
+            font-weight: bold;
+            margin: 8px 0 4px 0;
+            font-size: 11px;
+        }
+        .section-subtitle.magenta { color: #ff55ff; }
+        .prop-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+        }
+        .prop-grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 5px;
+        }
+        .prop-item {
+            background: #232323;
+            padding: 6px 7px;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            border-right: 3px solid #ffd700;
+        }
+        .prop-item.cyan { border-right-color: #00ffff; }
+        .prop-item.magenta { border-right-color: #ff55ff; }
+        .prop-label { color: #ccc; font-size: 10px; }
+        .prop-val { color: #ffd700; font-weight: bold; font-size: 12px; direction: ltr; text-align: right; }
+        .prop-sub { color: #999; font-size: 10px; }
+        .prop-item.cyan .prop-val { color: #00ffff; }
+        .prop-item.magenta .prop-val { color: #ff55ff; }
+
+        .controls {
+            margin-top: 8px;
+            width: 96%;
+            max-width: 480px;
+            background: #181818;
+            padding: 10px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            border: 1px solid #2a2a2a;
+        }
+        .top-actions { display: flex; gap: 6px; }
+        label.file-btn {
+            flex: 2;
+            background: #ffd700;
+            color: #000;
+            padding: 10px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+            font-size: 13px;
+        }
+        .reset-btn {
+            flex: 1;
+            background: #2a2a2a;
+            color: #fff;
+            border: 1px solid #444;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        input[type="file"] { display: none; }
+        .grid-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            font-size: 11px;
+            background: #202020;
+            padding: 6px 8px;
+            border-radius: 6px;
+        }
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            color: #ddd;
+        }
+        .control-header span:last-child { color: #ffd700; font-weight: bold; }
+        input[type="range"] { width: 100%; accent-color: #ffd700; margin: 2px 0; }
+        select {
+            width: 100%;
+            background: #141414;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 5px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+        .hint {
+            text-align: center;
+            font-size: 11px;
+            color: #999;
+        }
+
+        .ai-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+            padding: 12px;
+            backdrop-filter: blur(5px);
+        }
+        .ai-modal.open { display: flex; }
+        .ai-dialog {
+            background: #181818;
+            border: 1px solid #4facfe;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 460px;
+            max-height: 92vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9);
+        }
+        .ai-header {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            padding: 12px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            font-size: 14px;
+            color: #fff;
+        }
+        .ai-close {
+            background: rgba(0,0,0,0.3);
+            border: none;
+            color: #fff;
+            font-size: 16px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .ai-body {
+            padding: 12px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+        .provider-switch {
+            display: flex;
+            gap: 6px;
+        }
+        .provider-btn {
+            flex: 1;
+            background: #232323;
+            color: #bbb;
+            border: 1px solid #444;
+            padding: 8px 6px;
+            border-radius: 7px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+        }
+        .provider-btn.active {
+            background: #2a5298;
+            color: #fff;
+            border-color: #4facfe;
+        }
+        .provider-btn.hf-active {
+            background: #ff9d00;
+            color: #000;
+            border-color: #ffd54f;
+        }
+        .api-key-box {
+            background: #222;
+            padding: 9px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+        .api-key-row {
+            display: flex;
+            gap: 6px;
+        }
+        .api-input {
+            flex: 1;
+            background: #111;
+            border: 1px solid #444;
+            color: #00ffff;
+            padding: 7px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            direction: ltr;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+        .model-select {
+            width: 100%;
+            background: #111;
+            border: 1px solid #444;
+            color: #ffd700;
+            padding: 7px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            direction: ltr;
+        }
+        .custom-model-box {
+            display: none;
+            margin-top: 2px;
+        }
+        .custom-model-box.show { display: block; }
+        .save-key-btn {
+            background: #ffd700;
+            color: #000;
+            border: none;
+            padding: 0 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        .ai-actions-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+        .ai-task-btn {
+            background: #242936;
+            color: #e0e6ed;
+            border: 1px solid #3b465e;
+            padding: 9px 8px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+            transition: 0.2s;
+        }
+        .ai-task-btn:active, .ai-task-btn.selected {
+            background: #2a5298;
+            border-color: #4facfe;
+            color: #fff;
+        }
+        .sketch-upload-box {
+            display: none;
+            background: #20242c;
+            border: 1px dashed #4facfe;
+            padding: 8px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 11px;
+        }
+        .sketch-upload-box.show { display: block; }
+        .ai-result-box {
+            background: #121212;
+            border: 1px solid #2e2e2e;
+            border-radius: 8px;
+            padding: 10px;
+            min-height: 115px;
+            font-size: 12px;
+            line-height: 1.65;
+            color: #eaeaea;
+            white-space: pre-wrap;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+        .ai-loading {
+            color: #4facfe;
+            text-align: center;
+            font-weight: bold;
+            padding: 16px 0;
+        }
+        .apply-canvas-btn {
+            display: none;
+            width: 100%;
+            background: linear-gradient(90deg, #00b09b, #96c93d);
+            color: #000;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            text-align: center;
+        }
+        .apply-canvas-btn.show { display: block; }
+    </style>
+</head>
+<body>
+
+    <header>Loomis Face Studio - الاستوديو التشريحي ثلاثي الأبعاد</header>
+
+    <div class="tabs">
+        <button class="tab-btn active" id="tabFront" onclick="setMode('front', this)">أمامي (Front)</button>
+        <button class="tab-btn" id="tab3Q" onclick="setMode('threeQuarter', this)">ثلاثي (3/4)</button>
+        <button class="tab-btn" id="tabSide" onclick="setMode('side', this)">جانبي (Profile)</button>
+        <button class="tab-btn" id="tabAnatomy" onclick="setMode('anatomy', this)">نسب الملامح</button>
+        <button class="tab-btn ruler-tab" id="tabRuler" onclick="setMode('ruler', this)">📏 مسطرة</button>
+        <button class="tab-btn coords-tab" id="tabCoords" onclick="setMode('coords', this)">📍 الإحداثيات</button>
+    </div>
+
+    <div class="pose-strip">
+        <div class="pose-chip">الالتفات (Yaw): <span id="poseYawVal">0°</span></div>
+        <div class="pose-chip">الارتفاع (Pitch): <span id="posePitchVal">0°</span></div>
+        <div class="pose-chip">الميلان (Roll): <span id="poseRollVal">0°</span></div>
+    </div>
+
+    <div class="container" id="canvasContainer">
+        <div class="floating-toolbar">
+            <div class="tool-group">
+                <button class="float-btn" id="btnShadingGuide" onclick="toggleShadingGuide()">🌗 خريطة الظل</button>
+                <button class="float-btn" id="btnLineart" onclick="toggleLineartMode()">✏️ كنتور</button>
+                <button class="float-btn" id="btnPlumbToggle" onclick="togglePlumbTool()">➕ شاقول</button>
+                <button class="float-btn active" id="btnGridToggle" onclick="toggleGridVisibility()">👁️ شبكة</button>
+                <button class="float-btn ai-btn" onclick="openAiModal()">🤖 المرشد</button>
+                <button class="float-btn" id="btnAiLayer" onclick="toggleAiOverlay()" style="display:none;">✨ AI</button>
+            </div>
+            <div class="tool-group">
+                <button class="float-btn" id="btnLock" onclick="toggleLock()">🔓</button>
+                <button class="float-btn" id="btnGrayscale" onclick="toggleGrayscale()">◐</button>
+                <button class="float-btn" id="btnFullscreen" onclick="toggleFullscreen()">⛶</button>
+                <button class="float-btn" id="btnZoomReset" onclick="resetZoom()">100%</button>
+            </div>
+        </div>
+
+        <div class="shading-bar" id="shadingBar">
+            <span style="color:#7dd3fc; font-weight:bold;">توزيع التظليل (4 درجات):</span>
+            <span id="shadingRatioText" style="color:#ffd700; font-weight:bold; direction:ltr;">ظل: 0% | نور: 0%</span>
+        </div>
+
+        <div class="lineart-bar" id="lineartBar">
+            <span style="color:#00e5ff; font-weight:bold; white-space:nowrap;">✏️ حدة الخطوط:</span>
+            <input type="range" id="lineartSensitivity" min="15" max="120" value="42" oninput="rebuildLineartCache()">
+            <span id="lineartVal" style="color:#ffd700; font-weight:bold;">42</span>
+        </div>
+
+        <div class="detect-banner" id="detectBanner">جاري رصد المعالم ثلاثية الأبعاد...</div>
+        <canvas id="output_canvas" width="720" height="960"></canvas>
+    </div>
+
+    <div class="coords-card" id="coordsCard">
+        <div class="coords-header-row">
+            <span style="color:#00e5ff; font-weight:bold;">📍 إحداثيات المعالم الفعلية بالسنتيمتر (cm):</span>
+            <span class="coords-status-badge" id="coordsSourceBadge">في انتظار رفع صورة</span>
+        </div>
+
+        <div class="coords-screen-box">
+            <span>مقاس شاشة العرض الفعلي:</span>
+            <div class="coords-screen-inputs">
+                <span>العرض:</span>
+                <input type="number" id="screenWidthCmInput" class="coords-dim-input" value="6" step="0.5" min="1" max="50" oninput="onScreenCmDimsChange()">
+                <span>cm × الطول:</span>
+                <input type="number" id="screenHeightCmInput" class="coords-dim-input" value="8" step="0.5" min="1" max="50" oninput="onScreenCmDimsChange()">
+                <span>cm</span>
+            </div>
+        </div>
+
+        <table class="coords-table">
+            <thead>
+                <tr>
+                    <th>الجزء / المعلم</th>
+                    <th>المقاس بالسنتيمتر</th>
+                    <th style="text-align:center;">المسطرة</th>
+                </tr>
+            </thead>
+            <tbody id="coordsTableBody">
+                <tr><td colspan="3" style="text-align:center; color:#888;">ارفع صورة لعرض مقاسات الوجه وملامحه بالسنتيمتر</td></tr>
+            </tbody>
+        </table>
+
+        <div class="coords-actions">
+            <button class="coords-btn gold" id="btnToggleCoordsGrid" onclick="toggleCoordsGridOverlay()">🕸️ شبكة الإحداثيات (مقاسات حية)</button>
+            <button class="coords-btn" id="btnToggleCoordsMainRuler" onclick="toggleCoordsMainRuler()">📏 المسطرة الموحدة</button>
+            <button class="coords-btn" id="btnToggleCoordsPlumb" onclick="toggleCoordsPlumb()">➕ الشاقول الموحد</button>
+            <button class="coords-btn primary" onclick="recalculateAllMeasurements()">🔄 تحديث القراءة</button>
+            <button class="coords-btn" onclick="copyActualCoordinates()">📋 نسخ (cm)</button>
+        </div>
+    </div>
+
+    <div class="ruler-card" id="rulerCard">
+        <div class="ruler-top-row">
+            <button class="ruler-mode-btn active" id="btnRulerHoriz" onclick="setRulerOrientation('horizontal')">↕ خطان أفقيان (قياس الارتفاع)</button>
+            <button class="ruler-mode-btn" id="btnRulerVert" onclick="setRulerOrientation('vertical')">↔ خطان عموديان (قياس العرض)</button>
+        </div>
+        <div class="ruler-top-row" style="margin-bottom:8px;">
+            <button class="ruler-mode-btn" id="btnRulerTilt" onclick="toggleRulerTilt()">📐 مستقيم (0°)</button>
+            <button class="ruler-mode-btn" onclick="resetParallelRulers()">🔄 توسيط الخطين</button>
+        </div>
+        <div class="ruler-readout">
+            <div>
+                <div style="color:#a5d6a7; font-weight:bold;" id="rulerDescTitle">المسافة العمودية بين الخطين الأفقيين:</div>
+                <div style="color:#81c784; font-size:10px; margin-top:2px;">اسحب أي خط من الخطين المتوازيين وضعه على الملامح</div>
+            </div>
+            <div class="ruler-big-val" id="rulerDistanceVal">0.00 سم</div>
+        </div>
+    </div>
+
+    <div class="plumb-card" id="plumbCard">
+        <div class="plumb-controls-row">
+            <button class="plumb-pill-btn" id="btnDualPlumb" onclick="toggleSecondPlumb()">➕ إضافة شاقول 2 (قياس بين نقطتين)</button>
+            <button class="plumb-pill-btn" id="btnPlumbAxis" onclick="togglePlumbAxis()">📐 أرضي (0° / 90°)</button>
+            <button class="plumb-pill-btn" id="btnPlumbSnap" onclick="togglePlumbSnap()">🧲 المغناطيس: مفعّل</button>
+        </div>
+
+        <div class="plumb-dual-stats" id="plumbDualStats">
+            <div class="plumb-stat-box direct">
+                <span style="color:#a7ffeb; font-size:10px;">المسافة المباشرة:</span>
+                <span style="color:#00ff88; font-weight:bold; font-size:13px; direction:ltr;" id="plumbDirectVal">0.0 سم</span>
+            </div>
+            <div class="plumb-stat-box">
+                <span style="color:#ccc; font-size:10px;">الأفقية (ΔX):</span>
+                <span style="color:#ff9100; font-weight:bold; font-size:12px; direction:ltr;" id="plumbDxVal">0.0 سم</span>
+            </div>
+            <div class="plumb-stat-box">
+                <span style="color:#ccc; font-size:10px;">العمودية (ΔY):</span>
+                <span style="color:#ffd700; font-weight:bold; font-size:12px; direction:ltr;" id="plumbDyVal">0.0 سم</span>
+            </div>
+        </div>
+
+        <div class="plumb-report-box" id="plumbReportBox">
+            اسحب الدائرة السماوية (أو البرتقالية) من أي مكان على خطيها الأفقي أو العمودي فوق أي معلم في الوجه.
+        </div>
+    </div>
+
+    <div class="proportions-card" id="propCard">
+        <button class="recalc-btn" onclick="recalculateAllMeasurements()">🔄 إعادة رصد الزوايا ثلاثية الأبعاد والنسب</button>
+
+        <div class="paper-row">
+            <span style="color:#ffd700; font-weight:bold;">طول الرأس الكامل على كراستك:</span>
+            <select id="headHeightScale" class="paper-select" onchange="redraw()">
+                <option value="15.0">رسم صغير (طول الرأس 15 سم)</option>
+                <option value="18.0" selected>ورقة A4 قياسي (طول الرأس 18 سم)</option>
+                <option value="22.0">ورقة A4 كبير (طول الرأس 22 سم)</option>
+                <option value="26.0">ورقة A3 (طول الرأس 26 سم)</option>
+                <option value="screen">مقياس شاشة الهاتف الفعلي (6×8 cm)</option>
+            </select>
+        </div>
+
+        <div class="face-structure-banner">
+            <span class="face-structure-title">البنية التشريحية الفردية للوجه (حسب النسب الداخلية):</span>
+            <span class="face-structure-tag" id="m_faceTypeTag">متوازن (1.40 : 1)</span>
+        </div>
+
+        <div class="section-subtitle magenta">إطار قياس الوجه الكلي (اسحب الخطوط الأرجوانية لتحديد الطول والعرض):</div>
+        <div class="prop-grid-3">
+            <div class="prop-item magenta">
+                <span class="prop-label">الطول الكلي للوجه:</span>
+                <span class="prop-val" id="m_faceH">0.0 سم</span>
+                <span class="prop-sub">مقياس الكراسة المحدد</span>
+            </div>
+            <div class="prop-item magenta">
+                <span class="prop-label">العرض الكلي للوجه:</span>
+                <span class="prop-val" id="m_faceW">0.0 سم</span>
+                <span class="prop-sub">بين الخطين العموديين</span>
+            </div>
+            <div class="prop-item magenta">
+                <span class="prop-label">نسبة الطول للعرض:</span>
+                <span class="prop-val" id="m_faceRatio">1.40 : 1</span>
+                <span class="prop-sub" id="m_facePct">العرض 71% من الطول</span>
+            </div>
+        </div>
+
+        <div class="section-subtitle">أبعاد الملامح الدقيقة (قابلة للسحب والتعديل اليدوي):</div>
+        <div class="prop-grid">
+            <div class="prop-item cyan">
+                <span class="prop-label">طول العين (يمنى / يسرى):</span>
+                <span class="prop-val" id="m_eyesLen">0.0 / 0.0 سم</span>
+                <span class="prop-sub" id="m_eyesRatio">1.00 / 1.00 وحدة</span>
+            </div>
+            <div class="prop-item cyan">
+                <span class="prop-label">المسافة بين العينين:</span>
+                <span class="prop-val" id="m_interEye">0.0 سم</span>
+                <span class="prop-sub" id="m_interEyeRatio">1.00 × العين</span>
+            </div>
+            <div class="prop-item cyan">
+                <span class="prop-label">عرض الفم (بين الزاويتين):</span>
+                <span class="prop-val" id="m_mouthW">0.0 سم</span>
+                <span class="prop-sub" id="m_mouthRatio">1.50 × العين</span>
+            </div>
+            <div class="prop-item cyan">
+                <span class="prop-label">عرض الأنف (بين الفتحتين):</span>
+                <span class="prop-val" id="m_noseW">0.0 سم</span>
+                <span class="prop-sub" id="m_noseRatio">1.00 × العين</span>
+            </div>
+        </div>
+
+        <div class="section-subtitle">المسافات العمودية بين الخطوط الأفقية (الأثلاث):</div>
+        <div class="prop-grid-3">
+            <div class="prop-item">
+                <span class="prop-label">الشعر ← الحواجب:</span>
+                <span class="prop-val" id="m_t1">0.0 سم</span>
+                <span class="prop-sub" id="m_t1Pct">33%</span>
+            </div>
+            <div class="prop-item">
+                <span class="prop-label">الحواجب ← الأنف:</span>
+                <span class="prop-val" id="m_t2">0.0 سم</span>
+                <span class="prop-sub" id="m_t2Pct">33%</span>
+            </div>
+            <div class="prop-item">
+                <span class="prop-label">الأنف ← الذقن:</span>
+                <span class="prop-val" id="m_t3">0.0 سم</span>
+                <span class="prop-sub" id="m_t3Pct">33%</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="top-actions">
+            <label class="file-btn" for="imageUpload">📁 رفع صورة من الاستديو</label>
+            <button class="reset-btn" onclick="resetLines()">إعادة ضبط الشبكة</button>
+        </div>
+        <input type="file" id="imageUpload" accept="image/*">
+
+        <div class="grid-controls">
+            <div class="control-group">
+                <div class="control-header"><span>حجم الكرة</span><span id="radiusVal">180</span></div>
+                <input type="range" id="radiusRange" min="40" max="600" value="180">
+            </div>
+
+            <div class="control-group">
+                <div class="control-header"><span>ميلان الزاوية</span><span id="angleVal">0°</span></div>
+                <input type="range" id="angleRange" min="-60" max="60" value="0">
+            </div>
+
+            <div class="control-group">
+                <div class="control-header"><span>سمك الخطوط</span><span id="thickVal">4</span></div>
+                <input type="range" id="thickRange" min="1" max="12" value="4">
+            </div>
+
+            <div class="control-group">
+                <div class="control-header"><span>قوة الشفافية</span><span id="opacityVal">100%</span></div>
+                <input type="range" id="opacityRange" min="10" max="100" value="100">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <div class="control-header"><span>لون الشبكة عالي التباين:</span></div>
+            <select id="colorSelect">
+                <option value="#FFD700">ذهبي ساطع (Gold)</option>
+                <option value="#00FFFF">أزرق سماوي نيون (Cyan)</option>
+                <option value="#00FF44">أخضر فسفوري (Neon Green)</option>
+                <option value="#FF3333">أحمر ساطع (Bright Red)</option>
+                <option value="#FFFFFF">أبيض ناصع (Pure White)</option>
+            </select>
+        </div>
+
+        <div class="hint">💡 افتح تبويب "📍 الإحداثيات" لرؤية الإحداثيات الفعلية بالسنتيمتر (6×8 cm) وضبط الشبكة عليها</div>
+    </div>
+
+    <div class="ai-modal" id="aiModal">
+        <div class="ai-dialog">
+            <div class="ai-header">
+                <span>🤖 المرشد الذكي (Gemini + Hugging Face)</span>
+                <button class="ai-close" onclick="closeAiModal()">✕</button>
+            </div>
+            <div class="ai-body">
+                <div class="provider-switch">
+                    <button class="provider-btn active" id="provGeminiBtn" onclick="selectAiProvider('gemini')">🔵 Google Gemini</button>
+                    <button class="provider-btn" id="provHfBtn" onclick="selectAiProvider('huggingface')">🤗 Hugging Face (Qwen2.5-VL)</button>
+                </div>
+
+                <div class="api-key-box" id="geminiSettingsBox">
+                    <div style="font-size:11px; color:#ccc;">مفتاح Gemini API:</div>
+                    <div class="api-key-row">
+                        <input type="password" id="geminiApiKeyInput" class="api-input" placeholder="AIzaSy...">
+                        <button class="save-key-btn" onclick="saveAiSettings()">حفظ</button>
+                    </div>
+
+                    <div style="font-size:11px; color:#ccc; margin-top:2px;">موديل Gemini:</div>
+                    <select id="geminiModelSelect" class="model-select" onchange="onModelSelectChange()">
+                        <option value="gemini-3.5-flash-lite" selected>gemini-3.5-flash-lite (الأسرع والأحدث)</option>
+                        <option value="gemini-3.5-flash">gemini-3.5-flash</option>
+                        <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+                        <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+                        <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+                        <option value="custom">✍️ كتابة اسم الموديل يدوياً...</option>
+                    </select>
+
+                    <div class="custom-model-box" id="customModelBox">
+                        <input type="text" id="customModelInput" class="api-input" style="width:100%; color:#ffd700;" placeholder="اكتب اسم الموديل هنا...">
+                    </div>
+                </div>
+
+                <div class="api-key-box" id="hfSettingsBox" style="display:none; border-color:#ff9d00;">
+                    <div style="font-size:11px; color:#ffd54f;">توكن Hugging Face (يبدأ بـ hf_...):</div>
+                    <div class="api-key-row">
+                        <input type="password" id="hfTokenInput" class="api-input" style="color:#ffd54f;" placeholder="hf_xxxxxxxxxxxxxxxxxxxx">
+                        <button class="save-key-btn" style="background:#ff9d00;" onclick="saveAiSettings()">حفظ</button>
+                    </div>
+
+                    <div style="font-size:11px; color:#ccc; margin-top:2px;">نموذج الرؤية المفتوح على Hugging Face:</div>
+                    <select id="hfModelSelect" class="model-select" style="color:#ff9d00;" onchange="onHfModelSelectChange()">
+                        <option value="Qwen/Qwen2.5-VL-7B-Instruct" selected>Qwen/Qwen2.5-VL-7B-Instruct (سريع ودقيق)</option>
+                        <option value="Qwen/Qwen2.5-VL-72B-Instruct">Qwen/Qwen2.5-VL-72B-Instruct (تحليل فائق)</option>
+                        <option value="meta-llama/Llama-3.2-11B-Vision-Instruct">meta-llama/Llama-3.2-11B-Vision-Instruct</option>
+                        <option value="custom">✍️ كتابة معرف النموذج يدوياً...</option>
+                    </select>
+
+                    <div class="custom-model-box" id="customHfModelBox">
+                        <input type="text" id="customHfModelInput" class="api-input" style="width:100%; color:#ff9d00;" placeholder="مثل: Qwen/Qwen2.5-VL-7B-Instruct">
+                    </div>
+                </div>
+
+                <div style="font-size:11px; color:#4facfe; font-weight:bold;">اختر نوع التحليل المطلوب:</div>
+                <div class="ai-actions-grid">
+                    <button class="ai-task-btn" onclick="runAiAnalysis('blueprint', this)">📐 خطة رسم لوميس بالسنتيمتر</button>
+                    <button class="ai-task-btn" onclick="runAiAnalysis('shading', this)">🌗 رسم خريطة الضوء والظل</button>
+                    <button class="ai-task-btn" onclick="runAiAnalysis('tilt', this)">🧭 فحص زاوية الرأس والمنظور</button>
+                    <button class="ai-task-btn" onclick="toggleSketchCompare(this)">🎨 مقارنة رسمتي بالأصل</button>
+                </div>
+
+                <div class="sketch-upload-box" id="sketchUploadBox">
+                    <div style="margin-bottom:6px; color:#ddd;">ارفع صورة رسمتك على الورق ليقارنها الذكاء الاصطناعي بالصورة الأصلية:</div>
+                    <label for="sketchFileInput" style="background:#4facfe; color:#000; padding:6px 12px; border-radius:5px; font-weight:bold; cursor:pointer; display:inline-block;">📷 اختيار صورة الرسمة</label>
+                    <input type="file" id="sketchFileInput" accept="image/*" onchange="handleSketchUpload(event)">
+                </div>
+
+                <button class="apply-canvas-btn" id="applyCanvasBtn" onclick="closeAiModal()">👁️ عرض خريطة الظلال والتصحيح على الوجه</button>
+
+                <div class="ai-result-box" id="aiResultBox">اختر المزود (Gemini أو Hugging Face) ثم اضغط على أي زر تحليل أعلاه.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('output_canvas');
+        function fitCanvasAspectToContainer() {
+            const cont = document.getElementById('canvasContainer');
+            if (!cont || !canvas.width || !canvas.height) return;
+            const imgRatio = canvas.width / canvas.height;
+
+            if (document.body.classList.contains('fullscreen-mode')) {
+                const vw = window.innerWidth;
+                const vh = window.innerHeight;
+                const vRatio = vw / vh;
+                let dispW, dispH;
+                if (imgRatio > vRatio) {
+                    dispW = vw;
+                    dispH = vw / imgRatio;
+                } else {
+                    dispH = vh;
+                    dispW = vh * imgRatio;
+                }
+                cont.style.height = `${vh}px`;
+                canvas.style.width = `${Math.round(dispW)}px`;
+                canvas.style.height = `${Math.round(dispH)}px`;
+                return;
+            }
+
+            // ملء عرض الحاوية بالكامل وضبط الارتفاع تلقائياً حسب نسبة أبعاد الصورة لمنع أي سواد جانبي نهائياً
+            const cw = Math.max(240, cont.clientWidth || Math.min(window.innerWidth * 0.96, 480));
+            const dispW = cw;
+            const dispH = Math.round(cw / imgRatio);
+
+            cont.style.height = `${dispH}px`;
+            canvas.style.width = `${dispW}px`;
+            canvas.style.height = `${dispH}px`;
+        }
+        window.addEventListener('resize', () => { fitCanvasAspectToContainer(); redraw(); });
+
+        const ctx = canvas.getContext('2d');
+        const detectBanner = document.getElementById('detectBanner');
+
+        let currentImage = null;
+        let lineartCanvasCache = null;
+        let isLineartMode = false;
+
+        let shadingCache = null;
+        let isShadingGuideActive = false;
+
+        let currentMode = 'front';
+        let lineColor = '#FFD700';
+        let lineOpacity = 1.0;
+        let baseThickness = 4;
+
+        let isGridVisible = true;
+        let isLocked = false;
+        let isGrayscale = false;
+        let hasDetectedOnce = false;
+        let lastDetectedSource = 'افتراضي (قبل رفع صورة)';
+
+        let activeAiProvider = 'gemini';
+        let view = { scale: 1, offsetX: 0, offsetY: 0 };
+
+        let headPose3D = {
+            yaw: 0,
+            pitch: 0,
+            roll: 0
+        };
+
+        let state = {
+            cx: 360,
+            cy: 440,
+            radius: 180,
+            angle: 0,
+            yOffsets: {
+                hair: -220,
+                brow: -60,
+                nose: 90,
+                chin: 240
+            },
+            bounds: {
+                topY: -260,
+                bottomY: 250,
+                leftX: -170,
+                rightX: 170
+            }
+        };
+
+        let parallelRuler = {
+            orientation: 'horizontal',
+            alignWithHead: false,
+            line1: 380,
+            line2: 520
+        };
+
+        // حالة المسطرتين المدمجتين داخل تبويب الإحداثيات
+        let coordsRulerState = {
+            active: false,
+            key: null,
+            orientation: 'vertical',
+            line1: 300,
+            line2: 420
+        };
+
+        // حالة شبكة لوميس المعتمدة على الإحداثيات داخل تبويب الإحداثيات
+        let isCoordsGridActive = false;
+        // حالة المسطرة الرئيسية الموحدة داخل تبويب الإحداثيات
+        let isCoordsMainRulerActive = false;
+
+        let features = null;
+        let actualKeyPoints = null;
+        let landmarksList = [];
+
+        let plumbState = {
+            active: false,
+            dual: false,
+            alignWithHead: false,
+            snapEnabled: true,
+            activeIndex: 0,
+            p1: { x: 310, y: 400, snappedName: null },
+            p2: { x: 410, y: 480, snappedName: null }
+        };
+
+        let aiVisualOverlay = {
+            visible: true,
+            lightDir: null,
+            shadowZones: [],
+            corrections: []
+        };
+
+        let dragTarget = null;
+        let dragStart = { x: 0, y: 0 };
+        let initialPinchDist = null;
+        let initialViewScale = 1;
+        let lastPinchCenter = null;
+
+        // --- دوال تحويل إحداثيات الصورة إلى سنتيمترات شاشة العرض الفعلية (افتراضي 6cm عرض × 8cm طول) ---
+        function getScreenCmDimensions() {
+            const wEl = document.getElementById('screenWidthCmInput');
+            const hEl = document.getElementById('screenHeightCmInput');
+            const wCm = Math.max(0.5, parseFloat(wEl ? wEl.value : 6) || 6.0);
+            const hCm = Math.max(0.5, parseFloat(hEl ? hEl.value : 8) || 8.0);
+            return { wCm, hCm };
+        }
+
+        function getUniformScreenCmPerPx() {
+            const { wCm } = getScreenCmDimensions();
+            const w = Math.max(1, canvas.width);
+            return wCm / w;
+        }
+
+        function imagePointToScreenCm(pt) {
+            const { wCm, hCm } = getScreenCmDimensions();
+            const w = Math.max(1, canvas.width);
+            const h = Math.max(1, canvas.height);
+            const cmPerPx = wCm / w;
+
+            // تحويل إحداثيات الصورة إلى سنتيمترات موحدة وثابتة (لا تتضخم بالتكبير البصري)
+            const screenXCm = pt.x * cmPerPx;
+            const screenYCm = pt.y * cmPerPx;
+
+            return {
+                xCm: screenXCm,
+                yCm: screenYCm,
+                pctX: (pt.x / w) * 100,
+                pctY: (pt.y / h) * 100
+            };
+        }
+
+        function onScreenCmDimsChange() {
+            updateActualCoordsPanel();
+            redraw();
+        }
+
+        function syncCoordsToolButtonsUI() {
+            const rBtn = document.getElementById('btnToggleCoordsMainRuler');
+            if (rBtn) {
+                if (isCoordsMainRulerActive) {
+                    rBtn.textContent = '✅ إخفاء المسطرة';
+                    rBtn.style.background = '#00ff88';
+                    rBtn.style.color = '#000';
+                    rBtn.style.borderColor = '#00ff88';
+                } else {
+                    rBtn.textContent = '📏 المسطرة الموحدة';
+                    rBtn.style.background = '#1c3144';
+                    rBtn.style.color = '#e0f2fe';
+                    rBtn.style.borderColor = '#0284c7';
+                }
+            }
+            const pBtn = document.getElementById('btnToggleCoordsPlumb');
+            if (pBtn) {
+                if (plumbState.active) {
+                    pBtn.textContent = '✅ إخفاء الشاقول';
+                    pBtn.style.background = '#00e5ff';
+                    pBtn.style.color = '#000';
+                    pBtn.style.borderColor = '#00e5ff';
+                } else {
+                    pBtn.textContent = '➕ الشاقول الموحد';
+                    pBtn.style.background = '#1c3144';
+                    pBtn.style.color = '#e0f2fe';
+                    pBtn.style.borderColor = '#0284c7';
+                }
+            }
+        }
+
+        function toggleCoordsMainRuler() {
+            isCoordsMainRulerActive = !isCoordsMainRulerActive;
+            if (isCoordsMainRulerActive) {
+                resetParallelRulers();
+            }
+            const rulerCard = document.getElementById('rulerCard');
+            if (rulerCard) {
+                rulerCard.classList.toggle('show', currentMode === 'ruler' || (currentMode === 'coords' && isCoordsMainRulerActive));
+            }
+            syncCoordsToolButtonsUI();
+            redraw();
+        }
+
+        function toggleCoordsPlumb() {
+            togglePlumbTool();
+            syncCoordsToolButtonsUI();
+        }
+
+        // --- زر تفاعلي داخل تبويب الإحداثيات لعرض/إخفاء شبكة لوميس مع المقاسات الحية جوار كل خط ---
+        function toggleCoordsGridOverlay() {
+            if (!features) {
+                alert('يرجى رفع صورة أو تحديث القراءة أولاً.');
+                return;
+            }
+            isCoordsGridActive = !isCoordsGridActive;
+            const btn = document.getElementById('btnToggleCoordsGrid');
+            if (btn) {
+                if (isCoordsGridActive) {
+                    btn.textContent = '✅ إخفاء شبكة الإحداثيات';
+                    btn.style.background = '#00ff88';
+                    btn.style.color = '#000';
+                    btn.style.borderColor = '#00ff88';
+                } else {
+                    btn.textContent = '🕸️ شبكة الإحداثيات (مقاسات حية)';
+                    btn.style.background = '#ffd700';
+                    btn.style.color = '#000';
+                    btn.style.borderColor = '#ffd700';
+                }
+            }
+            redraw();
+        }
+
+        function drawCoordsGridWithMeasurements(resFactor) {
+            if (!features) return;
+            const f = features;
+            const kp = actualKeyPoints || {};
+
+            const topPt = kp.topHead || { x: state.cx, y: state.cy + state.yOffsets.hair };
+            const browPt = kp.browCenter || { x: state.cx, y: state.cy + state.yOffsets.brow };
+            const nosePt = kp.noseBase || { x: state.cx, y: state.cy + state.yOffsets.nose };
+            const chinPt = kp.chin || { x: state.cx, y: state.cy + state.yOffsets.chin };
+            const leftCheek = kp.leftCheek || { x: state.cx + state.bounds.leftX, y: state.cy };
+            const rightCheek = kp.rightCheek || { x: state.cx + state.bounds.rightX, y: state.cy };
+
+            const faceWpx = Math.max(40, dist(leftCheek, rightCheek));
+            const faceHpx = Math.max(60, dist(topPt, chinPt));
+            const cx = (leftCheek.x + rightCheek.x) / 2;
+            const cy = browPt.y + faceHpx * 0.08;
+            const r = Math.max(faceWpx, faceHpx * 0.76) * 0.58;
+
+            const eyeAngleRad = Math.atan2(f.rightEyeOuter.y - f.leftEyeOuter.y, f.rightEyeOuter.x - f.leftEyeOuter.x);
+            const deg = Math.max(-60, Math.min(60, headPose3D.roll || Math.round(eyeAngleRad * 180 / Math.PI)));
+            const rad = deg * Math.PI / 180;
+
+            const toLocal = (pt) => {
+                const dx = pt.x - cx;
+                const dy = pt.y - cy;
+                return {
+                    x: dx * Math.cos(-rad) - dy * Math.sin(-rad),
+                    y: dx * Math.sin(-rad) + dy * Math.cos(-rad)
+                };
+            };
+
+            const lTop = toLocal(topPt);
+            const lBrow = toLocal(browPt);
+            const lNose = toLocal(nosePt);
+            const lChin = toLocal(chinPt);
+            const lLeft = toLocal(leftCheek);
+            const lRight = toLocal(rightCheek);
+
+            // حساب المقاسات الفعلية بالسنتيمتر الموحد بحيث يطابق الطول الكلي مجموع الأثلاث الثلاثة تماماً
+            const uCm = getUniformScreenCmPerPx();
+            const t1Val = Math.abs(lBrow.y - lTop.y) * uCm;
+            const t2Val = Math.abs(lNose.y - lBrow.y) * uCm;
+            const t3Val = Math.abs(lChin.y - lNose.y) * uCm;
+            const t1Cm = t1Val.toFixed(2);
+            const t2Cm = t2Val.toFixed(2);
+            const t3Cm = t3Val.toFixed(2);
+            const totalHCm = (t1Val + t2Val + t3Val).toFixed(2);
+            const totalWCm = (Math.abs(lRight.x - lLeft.x) * uCm).toFixed(2);
+            const rEyeCm = spanCmBetween(f.rightEyeInner, f.rightEyeOuter).direct.toFixed(2);
+            const lEyeCm = spanCmBetween(f.leftEyeOuter, f.leftEyeInner).direct.toFixed(2);
+            const interEyeCm = spanCmBetween(f.leftEyeInner, f.rightEyeInner).direct.toFixed(2);
+            const noseWCm = spanCmBetween(f.noseLeft, f.noseRight).direct.toFixed(2);
+            const mouthWCm = spanCmBetween(f.mouthLeft, f.mouthRight).direct.toFixed(2);
+
+            const lw = (baseThickness * 0.85 * resFactor) / Math.sqrt(view.scale);
+            const lineSpan = r * 1.18;
+
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+            ctx.shadowBlur = 4 * resFactor;
+
+            // 1. دائرة لوميس الأساسية والقطع الجانبي وخط المنتصف
+            ctx.strokeStyle = lineColor;
+            ctx.lineWidth = lw;
+            ctx.beginPath();
+            ctx.arc(0, 0, r, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.save();
+            ctx.setLineDash([7 * resFactor, 5 * resFactor]);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, r * 0.68, r * 0.85, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+
+            // خط المنتصف العمودي + قياس الطول الكلي للوجه
+            ctx.beginPath();
+            ctx.moveTo(0, lTop.y - r * 0.14);
+            ctx.lineTo(0, lChin.y + r * 0.14);
+            ctx.stroke();
+
+            // خطوط الفك السفلي
+            ctx.beginPath();
+            ctx.moveTo(lLeft.x, 0);
+            ctx.lineTo(lLeft.x * 0.66, lNose.y);
+            ctx.lineTo(0, lChin.y);
+            ctx.moveTo(lRight.x, 0);
+            ctx.lineTo(lRight.x * 0.66, lNose.y);
+            ctx.lineTo(0, lChin.y);
+            ctx.stroke();
+
+            // 2. الخطوط الأفقية الأربعة مع تسمياتها وأرقام مقاساتها جوار كل خط
+            const horizLines = [
+                { y: lTop.y,  name: 'الشعر',   posCm: imagePointToScreenCm(topPt).yCm.toFixed(1) },
+                { y: lBrow.y, name: 'الحواجب', posCm: imagePointToScreenCm(browPt).yCm.toFixed(1) },
+                { y: lNose.y, name: 'الأنف',   posCm: imagePointToScreenCm(nosePt).yCm.toFixed(1) },
+                { y: lChin.y, name: 'الذقن',   posCm: imagePointToScreenCm(chinPt).yCm.toFixed(1) }
+            ];
+
+            horizLines.forEach(item => {
+                ctx.strokeStyle = lineColor;
+                ctx.lineWidth = lw;
+                ctx.beginPath();
+                ctx.moveTo(-lineSpan, item.y);
+                ctx.lineTo(lineSpan, item.y);
+                ctx.stroke();
+
+                drawLabelBadge(item.name, -lineSpan - 26 * resFactor, item.y, 'rgba(0,0,0,0.88)', lineColor, resFactor);
+            });
+
+            // 3. أقواس الأثلاث العمودية على يمين الكرة مع رقم مقاس كل ثلث بالسنتيمتر (داخل حدود الصورة بوضوح)
+            const bx = r * 1.05;
+            drawVerticalSpanBracket(bx, lTop.y, lBrow.y, `${t1Cm} cm`, resFactor);
+            drawVerticalSpanBracket(bx, lBrow.y, lNose.y, `${t2Cm} cm`, resFactor);
+            drawVerticalSpanBracket(bx, lNose.y, lChin.y, `${t3Cm} cm`, resFactor);
+
+            // 4. خطي عرض الوجه الأرجوانيين مع رقم العرض الكلي والطول الكلي جوار الخطوط
+            ctx.save();
+            ctx.strokeStyle = '#FF55FF';
+            ctx.lineWidth = lw * 0.85;
+            ctx.setLineDash([6 * resFactor, 4 * resFactor]);
+            const vTop = lTop.y - 22 * resFactor;
+            const vBot = lChin.y + 22 * resFactor;
+            ctx.beginPath();
+            ctx.moveTo(lLeft.x, vTop); ctx.lineTo(lLeft.x, vBot);
+            ctx.moveTo(lRight.x, vTop); ctx.lineTo(lRight.x, vBot);
+            ctx.stroke();
+            ctx.restore();
+
+            drawLabelBadge(`عرض الوجه = ${totalWCm} cm`, 0, vTop - 12 * resFactor, 'rgba(20,0,25,0.92)', '#FF55FF', resFactor);
+            drawLabelBadge(`طول الوجه = ${totalHCm} cm`, 0, vBot + 14 * resFactor, 'rgba(20,0,25,0.92)', '#FF55FF', resFactor);
+
+            ctx.restore();
+
+            // 5. أرقام المقاسات جوار الملامح الدقيقة (العينين، بين العينين، الأنف، الفم)
+            ctx.save();
+            drawLabelBadge(`ع.يسرى ${lEyeCm}cm`, (f.leftEyeOuter.x + f.leftEyeInner.x) / 2, (f.leftEyeOuter.y + f.leftEyeInner.y) / 2 - 16 * resFactor, 'rgba(0,15,25,0.9)', '#00E5FF', resFactor);
+            drawLabelBadge(`ع.يمنى ${rEyeCm}cm`, (f.rightEyeInner.x + f.rightEyeOuter.x) / 2, (f.rightEyeInner.y + f.rightEyeOuter.y) / 2 - 16 * resFactor, 'rgba(0,15,25,0.9)', '#00E5FF', resFactor);
+            drawLabelBadge(`بينهما ${interEyeCm}cm`, (f.leftEyeInner.x + f.rightEyeInner.x) / 2, (f.leftEyeInner.y + f.rightEyeInner.y) / 2 + 16 * resFactor, 'rgba(0,25,15,0.9)', '#00FF88', resFactor);
+            drawLabelBadge(`أنف ${noseWCm}cm`, (f.noseLeft.x + f.noseRight.x) / 2, (f.noseLeft.y + f.noseRight.y) / 2 - 14 * resFactor, 'rgba(25,15,0,0.9)', '#FF9100', resFactor);
+            drawLabelBadge(`فم ${mouthWCm}cm`, (f.mouthLeft.x + f.mouthRight.x) / 2, (f.mouthLeft.y + f.mouthRight.y) / 2 + 16 * resFactor, 'rgba(25,0,10,0.9)', '#FF3366', resFactor);
+            ctx.restore();
+        }
+
+        // --- تهيئة اختيارية آمنة لمحرك FaceLandmarker 3D دون تعطيل اللوحة أبداً ---
+        let faceLandmarker = null;
+        let isLandmarkerReady = false;
+
+        async function initFaceLandmarker3DSafe() {
+            try {
+                const visionMod = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs");
+                if (!visionMod || !visionMod.FilesetResolver || !visionMod.FaceLandmarker) return;
+                const vision = await visionMod.FilesetResolver.forVisionTasks(
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
+                );
+                faceLandmarker = await visionMod.FaceLandmarker.createFromOptions(vision, {
+                    baseOptions: {
+                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+                        delegate: "CPU"
+                    },
+                    outputFaceBlendshapes: false,
+                    outputFacialTransformationMatrixes: true,
+                    runningMode: "IMAGE",
+                    numFaces: 1
+                });
+                isLandmarkerReady = true;
+                if (currentImage) {
+                    runAutoFeatureDetection();
+                }
+            } catch (e) {
+                isLandmarkerReady = false;
+            }
+        }
+        initFaceLandmarker3DSafe();
+
+        function extractEulerFromMatrix(matrixData) {
+            const m00 = matrixData[0], m01 = matrixData[4], m02 = matrixData[8];
+            const m10 = matrixData[1], m11 = matrixData[5], m12 = matrixData[9];
+            const m20 = matrixData[2], m21 = matrixData[6], m22 = matrixData[10];
+
+            const sy = Math.hypot(m00, m10);
+            const singular = sy < 1e-6;
+            let pitchRad, yawRad, rollRad;
+
+            if (!singular) {
+                pitchRad = Math.atan2(m21, m22);
+                yawRad = Math.atan2(-m20, sy);
+                rollRad = Math.atan2(m10, m00);
+            } else {
+                pitchRad = Math.atan2(-m12, m11);
+                yawRad = Math.atan2(-m20, sy);
+                rollRad = 0;
+            }
+
+            return {
+                yaw: Math.round(yawRad * 180 / Math.PI),
+                pitch: Math.round(pitchRad * 180 / Math.PI),
+                roll: Math.round(rollRad * 180 / Math.PI)
+            };
+        }
+
+        function toggleShadingGuide() {
+            if (!currentImage) {
+                alert('يرجى رفع صورة الوجه أولاً لتوليد خريطة الظل والنور.');
+                return;
+            }
+            isShadingGuideActive = !isShadingGuideActive;
+            if (isShadingGuideActive) {
+                isLineartMode = false;
+                document.getElementById('btnLineart').classList.remove('lineart-active');
+                document.getElementById('lineartBar').classList.remove('show');
+            }
+            document.getElementById('btnShadingGuide').classList.toggle('shading-active', isShadingGuideActive);
+            document.getElementById('shadingBar').classList.toggle('show', isShadingGuideActive);
+
+            if (isShadingGuideActive && !shadingCache) {
+                buildShadingGuideCache();
+            } else {
+                redraw();
+            }
+        }
+
+        function buildShadingGuideCache() {
+            if (!currentImage) return;
+            const maxSide = 720;
+            let w = currentImage.width;
+            let h = currentImage.height;
+            if (w > maxSide || h > maxSide) {
+                if (w > h) {
+                    h = Math.round(h * (maxSide / w));
+                    w = maxSide;
+                } else {
+                    w = Math.round(w * (maxSide / h));
+                    h = maxSide;
+                }
+            }
+
+            const offCanvas = document.createElement('canvas');
+            offCanvas.width = w;
+            offCanvas.height = h;
+            const oCtx = offCanvas.getContext('2d');
+            oCtx.drawImage(currentImage, 0, 0, w, h);
+
+            const imgData = oCtx.getImageData(0, 0, w, h);
+            const data = imgData.data;
+            const totalPixels = w * h;
+            const lum = new Float32Array(totalPixels);
+
+            for (let i = 0; i < totalPixels; i++) {
+                const idx = i * 4;
+                lum[i] = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+            }
+
+            const smooth = new Float32Array(totalPixels);
+            for (let y = 1; y < h - 1; y++) {
+                for (let x = 1; x < w - 1; x++) {
+                    const p = y * w + x;
+                    smooth[p] = (
+                        lum[p - w - 1] + lum[p - w] + lum[p - w + 1] +
+                        lum[p - 1] + 2 * lum[p] + lum[p + 1] +
+                        lum[p + w - 1] + lum[p + w] + lum[p + w + 1]
+                    ) / 10;
+                }
+            }
+
+            let shadowCount = 0;
+
+            for (let i = 0; i < totalPixels; i++) {
+                const v = smooth[i];
+                let tone;
+                if (v < 70) {
+                    tone = 52;
+                    shadowCount++;
+                } else if (v < 125) {
+                    tone = 112;
+                    shadowCount++;
+                } else if (v < 180) {
+                    tone = 178;
+                } else {
+                    tone = 242;
+                }
+
+                const idx = i * 4;
+                data[idx] = tone;
+                data[idx + 1] = tone;
+                data[idx + 2] = tone;
+            }
+
+            oCtx.putImageData(imgData, 0, 0);
+            shadingCache = offCanvas;
+
+            const shadowPct = Math.round((shadowCount / totalPixels) * 100);
+            const lightPct = 100 - shadowPct;
+            document.getElementById('shadingRatioText').textContent = `ظل: ${shadowPct}% | نور: ${lightPct}%`;
+            redraw();
+        }
+
+        function updatePoseStripUI() {
+            document.getElementById('poseYawVal').textContent = `${headPose3D.yaw}°`;
+            document.getElementById('posePitchVal').textContent = `${headPose3D.pitch}°`;
+            document.getElementById('poseRollVal').textContent = `${headPose3D.roll}°`;
+        }
+
+        function toggleLineartMode() {
+            if (!currentImage) {
+                alert('يرجى رفع صورة الوجه أولاً لاستخراج خطوط الكنتور.');
+                return;
+            }
+            isLineartMode = !isLineartMode;
+            if (isLineartMode) {
+                isShadingGuideActive = false;
+                document.getElementById('btnShadingGuide').classList.remove('shading-active');
+                document.getElementById('shadingBar').classList.remove('show');
+            }
+            document.getElementById('btnLineart').classList.toggle('lineart-active', isLineartMode);
+            document.getElementById('lineartBar').classList.toggle('show', isLineartMode);
+
+            if (isLineartMode && !lineartCanvasCache) {
+                rebuildLineartCache();
+            } else {
+                redraw();
+            }
+        }
+
+        function rebuildLineartCache() {
+            if (!currentImage) return;
+            const thresholdVal = parseInt(document.getElementById('lineartSensitivity').value);
+            document.getElementById('lineartVal').textContent = thresholdVal;
+
+            const maxSide = 900;
+            let w = currentImage.width;
+            let h = currentImage.height;
+            if (w > maxSide || h > maxSide) {
+                if (w > h) {
+                    h = Math.round(h * (maxSide / w));
+                    w = maxSide;
+                } else {
+                    w = Math.round(w * (maxSide / h));
+                    h = maxSide;
+                }
+            }
+
+            const offCanvas = document.createElement('canvas');
+            offCanvas.width = w;
+            offCanvas.height = h;
+            const oCtx = offCanvas.getContext('2d');
+            oCtx.drawImage(currentImage, 0, 0, w, h);
+
+            const imgData = oCtx.getImageData(0, 0, w, h);
+            const data = imgData.data;
+            const gray = new Float32Array(w * h);
+
+            for (let i = 0; i < w * h; i++) {
+                const idx = i * 4;
+                gray[i] = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+            }
+
+            const smooth = new Float32Array(w * h);
+            for (let y = 1; y < h - 1; y++) {
+                for (let x = 1; x < w - 1; x++) {
+                    const p = y * w + x;
+                    smooth[p] = (
+                        gray[p - w - 1] + 2 * gray[p - w] + gray[p - w + 1] +
+                        2 * gray[p - 1] + 4 * gray[p] + 2 * gray[p + 1] +
+                        gray[p + w - 1] + 2 * gray[p + w] + gray[p + w + 1]
+                    ) / 16;
+                }
+            }
+
+            const outData = oCtx.createImageData(w, h);
+            const out = outData.data;
+            const sensFactor = (135 - thresholdVal) / 35;
+
+            for (let y = 1; y < h - 1; y++) {
+                for (let x = 1; x < w - 1; x++) {
+                    const p = y * w + x;
+                    const gx = -smooth[p - w - 1] + smooth[p - w + 1]
+                               - 2 * smooth[p - 1] + 2 * smooth[p + 1]
+                               - smooth[p + w - 1] + smooth[p + w + 1];
+                    const gy = -smooth[p - w - 1] - 2 * smooth[p - w] - smooth[p - w + 1]
+                               + smooth[p + w - 1] + 2 * smooth[p + w] + smooth[p + w + 1];
+
+                    const mag = Math.hypot(gx, gy) * sensFactor;
+                    let val = 255 - Math.min(255, mag);
+                    if (val > 215) val = 255;
+
+                    const idx = p * 4;
+                    out[idx] = val;
+                    out[idx + 1] = val;
+                    out[idx + 2] = val;
+                    out[idx + 3] = 255;
+                }
+            }
+
+            oCtx.putImageData(outData, 0, 0);
+            lineartCanvasCache = offCanvas;
+            redraw();
+        }
+
+        function setRulerOrientation(orient) {
+            parallelRuler.orientation = orient;
+            document.getElementById('btnRulerHoriz').classList.toggle('active', orient === 'horizontal');
+            document.getElementById('btnRulerVert').classList.toggle('active', orient === 'vertical');
+
+            const titleEl = document.getElementById('rulerDescTitle');
+            if (orient === 'horizontal') {
+                titleEl.textContent = 'المسافة العمودية بين الخطين الأفقيين:';
+                parallelRuler.line1 = state.cy + state.yOffsets.nose;
+                parallelRuler.line2 = state.cy + state.yOffsets.chin;
+            } else {
+                titleEl.textContent = 'المسافة الأفقية بين الخطين العموديين:';
+                parallelRuler.line1 = state.cx;
+                parallelRuler.line2 = state.cx + state.radius * 0.55;
+            }
+            redraw();
+        }
+
+        function toggleRulerTilt() {
+            parallelRuler.alignWithHead = !parallelRuler.alignWithHead;
+            const btn = document.getElementById('btnRulerTilt');
+            if (parallelRuler.alignWithHead) {
+                btn.textContent = `🧭 مائل مع الرأس (${state.angle}°)`;
+                btn.classList.add('active');
+            } else {
+                btn.textContent = '📐 مستقيم (0°)';
+                btn.classList.remove('active');
+            }
+            redraw();
+        }
+
+        function resetParallelRulers() {
+            if (parallelRuler.orientation === 'horizontal') {
+                parallelRuler.line1 = state.cy + state.yOffsets.nose;
+                parallelRuler.line2 = state.cy + state.yOffsets.chin;
+            } else {
+                parallelRuler.line1 = state.cx;
+                parallelRuler.line2 = state.cx + state.radius * 0.55;
+            }
+            redraw();
+        }
+
+        function toRulerAxisSpace(px, py) {
+            const deg = parallelRuler.alignWithHead ? state.angle : 0;
+            const rad = -deg * Math.PI / 180;
+            const dx = px - state.cx;
+            const dy = py - state.cy;
+            return {
+                x: state.cx + (dx * Math.cos(rad) - dy * Math.sin(rad)),
+                y: state.cy + (dx * Math.sin(rad) + dy * Math.cos(rad))
+            };
+        }
+
+        function drawParallelRulers(pxToCm) {
+            const resFactor = Math.max(1, canvas.width / 600);
+            const lw = (2.8 * resFactor) / Math.sqrt(view.scale);
+            const handleR = (8.5 * resFactor) / Math.sqrt(view.scale);
+            const deg = parallelRuler.alignWithHead ? state.angle : 0;
+            const span = Math.max(canvas.width, canvas.height) * 1.5;
+
+            ctx.save();
+            ctx.translate(state.cx, state.cy);
+            ctx.rotate(deg * Math.PI / 180);
+            ctx.translate(-state.cx, -state.cy);
+
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+            ctx.shadowBlur = 4 * resFactor;
+
+            const l1 = parallelRuler.line1;
+            const l2 = parallelRuler.line2;
+            const distPx = Math.abs(l2 - l1);
+            const unifiedCmPerPx = getUniformScreenCmPerPx();
+            const distCm = (distPx * unifiedCmPerPx).toFixed(2);
+            const rulerDistEl = document.getElementById('rulerDistanceVal');
+            if (rulerDistEl) rulerDistEl.textContent = `${distCm} سم`;
+
+            if (parallelRuler.orientation === 'horizontal') {
+                const midX = state.cx;
+                const yTop = Math.min(l1, l2);
+                const yBot = Math.max(l1, l2);
+
+                ctx.fillStyle = 'rgba(0, 255, 136, 0.08)';
+                ctx.fillRect(state.cx - span, yTop, span * 2, yBot - yTop);
+
+                [
+                    { y: l1, color: '#00FF88' },
+                    { y: l2, color: '#00E5FF' }
+                ].forEach(item => {
+                    ctx.strokeStyle = item.color;
+                    ctx.fillStyle = item.color;
+                    ctx.lineWidth = lw;
+
+                    ctx.beginPath();
+                    ctx.moveTo(state.cx - span, item.y);
+                    ctx.lineTo(state.cx + span, item.y);
+                    ctx.stroke();
+
+                    const gripOffset = state.radius * 1.25;
+                    [state.cx - gripOffset, state.cx + gripOffset].forEach(gx => {
+                        ctx.beginPath();
+                        ctx.arc(gx, item.y, handleR, 0, Math.PI * 2);
+                        ctx.stroke();
+                    });
+                });
+
+                if (distPx > 8) {
+                    ctx.strokeStyle = '#FFD700';
+                    ctx.fillStyle = '#FFD700';
+                    ctx.lineWidth = lw * 0.9;
+                    ctx.beginPath();
+                    ctx.moveTo(midX, yTop);
+                    ctx.lineTo(midX, yBot);
+                    ctx.stroke();
+
+                    drawArrowHead(midX, yTop, -Math.PI / 2, 10 * resFactor);
+                    drawArrowHead(midX, yBot, Math.PI / 2, 10 * resFactor);
+
+                    drawLabelBadge(`↕ ${distCm} سم`, midX + 46 * resFactor, (yTop + yBot) / 2, 'rgba(0, 25, 15, 0.92)', '#00FF88', resFactor);
+                }
+
+            } else {
+                const midY = state.cy;
+                const xLeft = Math.min(l1, l2);
+                const xRight = Math.max(l1, l2);
+
+                ctx.fillStyle = 'rgba(0, 255, 136, 0.08)';
+                ctx.fillRect(xLeft, state.cy - span, xRight - xLeft, span * 2);
+
+                [
+                    { x: l1, color: '#00FF88' },
+                    { x: l2, color: '#00E5FF' }
+                ].forEach(item => {
+                    ctx.strokeStyle = item.color;
+                    ctx.fillStyle = item.color;
+                    ctx.lineWidth = lw;
+
+                    ctx.beginPath();
+                    ctx.moveTo(item.x, state.cy - span);
+                    ctx.lineTo(item.x, state.cy + span);
+                    ctx.stroke();
+
+                    const gripOffset = state.radius * 1.25;
+                    [state.cy - gripOffset, state.cy + gripOffset].forEach(gy => {
+                        ctx.beginPath();
+                        ctx.arc(item.x, gy, handleR, 0, Math.PI * 2);
+                        ctx.stroke();
+                    });
+                });
+
+                if (distPx > 8) {
+                    ctx.strokeStyle = '#FFD700';
+                    ctx.fillStyle = '#FFD700';
+                    ctx.lineWidth = lw * 0.9;
+                    ctx.beginPath();
+                    ctx.moveTo(xLeft, midY);
+                    ctx.lineTo(xRight, midY);
+                    ctx.stroke();
+
+                    drawArrowHead(xLeft, midY, Math.PI, 10 * resFactor);
+                    drawArrowHead(xRight, midY, 0, 10 * resFactor);
+
+                    drawLabelBadge(`↔ ${distCm} سم`, (xLeft + xRight) / 2, midY - 22 * resFactor, 'rgba(0, 25, 15, 0.92)', '#00FF88', resFactor);
+                }
+            }
+
+            ctx.restore();
+        }
+
+        function drawArrowHead(x, y, angle, size) {
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x - size * Math.cos(angle - Math.PI / 6), y - size * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(x - size * Math.cos(angle + Math.PI / 6), y - size * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function toggleGridVisibility() {
+            isGridVisible = !isGridVisible;
+            const btn = document.getElementById('btnGridToggle');
+            if (isGridVisible) {
+                btn.textContent = '👁️ شبكة';
+                btn.classList.add('active');
+            } else {
+                btn.textContent = '🙈 شبكة';
+                btn.classList.remove('active');
+            }
+            redraw();
+        }
+
+        function togglePlumbTool() {
+            plumbState.active = !plumbState.active;
+            const btn = document.getElementById('btnPlumbToggle');
+            const card = document.getElementById('plumbCard');
+
+            if (plumbState.active) {
+                btn.classList.add('plumb-active');
+                card.classList.add('show');
+                plumbState.p1.x = state.cx - state.radius * 0.32;
+                plumbState.p1.y = state.cy - state.radius * 0.1;
+                plumbState.p2.x = state.cx + state.radius * 0.32;
+                plumbState.p2.y = state.cy + state.radius * 0.45;
+                applyMagneticSnap(plumbState.p1);
+                if (plumbState.dual) applyMagneticSnap(plumbState.p2);
+            } else {
+                btn.classList.remove('plumb-active');
+                card.classList.remove('show');
+            }
+            if (typeof syncCoordsToolButtonsUI === 'function') syncCoordsToolButtonsUI();
+            redraw();
+        }
+
+        function toggleSecondPlumb() {
+            plumbState.dual = !plumbState.dual;
+            const btn = document.getElementById('btnDualPlumb');
+            const statsBox = document.getElementById('plumbDualStats');
+            if (plumbState.dual) {
+                btn.textContent = '✕ إخفاء شاقول 2';
+                btn.classList.add('active-orange');
+                statsBox.classList.add('show');
+                plumbState.p2.x = state.cx + state.radius * 0.35;
+                plumbState.p2.y = state.cy + state.radius * 0.35;
+                applyMagneticSnap(plumbState.p2);
+            } else {
+                btn.textContent = '➕ إضافة شاقول 2 (قياس بين نقطتين)';
+                btn.classList.remove('active-orange');
+                statsBox.classList.remove('show');
+            }
+            redraw();
+        }
+
+        function togglePlumbAxis() {
+            plumbState.alignWithHead = !plumbState.alignWithHead;
+            const btn = document.getElementById('btnPlumbAxis');
+            if (plumbState.alignWithHead) {
+                btn.textContent = `🧭 مائل مع الرأس (${state.angle}°)`;
+                btn.classList.add('active-cyan');
+            } else {
+                btn.textContent = '📐 أرضي (0° / 90°)';
+                btn.classList.remove('active-cyan');
+            }
+            redraw();
+        }
+
+        function togglePlumbSnap() {
+            plumbState.snapEnabled = !plumbState.snapEnabled;
+            const btn = document.getElementById('btnPlumbSnap');
+            btn.textContent = plumbState.snapEnabled ? '🧲 المغناطيس: مفعّل' : '🧲 المغناطيس: متوقف';
+            if (!plumbState.snapEnabled) {
+                plumbState.p1.snappedName = null;
+                plumbState.p2.snappedName = null;
+            }
+            redraw();
+        }
+
+        // فحص ما إذا كانت نقطة اللمس قريبة من المركز أو أي مكان على خطي الشاقول (الأفقي أو العمودي)
+        function isNearPlumbCrosshair(pos, plumbPt, lineHitRadius) {
+            const axisDeg = plumbState.alignWithHead ? state.angle : 0;
+            const rad = -axisDeg * Math.PI / 180;
+            const dx = pos.x - plumbPt.x;
+            const dy = pos.y - plumbPt.y;
+            const localX = dx * Math.cos(rad) - dy * Math.sin(rad);
+            const localY = dx * Math.sin(rad) + dy * Math.cos(rad);
+            return Math.abs(localX) <= lineHitRadius || Math.abs(localY) <= lineHitRadius;
+        }
+
+        function buildAnatomicalLandmarksList() {
+            landmarksList = [];
+            if (features) {
+                const f = features;
+                const leftPupil = { x: (f.leftEyeOuter.x + f.leftEyeInner.x) / 2, y: (f.leftEyeOuter.y + f.leftEyeInner.y) / 2 };
+                const rightPupil = { x: (f.rightEyeInner.x + f.rightEyeOuter.x) / 2, y: (f.rightEyeInner.y + f.rightEyeOuter.y) / 2 };
+                const mouthCenter = { x: (f.mouthLeft.x + f.mouthRight.x) / 2, y: (f.mouthLeft.y + f.mouthRight.y) / 2 };
+                const noseTip = { x: (f.noseLeft.x + f.noseRight.x) / 2, y: (f.noseLeft.y + f.noseRight.y) / 2 };
+
+                landmarksList.push(
+                    { name: 'بؤبؤ العين اليسرى', x: leftPupil.x, y: leftPupil.y },
+                    { name: 'مدمع العين اليسرى', x: f.leftEyeInner.x, y: f.leftEyeInner.y },
+                    { name: 'طرف العين اليسرى الخارجي', x: f.leftEyeOuter.x, y: f.leftEyeOuter.y },
+                    { name: 'بؤبؤ العين اليمنى', x: rightPupil.x, y: rightPupil.y },
+                    { name: 'مدمع العين اليمنى', x: f.rightEyeInner.x, y: f.rightEyeInner.y },
+                    { name: 'طرف العين اليمنى الخارجي', x: f.rightEyeOuter.x, y: f.rightEyeOuter.y },
+                    { name: 'جناح الأنف الأيسر', x: f.noseLeft.x, y: f.noseLeft.y },
+                    { name: 'جناح الأنف الأيمن', x: f.noseRight.x, y: f.noseRight.y },
+                    { name: 'قاعدة الأنف', x: noseTip.x, y: noseTip.y },
+                    { name: 'زاوية الفم اليسرى', x: f.mouthLeft.x, y: f.mouthLeft.y },
+                    { name: 'زاوية الفم اليمنى', x: f.mouthRight.x, y: f.mouthRight.y },
+                    { name: 'منتصف الشفاه', x: mouthCenter.x, y: mouthCenter.y }
+                );
+            }
+
+            const rad = state.angle * Math.PI / 180;
+            const toWorld = (lx, ly) => ({
+                x: state.cx + (lx * Math.cos(rad) - ly * Math.sin(rad)),
+                y: state.cy + (lx * Math.sin(rad) + ly * Math.cos(rad))
+            });
+            const chinWorld = toWorld(0, state.yOffsets.chin);
+            const browWorld = toWorld(0, state.yOffsets.brow);
+            landmarksList.push(
+                { name: 'ذروة الذقن', x: chinWorld.x, y: chinWorld.y },
+                { name: 'منتصف الحاجبين', x: browWorld.x, y: browWorld.y }
+            );
+        }
+
+        function applyMagneticSnap(plumbPt) {
+            plumbPt.snappedName = null;
+            if (!plumbState.snapEnabled || landmarksList.length === 0) return;
+
+            const snapRadius = Math.max(18, canvas.width * 0.025) / view.scale;
+            let closest = null;
+            let minD = snapRadius;
+
+            for (let lm of landmarksList) {
+                const d = dist(plumbPt, lm);
+                if (d < minD) {
+                    minD = d;
+                    closest = lm;
+                }
+            }
+
+            if (closest) {
+                plumbPt.x = closest.x;
+                plumbPt.y = closest.y;
+                plumbPt.snappedName = closest.name;
+            }
+        }
+
+        function projectAlongPlumbAxis(pt, axisDeg) {
+            const rad = axisDeg * Math.PI / 180;
+            return {
+                u: pt.x * Math.cos(rad) + pt.y * Math.sin(rad),
+                v: -pt.x * Math.sin(rad) + pt.y * Math.cos(rad)
+            };
+        }
+
+        // توحيد قياس الشاقول مع قياسات الإحداثيات الفعلية الحية (cm) في جميع التبويبات
+        function measurePlumbDeltaCm(p1, p2, axisDeg, pxToCm) {
+            const rad = axisDeg * Math.PI / 180;
+            const dxWorld = p2.x - p1.x;
+            const dyWorld = p2.y - p1.y;
+            const uDiffPx = dxWorld * Math.cos(rad) + dyWorld * Math.sin(rad);
+            const vDiffPx = -dxWorld * Math.sin(rad) + dyWorld * Math.cos(rad);
+
+            const uCmPerPx = getUniformScreenCmPerPx();
+            const signedDxCm = uDiffPx * uCmPerPx;
+            const signedDyCm = vDiffPx * uCmPerPx;
+            const directCm = Math.hypot(dxWorld, dyWorld) * uCmPerPx;
+            return {
+                signedDxCm,
+                signedDyCm,
+                absDxCm: Math.abs(signedDxCm),
+                absDyCm: Math.abs(signedDyCm),
+                directCm
+            };
+        }
+
+        function updatePlumbAnalysisReport(pxToCm) {
+            if (!plumbState.active) return;
+
+            const axisDeg = plumbState.alignWithHead ? state.angle : 0;
+            const btnAxis = document.getElementById('btnPlumbAxis');
+            if (plumbState.alignWithHead) {
+                btnAxis.textContent = `🧭 مائل مع الرأس (${state.angle}°)`;
+            }
+
+            if (plumbState.dual) {
+                const m = measurePlumbDeltaCm(plumbState.p1, plumbState.p2, axisDeg, pxToCm);
+                document.getElementById('plumbDirectVal').textContent = `${m.directCm.toFixed(2)} سم`;
+                document.getElementById('plumbDxVal').textContent = `${m.absDxCm.toFixed(2)} سم`;
+                document.getElementById('plumbDyVal').textContent = `${m.absDyCm.toFixed(2)} سم`;
+            }
+
+            const activePt = plumbState.activeIndex === 1 && plumbState.dual ? plumbState.p2 : plumbState.p1;
+            const isSecond = plumbState.activeIndex === 1 && plumbState.dual;
+            const badgeClass = isSecond ? 'snap-badge orange' : 'snap-badge';
+            const titleName = activePt.snappedName || (isSecond ? 'الشاقول البرتقالي (2)' : 'الشاقول السماوي (1)');
+
+            const tolCm = 0.04;
+            const nearMaxCm = 0.35;
+            const vMatches = [];
+            const hMatches = [];
+            const nearVerticalNotes = [];
+
+            for (let lm of landmarksList) {
+                if (lm.name === activePt.snappedName) continue;
+                const dLm = measurePlumbDeltaCm(activePt, lm, axisDeg, pxToCm);
+                const diffXCm = dLm.signedDxCm;
+                const diffYCm = dLm.signedDyCm;
+
+                if (Math.abs(diffXCm) <= tolCm) {
+                    vMatches.push(lm.name);
+                } else if (Math.abs(diffXCm) <= nearMaxCm && nearVerticalNotes.length < 2) {
+                    const dir = diffXCm > 0 ? 'يمين' : 'يسار';
+                    nearVerticalNotes.push(`يبعد ${Math.abs(diffXCm).toFixed(2)} سم ${dir} (${lm.name})`);
+                }
+
+                if (Math.abs(diffYCm) <= tolCm) {
+                    hMatches.push(lm.name);
+                }
+            }
+
+            let html = `<div><span class="${badgeClass}">${titleName}</span></div>`;
+            html += `<div style="margin-top:4px;">• <b>الخط العمودي:</b> `;
+            if (vMatches.length > 0) {
+                html += `<span style="color:#00ff88;">يمر مباشرة بـ (${vMatches.join('، ')})</span>`;
+            } else {
+                html += `لا يمر بمعلم مطابق تماماً`;
+            }
+            if (nearVerticalNotes.length > 0) {
+                html += ` — <span style="color:#ffd700;">${nearVerticalNotes.join('، ')}</span>`;
+            }
+            html += `</div>`;
+
+            html += `<div>• <b>الخط الأفقي:</b> `;
+            if (hMatches.length > 0) {
+                html += `<span style="color:#00e5ff;">على استقامة واحدة مع (${hMatches.join('، ')})</span>`;
+            } else {
+                html += `مستوى أفقي مستقل`;
+            }
+            html += `</div>`;
+
+            document.getElementById('plumbReportBox').innerHTML = html;
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedProvider = localStorage.getItem('loomis_ai_provider') || 'gemini';
+            selectAiProvider(savedProvider);
+
+            const savedKey = localStorage.getItem('loomis_gemini_api_key');
+            if (savedKey) document.getElementById('geminiApiKeyInput').value = savedKey;
+
+            const savedModel = localStorage.getItem('loomis_gemini_model');
+            const savedCustomModel = localStorage.getItem('loomis_gemini_custom_model');
+            if (savedModel) {
+                const selectEl = document.getElementById('geminiModelSelect');
+                const exists = Array.from(selectEl.options).some(opt => opt.value === savedModel);
+                if (exists) {
+                    selectEl.value = savedModel;
+                } else {
+                    selectEl.value = 'custom';
+                    document.getElementById('customModelInput').value = savedModel;
+                }
+            }
+            if (savedCustomModel) document.getElementById('customModelInput').value = savedCustomModel;
+            onModelSelectChange();
+
+            const savedHfToken = localStorage.getItem('loomis_hf_token');
+            if (savedHfToken) document.getElementById('hfTokenInput').value = savedHfToken;
+
+            const savedHfModel = localStorage.getItem('loomis_hf_model');
+            const savedCustomHf = localStorage.getItem('loomis_hf_custom_model');
+            if (savedHfModel) {
+                const hfSelect = document.getElementById('hfModelSelect');
+                const exists = Array.from(hfSelect.options).some(opt => opt.value === savedHfModel);
+                if (exists) {
+                    hfSelect.value = savedHfModel;
+                } else {
+                    hfSelect.value = 'custom';
+                    document.getElementById('customHfModelInput').value = savedHfModel;
+                }
+            }
+            if (savedCustomHf) document.getElementById('customHfModelInput').value = savedCustomHf;
+            onHfModelSelectChange();
+
+            createDefaultFeaturesFromGrid();
+            redraw();
+        });
+
+        function selectAiProvider(prov) {
+            activeAiProvider = prov;
+            localStorage.setItem('loomis_ai_provider', prov);
+
+            const gemBtn = document.getElementById('provGeminiBtn');
+            const hfBtn = document.getElementById('provHfBtn');
+            const gemBox = document.getElementById('geminiSettingsBox');
+            const hfBox = document.getElementById('hfSettingsBox');
+
+            if (prov === 'huggingface') {
+                gemBtn.classList.remove('active');
+                hfBtn.classList.add('hf-active');
+                gemBox.style.display = 'none';
+                hfBox.style.display = 'flex';
+            } else {
+                hfBtn.classList.remove('hf-active');
+                gemBtn.classList.add('active');
+                hfBox.style.display = 'none';
+                gemBox.style.display = 'flex';
+            }
+        }
+
+        function onModelSelectChange() {
+            const selectVal = document.getElementById('geminiModelSelect').value;
+            document.getElementById('customModelBox').classList.toggle('show', selectVal === 'custom');
+        }
+
+        function onHfModelSelectChange() {
+            const selectVal = document.getElementById('hfModelSelect').value;
+            document.getElementById('customHfModelBox').classList.toggle('show', selectVal === 'custom');
+        }
+
+        function getSelectedGeminiModel() {
+            const selectVal = document.getElementById('geminiModelSelect').value;
+            if (selectVal === 'custom') {
+                return document.getElementById('customModelInput').value.trim() || 'gemini-3.5-flash-lite';
+            }
+            return selectVal;
+        }
+
+        function getSelectedHfModel() {
+            const selectVal = document.getElementById('hfModelSelect').value;
+            if (selectVal === 'custom') {
+                return document.getElementById('customHfModelInput').value.trim() || 'Qwen/Qwen2.5-VL-7B-Instruct';
+            }
+            return selectVal;
+        }
+
+        function saveAiSettings() {
+            if (activeAiProvider === 'huggingface') {
+                const hfToken = document.getElementById('hfTokenInput').value.trim();
+                const hfSel = document.getElementById('hfModelSelect').value;
+                const hfCustom = document.getElementById('customHfModelInput').value.trim();
+                if (!hfToken) {
+                    alert('يرجى إدخال توكن Hugging Face أولاً.');
+                    return;
+                }
+                localStorage.setItem('loomis_hf_token', hfToken);
+                localStorage.setItem('loomis_hf_model', hfSel);
+                if (hfCustom) localStorage.setItem('loomis_hf_custom_model', hfCustom);
+                alert(`تم حفظ توكن Hugging Face والنموذج (${getSelectedHfModel()}) بنجاح!`);
+            } else {
+                const keyVal = document.getElementById('geminiApiKeyInput').value.trim();
+                const selectVal = document.getElementById('geminiModelSelect').value;
+                const customVal = document.getElementById('customModelInput').value.trim();
+                if (!keyVal) {
+                    alert('يرجى إدخال مفتاح Gemini API أولاً.');
+                    return;
+                }
+                localStorage.setItem('loomis_gemini_api_key', keyVal);
+                localStorage.setItem('loomis_gemini_model', selectVal);
+                if (customVal) localStorage.setItem('loomis_gemini_custom_model', customVal);
+                alert(`تم حفظ مفتاح Gemini والنموذج (${getSelectedGeminiModel()}) بنجاح!`);
+            }
+        }
+
+        function openAiModal() {
+            document.getElementById('aiModal').classList.add('open');
+        }
+
+        function closeAiModal() {
+            document.getElementById('aiModal').classList.remove('open');
+            redraw();
+        }
+
+        function toggleAiOverlay() {
+            aiVisualOverlay.visible = !aiVisualOverlay.visible;
+            const btn = document.getElementById('btnAiLayer');
+            btn.classList.toggle('active', aiVisualOverlay.visible);
+            redraw();
+        }
+
+        function toggleSketchCompare(btn) {
+            document.querySelectorAll('.ai-task-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            document.getElementById('sketchUploadBox').classList.add('show');
+            document.getElementById('aiResultBox').textContent = 'اختر صورة رسمتك من الزر أعلاه ليقارنها الذكاء الاصطناعي بالصورة الأصلية.';
+        }
+
+        function getResizedBase64(imgSource, maxDim = 512) {
+            const tempCanvas = document.createElement('canvas');
+            let w = imgSource.width || imgSource.naturalWidth;
+            let h = imgSource.height || imgSource.naturalHeight;
+            if (w > maxDim || h > maxDim) {
+                if (w > h) {
+                    h = Math.round(h * (maxDim / w));
+                    w = maxDim;
+                } else {
+                    w = Math.round(w * (maxDim / h));
+                    h = maxDim;
+                }
+            }
+            tempCanvas.width = w;
+            tempCanvas.height = h;
+            const tCtx = tempCanvas.getContext('2d');
+            tCtx.drawImage(imgSource, 0, 0, w, h);
+            return tempCanvas.toDataURL('image/jpeg', 0.72).split(',')[1];
+        }
+
+        function buildCurrentMeasurementsSummary() {
+            const faceType = document.getElementById('m_faceTypeTag').textContent;
+            const faceRatio = document.getElementById('m_faceRatio').textContent;
+            const eyesRatio = document.getElementById('m_eyesRatio').textContent;
+            const interEyeRatio = document.getElementById('m_interEyeRatio').textContent;
+            const mouthRatio = document.getElementById('m_mouthRatio').textContent;
+            const noseRatio = document.getElementById('m_noseRatio').textContent;
+            const t1Pct = document.getElementById('m_t1Pct').textContent;
+            const t2Pct = document.getElementById('m_t2Pct').textContent;
+            const t3Pct = document.getElementById('m_t3Pct').textContent;
+
+            return `بنية الوجه: ${faceType} (${faceRatio}) | زوايا الرأس 3D: (Yaw: ${headPose3D.yaw}°, Pitch: ${headPose3D.pitch}°, Roll: ${headPose3D.roll}°) | الأثلاث: (${t1Pct} / ${t2Pct} / ${t3Pct}) | العين: ${eyesRatio} | بين العينين: ${interEyeRatio} | الأنف: ${noseRatio} | الفم: ${mouthRatio}`;
+        }
+
+        function applyAiVisualData(aiJson) {
+            if (!aiJson) return;
+            if (aiJson.lightDir && typeof aiJson.lightDir.angleDeg === 'number') {
+                aiVisualOverlay.lightDir = aiJson.lightDir;
+            }
+            if (Array.isArray(aiJson.shadowZones)) {
+                aiVisualOverlay.shadowZones = aiJson.shadowZones;
+            }
+            if (Array.isArray(aiJson.corrections)) {
+                aiVisualOverlay.corrections = aiJson.corrections;
+            }
+
+            const hasVisuals = aiVisualOverlay.lightDir || aiVisualOverlay.shadowZones.length > 0 || aiVisualOverlay.corrections.length > 0;
+            if (hasVisuals) {
+                aiVisualOverlay.visible = true;
+                const layerBtn = document.getElementById('btnAiLayer');
+                layerBtn.style.display = 'flex';
+                layerBtn.classList.add('active');
+                document.getElementById('applyCanvasBtn').classList.add('show');
+            }
+            redraw();
+        }
+
+        function runAiAnalysis(taskType, btn, sketchBase64 = null) {
+            if (activeAiProvider === 'huggingface') {
+                askHuggingFace(taskType, btn, sketchBase64);
+            } else {
+                askGemini(taskType, btn, sketchBase64);
+            }
+        }
+
+        function buildTaskPrompt(taskType) {
+            const stats = buildCurrentMeasurementsSummary();
+            const jsonSchemaInstruction = `
+أجب بصيغة JSON صالحة فقط (بدون markdown) تحتوي على الحقول التالية:
+{
+  "explanation": "شرح عربي مختصر وواضح ومباشر للرسام في نقاط مرقمة",
+  "lightDir": { "angleDeg": رقم_من_0_إلى_360_يمثل_اتجاه_قدوم_الضوء, "label": "وصف قصير لمصدر الضوء مثل: علوي يمين" },
+  "shadowZones": [
+    { "part": "اختر بدقة من القائمة: cheek_left | cheek_right | nose_base | jaw_bottom | eye_socket_left | eye_socket_right | forehead_left | forehead_right", "label": "وصف قصير للظل" }
+  ],
+  "corrections": [
+    { "part": "اختر بدقة من القائمة: left_eye | right_eye | nose | mouth | jaw | brow", "text": "ملاحظة التصحيح القصيرة" }
+  ]
+}`;
+
+            let taskGoal = '';
+            if (taskType === 'blueprint') {
+                taskGoal = `أنت أستاذ أكاديمي في تقنية أندرو لوميس. بناءً على الصورة وهذه النسب الفردية المحسوبة بدقة (${stats})، اكتب خطة رسم هندسية مرقمة للرسام في explanation توضح الفروق التشريحية الخاصة بهذا الشخص. اجعل lightDir=null و shadowZones=[] و corrections=[].`;
+            } else if (taskType === 'shading') {
+                taskGoal = `حلل الإضاءة ومناطق الظل العميق (Core Shadows) في هذه الصورة. حدد زاوية قدوم الضوء في lightDir، واختر من القائمة المحددة أهم مناطق الظل الحقيقية الموجودة في الصورة في shadowZones ليرسمها التطبيق فوق تلك الأجزاء التشريحية بدقة، واشرح كتل الضوء والظل في explanation.`;
+            } else if (taskType === 'tilt') {
+                taskGoal = `انظر للصورة الأولى (الأصلية) والثانية (شبكة لوميس المطبقة عليها بزوايا Yaw=${headPose3D.yaw}°, Pitch=${headPose3D.pitch}°, Roll=${headPose3D.roll}°). اشرح للرسام في explanation كيف يرسم هذه الوضعية الفراغية للرأس وكيفية إمالة كرة لوميس وقطعيها الجانبيين. اجعل lightDir=null و shadowZones=[] و corrections=[].`;
+            } else if (taskType === 'compare') {
+                taskGoal = `قارن الصورة المرجعية الأولى برسمة المستخدم الثانية. حدد الأجزاء التي تحتاج تصحيحاً من القائمة المحددة في corrections مع ذكر مقدار التعديل، واشرح الفروقات في explanation.`;
+            }
+            return `${taskGoal}\n\n${jsonSchemaInstruction}`;
+        }
+
+        function handleAiJsonResponse(rawText, resultBox) {
+            try {
+                const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+                const cleanJsonStr = jsonMatch ? jsonMatch[0] : rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+                const parsed = JSON.parse(cleanJsonStr);
+
+                aiVisualOverlay.lightDir = null;
+                aiVisualOverlay.shadowZones = [];
+                aiVisualOverlay.corrections = [];
+
+                applyAiVisualData(parsed);
+                resultBox.textContent = parsed.explanation || 'تم التحليل بنجاح.';
+            } catch (parseErr) {
+                resultBox.textContent = rawText || 'لم يتم استلام رد، حاول مجدداً.';
+            }
+        }
+
+        async function askGemini(taskType, btn, sketchBase64 = null) {
+            const apiKey = document.getElementById('geminiApiKeyInput').value.trim() || localStorage.getItem('loomis_gemini_api_key');
+            const modelName = getSelectedGeminiModel();
+            const resultBox = document.getElementById('aiResultBox');
+            const applyBtn = document.getElementById('applyCanvasBtn');
+
+            if (!apiKey) {
+                resultBox.textContent = '⚠️ يرجى إدخال مفتاح Gemini API أولاً، أو التبديل إلى تبويب Hugging Face في الأعلى.';
+                return;
+            }
+            if (!currentImage) {
+                resultBox.textContent = '⚠️ يرجى رفع صورة الوجه إلى اللوحة أولاً قبل طلب التحليل.';
+                return;
+            }
+
+            if (btn) {
+                document.querySelectorAll('.ai-task-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                if (taskType !== 'compare') document.getElementById('sketchUploadBox').classList.remove('show');
+            }
+
+            applyBtn.classList.remove('show');
+            resultBox.innerHTML = `<div class="ai-loading">⏳ جاري التحليل عبر Gemini (${modelName})...</div>`;
+
+            const refBase64 = getResizedBase64(currentImage, 512);
+            const gridOverlayBase64 = getResizedBase64(canvas, 512);
+            const fullPrompt = buildTaskPrompt(taskType);
+
+            const parts = [
+                { text: fullPrompt },
+                { inline_data: { mime_type: 'image/jpeg', data: refBase64 } }
+            ];
+            if (taskType === 'tilt') {
+                parts.push({ inline_data: { mime_type: 'image/jpeg', data: gridOverlayBase64 } });
+            } else if (taskType === 'compare' && sketchBase64) {
+                parts.push({ inline_data: { mime_type: 'image/jpeg', data: sketchBase64 } });
+            }
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    signal: controller.signal,
+                    body: JSON.stringify({
+                        contents: [{ parts: parts }],
+                        generationConfig: {
+                            temperature: 0.3,
+                            maxOutputTokens: 1200,
+                            responseMimeType: "application/json"
+                        }
+                    })
+                });
+                clearTimeout(timeoutId);
+
+                const data = await response.json();
+                if (data.error) {
+                    resultBox.textContent = `❌ خطأ من Gemini: ${data.error.message}\n\n💡 نصيحة: إذا نفدت الحصة، اضغط على زر "🤗 Hugging Face (Qwen2.5-VL)" في أعلى النافذة لإكمال التحليل فوراً.`;
+                    return;
+                }
+
+                const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                handleAiJsonResponse(rawText, resultBox);
+            } catch (err) {
+                clearTimeout(timeoutId);
+                resultBox.textContent = err.name === 'AbortError'
+                    ? '⏱️ انتهت مهلة الانتظار (25 ثانية). جرب التبديل إلى Hugging Face أو أعد المحاولة.'
+                    : `❌ تعذر الاتصال بـ Gemini:\n${err.message}`;
+            }
+        }
+
+        async function askHuggingFace(taskType, btn, sketchBase64 = null) {
+            const hfToken = document.getElementById('hfTokenInput').value.trim() || localStorage.getItem('loomis_hf_token');
+            const modelId = getSelectedHfModel();
+            const resultBox = document.getElementById('aiResultBox');
+            const applyBtn = document.getElementById('applyCanvasBtn');
+
+            if (!hfToken) {
+                resultBox.textContent = '⚠️ يرجى إدخال توكن Hugging Face (hf_...) وحفظه في الخانة أعلاه أولاً.';
+                return;
+            }
+            if (!currentImage) {
+                resultBox.textContent = '⚠️ يرجى رفع صورة الوجه إلى اللوحة أولاً قبل طلب التحليل.';
+                return;
+            }
+
+            if (btn) {
+                document.querySelectorAll('.ai-task-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                if (taskType !== 'compare') document.getElementById('sketchUploadBox').classList.remove('show');
+            }
+
+            applyBtn.classList.remove('show');
+            resultBox.innerHTML = `<div class="ai-loading" style="color:#ffd54f;">🤗 جاري التحليل عبر Hugging Face (${modelId})...</div>`;
+
+            const refBase64 = getResizedBase64(currentImage, 512);
+            const gridOverlayBase64 = getResizedBase64(canvas, 512);
+            const fullPrompt = buildTaskPrompt(taskType);
+
+            const userContent = [
+                { type: 'text', text: fullPrompt },
+                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${refBase64}` } }
+            ];
+
+            if (taskType === 'tilt') {
+                userContent.push({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${gridOverlayBase64}` } });
+            } else if (taskType === 'compare' && sketchBase64) {
+                userContent.push({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${sketchBase64}` } });
+            }
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+            try {
+                const response = await fetch('https://router.huggingface.co/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${hfToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    signal: controller.signal,
+                    body: JSON.stringify({
+                        model: modelId,
+                        messages: [{ role: 'user', content: userContent }],
+                        max_tokens: 1100,
+                        temperature: 0.3
+                    })
+                });
+                clearTimeout(timeoutId);
+
+                const data = await response.json();
+                if (data.error) {
+                    const errMsg = typeof data.error === 'string' ? data.error : (data.error.message || JSON.stringify(data.error));
+                    resultBox.textContent = `❌ خطأ من Hugging Face (${modelId}):\n${errMsg}`;
+                    return;
+                }
+
+                const rawText = data?.choices?.[0]?.message?.content || '';
+                handleAiJsonResponse(rawText, resultBox);
+            } catch (err) {
+                clearTimeout(timeoutId);
+                resultBox.textContent = err.name === 'AbortError'
+                    ? '⏱️ انتهت مهلة الانتظار (30 ثانية) من خادم Hugging Face. حاول مرة أخرى.'
+                    : `❌ تعذر الاتصال بـ Hugging Face:\n${err.message}`;
+            }
+        }
+
+        function handleSketchUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const img = new Image();
+            img.onload = () => {
+                const sketchB64 = getResizedBase64(img, 512);
+                runAiAnalysis('compare', null, sketchB64);
+            };
+            img.src = URL.createObjectURL(file);
+        }
+
+        function createDefaultFeaturesFromGrid() {
+            const r = state.radius;
+            const faceWidth = r * 1.36;
+            const eyeW = faceWidth / 5;
+            const eyeY = state.yOffsets.brow + (state.yOffsets.nose - state.yOffsets.brow) * 0.28;
+            const mouthY = state.yOffsets.nose + (state.yOffsets.chin - state.yOffsets.nose) * 0.35;
+
+            const toWorld = (lx, ly) => {
+                const rad = state.angle * Math.PI / 180;
+                return {
+                    x: state.cx + (lx * Math.cos(rad) - ly * Math.sin(rad)),
+                    y: state.cy + (lx * Math.sin(rad) + ly * Math.cos(rad))
+                };
+            };
+
+            features = {
+                leftEyeOuter: toWorld(-eyeW * 1.5, eyeY),
+                leftEyeInner: toWorld(-eyeW * 0.5, eyeY),
+                rightEyeInner: toWorld(eyeW * 0.5, eyeY),
+                rightEyeOuter: toWorld(eyeW * 1.5, eyeY),
+                noseLeft: toWorld(-eyeW * 0.5, state.yOffsets.nose),
+                noseRight: toWorld(eyeW * 0.5, state.yOffsets.nose),
+                mouthLeft: toWorld(-eyeW * 0.75, mouthY),
+                mouthRight: toWorld(eyeW * 0.75, mouthY)
+            };
+            actualKeyPoints = {
+                topHead: toWorld(0, state.yOffsets.hair),
+                browCenter: toWorld(0, state.yOffsets.brow),
+                noseBase: toWorld(0, state.yOffsets.nose),
+                chin: toWorld(0, state.yOffsets.chin),
+                leftCheek: toWorld(state.bounds.leftX, 0),
+                rightCheek: toWorld(state.bounds.rightX, 0)
+            };
+            lastDetectedSource = currentImage ? 'إحداثيات الصورة المرفوعة' : 'افتراضي (قبل رفع صورة)';
+            buildAnatomicalLandmarksList();
+            updateActualCoordsPanel();
+        }
+
+        function processLandmarker3DResults(result) {
+            detectBanner.style.display = 'none';
+            if (result && result.faceLandmarks && result.faceLandmarks.length > 0 && currentImage) {
+                const lm = result.faceLandmarks[0];
+                const w = canvas.width;
+                const h = canvas.height;
+
+                const leftEyeOuter = { x: lm[33].x * w, y: lm[33].y * h };
+                const leftEyeInner = { x: lm[133].x * w, y: lm[133].y * h };
+
+                const rightEyeInner = { x: lm[362].x * w, y: lm[362].y * h };
+                const rightEyeOuter = { x: lm[263].x * w, y: lm[263].y * h };
+
+                const mouthLeft = { x: lm[61].x * w, y: lm[61].y * h };
+                const mouthRight = { x: lm[291].x * w, y: lm[291].y * h };
+
+                const noseLeft = { x: lm[129].x * w, y: lm[129].y * h };
+                const noseRight = { x: lm[358].x * w, y: lm[358].y * h };
+
+                const noseBase = { x: lm[2].x * w, y: lm[2].y * h };
+                const topHead = { x: lm[10].x * w, y: lm[10].y * h };
+                const chinPt = { x: lm[152].x * w, y: lm[152].y * h };
+                const browPt = { x: lm[9].x * w, y: lm[9].y * h };
+
+                const leftFaceEdge = { x: lm[234].x * w, y: lm[234].y * h };
+                const rightFaceEdge = { x: lm[454].x * w, y: lm[454].y * h };
+
+                features = {
+                    leftEyeOuter, leftEyeInner,
+                    rightEyeInner, rightEyeOuter,
+                    mouthLeft, mouthRight,
+                    noseLeft, noseRight
+                };
+
+                actualKeyPoints = {
+                    topHead: topHead,
+                    browCenter: browPt,
+                    noseBase: noseBase,
+                    chin: chinPt,
+                    leftCheek: leftFaceEdge,
+                    rightCheek: rightFaceEdge
+                };
+                lastDetectedSource = 'رصد فعلي حي (FaceLandmarker 3D)';
+
+                if (result.facialTransformationMatrixes && result.facialTransformationMatrixes.length > 0) {
+                    const mat = result.facialTransformationMatrixes[0].data;
+                    headPose3D = extractEulerFromMatrix(mat);
+                } else {
+                    const eyeAngleRad = Math.atan2(rightEyeOuter.y - leftEyeOuter.y, rightEyeOuter.x - leftEyeOuter.x);
+                    headPose3D = { yaw: 0, pitch: 0, roll: Math.round(eyeAngleRad * 180 / Math.PI) };
+                }
+                updatePoseStripUI();
+
+                const faceCenterX = (leftFaceEdge.x + rightFaceEdge.x) / 2;
+                const browCenterY = browPt.y;
+                const faceWidthPx = dist(leftFaceEdge, rightFaceEdge);
+                const faceHeightPx = dist(topHead, chinPt);
+
+                if (!isLocked) {
+                    const absYaw = Math.abs(headPose3D.yaw);
+                    if (currentMode === 'front' || currentMode === 'threeQuarter' || currentMode === 'side') {
+                        if (absYaw >= 52) {
+                            autoSwitchModeTab('side', document.getElementById('tabSide'));
+                        } else if (absYaw >= 12) {
+                            autoSwitchModeTab('threeQuarter', document.getElementById('tab3Q'));
+                        } else {
+                            autoSwitchModeTab('front', document.getElementById('tabFront'));
+                        }
+                    }
+
+                    state.cx = faceCenterX;
+                    state.cy = browCenterY + faceHeightPx * 0.08;
+                    const effectiveSpan = Math.max(faceWidthPx, faceHeightPx * 0.76);
+                    state.radius = Math.round(effectiveSpan * 0.58);
+                    radiusRange.value = state.radius;
+                    document.getElementById('radiusVal').textContent = state.radius;
+
+                    const rollDeg = Math.max(-60, Math.min(60, headPose3D.roll));
+                    state.angle = rollDeg;
+                    angleRange.value = rollDeg;
+                    document.getElementById('angleVal').textContent = rollDeg + '°';
+
+                    const localTop = toLocalGridSpace(topHead.x, topHead.y);
+                    const localBrow = toLocalGridSpace(browPt.x, browPt.y);
+                    const localNose = toLocalGridSpace(noseBase.x, noseBase.y);
+                    const localChin = toLocalGridSpace(chinPt.x, chinPt.y);
+                    const localLeft = toLocalGridSpace(leftFaceEdge.x, leftFaceEdge.y);
+                    const localRight = toLocalGridSpace(rightFaceEdge.x, rightFaceEdge.y);
+
+                    // حساب منبت الشعر التشريحي الصحيح (نقطة lm[10] في MediaPipe تقع أسفل منبت الشعر الفعلي)
+                    const midThird = Math.max(10, localNose.y - localBrow.y);
+                    const lowerThird = Math.max(10, localChin.y - localNose.y);
+                    const avgThird = (midThird + lowerThird) * 0.5;
+                    const trueHairY = Math.min(localTop.y - avgThird * 0.22, localBrow.y - avgThird * 0.96);
+
+                    state.yOffsets.brow = localBrow.y;
+                    state.yOffsets.nose = localNose.y;
+                    state.yOffsets.chin = localChin.y;
+                    state.yOffsets.hair = trueHairY;
+
+                    // تحديث نقطة منبت الشعر في الإحداثيات الفعلية لتطابق المنبت الصحيح
+                    const radHair = state.angle * Math.PI / 180;
+                    actualKeyPoints.topHead = {
+                        x: state.cx - trueHairY * Math.sin(radHair),
+                        y: state.cy + trueHairY * Math.cos(radHair)
+                    };
+
+                    const faceSpanY = localChin.y - trueHairY;
+                    state.bounds.topY = trueHairY - faceSpanY * 0.10;
+                    state.bounds.bottomY = localChin.y;
+                    state.bounds.leftX = localLeft.x;
+                    state.bounds.rightX = localRight.x;
+
+                    resetParallelRulers();
+                }
+
+                buildAnatomicalLandmarksList();
+                updateActualCoordsPanel();
+                hasDetectedOnce = true;
+                redraw();
+            } else {
+                computeImageCoordinatesFromCurrentImage();
+            }
+        }
+
+        function autoSwitchModeTab(mode, btn) {
+            currentMode = mode;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+        }
+
+        function computeImageCoordinatesFromCurrentImage() {
+            detectBanner.style.display = 'none';
+            if (!currentImage) {
+                createDefaultFeaturesFromGrid();
+                redraw();
+                return;
+            }
+            const w = canvas.width;
+            const h = canvas.height;
+            const cx = w * 0.5;
+            const topY = h * 0.13;
+            const browY = h * 0.34;
+            const eyeY = h * 0.38;
+            const noseY = h * 0.54;
+            const mouthY = h * 0.67;
+            const chinY = h * 0.80;
+
+            const faceW = Math.min(w, h) * 0.44;
+            const eyeW = faceW / 5;
+
+            features = {
+                leftEyeOuter: { x: cx - eyeW * 1.5, y: eyeY },
+                leftEyeInner: { x: cx - eyeW * 0.5, y: eyeY },
+                rightEyeInner: { x: cx + eyeW * 0.5, y: eyeY },
+                rightEyeOuter: { x: cx + eyeW * 1.5, y: eyeY },
+                noseLeft: { x: cx - eyeW * 0.5, y: noseY },
+                noseRight: { x: cx + eyeW * 0.5, y: noseY },
+                mouthLeft: { x: cx - eyeW * 0.75, y: mouthY },
+                mouthRight: { x: cx + eyeW * 0.75, y: mouthY }
+            };
+
+            actualKeyPoints = {
+                topHead: { x: cx, y: topY },
+                browCenter: { x: cx, y: browY },
+                noseBase: { x: cx, y: noseY },
+                chin: { x: cx, y: chinY },
+                leftCheek: { x: cx - faceW * 0.5, y: (eyeY + noseY) * 0.5 },
+                rightCheek: { x: cx + faceW * 0.5, y: (eyeY + noseY) * 0.5 }
+            };
+            lastDetectedSource = `إحداثيات الصورة (${getScreenCmDimensions().wCm}×${getScreenCmDimensions().hCm} cm)`;
+
+            if (!isLocked) {
+                state.cx = cx;
+                state.cy = browY + (chinY - topY) * 0.14;
+                state.radius = Math.round(Math.min(w, h) * 0.24);
+                radiusRange.value = state.radius;
+                document.getElementById('radiusVal').textContent = state.radius;
+
+                state.yOffsets.hair = topY - state.cy;
+                state.yOffsets.brow = browY - state.cy;
+                state.yOffsets.nose = noseY - state.cy;
+                state.yOffsets.chin = chinY - state.cy;
+
+                state.bounds.topY = state.yOffsets.hair - (chinY - topY) * 0.08;
+                state.bounds.bottomY = state.yOffsets.chin;
+                state.bounds.leftX = -faceW * 0.5;
+                state.bounds.rightX = faceW * 0.5;
+                resetParallelRulers();
+            }
+
+            buildAnatomicalLandmarksList();
+            updateActualCoordsPanel();
+            hasDetectedOnce = true;
+            redraw();
+        }
+
+        function spanCmBetween(p1, p2) {
+            const a = imagePointToScreenCm(p1);
+            const b = imagePointToScreenCm(p2);
+            const dx = Math.abs(b.xCm - a.xCm);
+            const dy = Math.abs(b.yCm - a.yCm);
+            const direct = Math.hypot(dx, dy);
+            return { dx, dy, direct };
+        }
+
+        function getCoordsPartBounds(partKey) {
+            if (!features) return null;
+            const f = features;
+            const kp = actualKeyPoints || {};
+
+            const topPt = kp.topHead || { x: state.cx, y: state.cy + state.yOffsets.hair };
+            const browPt = kp.browCenter || { x: state.cx, y: state.cy + state.yOffsets.brow };
+            const nosePt = kp.noseBase || { x: state.cx, y: state.cy + state.yOffsets.nose };
+            const chinPt = kp.chin || { x: state.cx, y: state.cy + state.yOffsets.chin };
+            const leftCheek = kp.leftCheek || { x: state.cx + state.bounds.leftX, y: state.cy };
+            const rightCheek = kp.rightCheek || { x: state.cx + state.bounds.rightX, y: state.cy };
+            const mouthMid = { x: (f.mouthLeft.x + f.mouthRight.x) / 2, y: (f.mouthLeft.y + f.mouthRight.y) / 2 };
+
+            const rEyeLenPx = dist(f.rightEyeInner, f.rightEyeOuter);
+            const rEyeMidY = (f.rightEyeInner.y + f.rightEyeOuter.y) / 2;
+
+            const lEyeLenPx = dist(f.leftEyeOuter, f.leftEyeInner);
+            const lEyeMidY = (f.leftEyeOuter.y + f.leftEyeInner.y) / 2;
+
+            const jawHalfW = Math.abs(rightCheek.x - leftCheek.x) * 0.39;
+            const centerX = (leftCheek.x + rightCheek.x) / 2;
+
+            const map = {
+                'rightEye': {
+                    w1: f.rightEyeInner.x, w2: f.rightEyeOuter.x,
+                    h1: rEyeMidY - rEyeLenPx * 0.22, h2: rEyeMidY + rEyeLenPx * 0.22
+                },
+                'leftEye': {
+                    w1: f.leftEyeOuter.x, w2: f.leftEyeInner.x,
+                    h1: lEyeMidY - lEyeLenPx * 0.22, h2: lEyeMidY + lEyeLenPx * 0.22
+                },
+                'interEye': {
+                    w1: f.leftEyeInner.x, w2: f.rightEyeInner.x,
+                    h1: Math.min(f.leftEyeInner.y, f.rightEyeInner.y), h2: Math.max(f.leftEyeInner.y, f.rightEyeInner.y)
+                },
+                'nose': {
+                    w1: f.noseLeft.x, w2: f.noseRight.x,
+                    h1: browPt.y, h2: nosePt.y
+                },
+                'mouth': {
+                    w1: f.mouthLeft.x, w2: f.mouthRight.x,
+                    h1: nosePt.y, h2: mouthMid.y
+                },
+                'chinJaw': {
+                    w1: centerX - jawHalfW, w2: centerX + jawHalfW,
+                    h1: mouthMid.y, h2: chinPt.y
+                },
+                'fullFace': {
+                    w1: leftCheek.x, w2: rightCheek.x,
+                    h1: topPt.y, h2: chinPt.y
+                },
+                'thirds': {
+                    w1: leftCheek.x, w2: rightCheek.x,
+                    h1: topPt.y, h2: browPt.y
+                },
+                'axis': {
+                    w1: Math.min(topPt.x, chinPt.x), w2: Math.max(topPt.x, chinPt.x),
+                    h1: topPt.y, h2: chinPt.y
+                }
+            };
+            return map[partKey] || null;
+        }
+
+        function toggleCoordsPartRuler(partKey, dir) {
+            const toggleId = `${partKey}:${dir}`;
+            if (coordsRulerState.active && coordsRulerState.key === toggleId) {
+                coordsRulerState.active = false;
+                coordsRulerState.key = null;
+                updateActualCoordsPanel();
+                redraw();
+                return;
+            }
+
+            const bounds = getCoordsPartBounds(partKey);
+            if (!bounds) return;
+
+            coordsRulerState.active = true;
+            coordsRulerState.key = toggleId;
+            if (dir === 'w') {
+                coordsRulerState.orientation = 'vertical';
+                coordsRulerState.line1 = bounds.w1;
+                coordsRulerState.line2 = bounds.w2;
+            } else {
+                coordsRulerState.orientation = 'horizontal';
+                coordsRulerState.line1 = bounds.h1;
+                coordsRulerState.line2 = bounds.h2;
+            }
+
+            updateActualCoordsPanel();
+            redraw();
+        }
+
+        function updateActualCoordsPanel() {
+            const tbody = document.getElementById('coordsTableBody');
+            const badge = document.getElementById('coordsSourceBadge');
+            if (!tbody) return;
+
+            badge.textContent = lastDetectedSource;
+
+            if (!features) return;
+            const f = features;
+            const kp = actualKeyPoints || {};
+
+            const topPt = kp.topHead || { x: state.cx, y: state.cy + state.yOffsets.hair };
+            const browPt = kp.browCenter || { x: state.cx, y: state.cy + state.yOffsets.brow };
+            const nosePt = kp.noseBase || { x: state.cx, y: state.cy + state.yOffsets.nose };
+            const chinPt = kp.chin || { x: state.cx, y: state.cy + state.yOffsets.chin };
+            const leftCheek = kp.leftCheek || { x: state.cx + state.bounds.leftX, y: state.cy };
+            const rightCheek = kp.rightCheek || { x: state.cx + state.bounds.rightX, y: state.cy };
+
+            const faceH = spanCmBetween(topPt, chinPt);
+            const faceW = spanCmBetween(leftCheek, rightCheek);
+
+            const rightEyeSpan = spanCmBetween(f.rightEyeInner, f.rightEyeOuter);
+            const rightEyeOpenH = rightEyeSpan.direct * 0.44;
+
+            const leftEyeSpan = spanCmBetween(f.leftEyeOuter, f.leftEyeInner);
+            const leftEyeOpenH = leftEyeSpan.direct * 0.44;
+
+            const interEyeSpan = spanCmBetween(f.leftEyeInner, f.rightEyeInner);
+
+            const noseLenSpan = spanCmBetween(browPt, nosePt);
+            const noseWidSpan = spanCmBetween(f.noseLeft, f.noseRight);
+
+            const mouthWidSpan = spanCmBetween(f.mouthLeft, f.mouthRight);
+            const mouthMid = { x: (f.mouthLeft.x + f.mouthRight.x) / 2, y: (f.mouthLeft.y + f.mouthRight.y) / 2 };
+            const noseToMouth = spanCmBetween(nosePt, mouthMid);
+            const mouthToChin = spanCmBetween(mouthMid, chinPt);
+
+            const t1 = spanCmBetween(topPt, browPt);
+            const t2 = spanCmBetween(browPt, nosePt);
+            const t3 = spanCmBetween(nosePt, chinPt);
+
+            const topSc = imagePointToScreenCm(topPt);
+            const browSc = imagePointToScreenCm(browPt);
+            const noseSc = imagePointToScreenCm(nosePt);
+            const chinSc = imagePointToScreenCm(chinPt);
+
+            const items = [
+                {
+                    key: 'rightEye',
+                    name: '👁️ العين اليمنى',
+                    desc: `عرضاً (من الزاوية للزاوية) = ${rightEyeSpan.direct.toFixed(2)} cm | طولاً (ارتفاع الفتحة) = ${rightEyeOpenH.toFixed(2)} cm`
+                },
+                {
+                    key: 'leftEye',
+                    name: '👁️ العين اليسرى',
+                    desc: `عرضاً (من الزاوية للزاوية) = ${leftEyeSpan.direct.toFixed(2)} cm | طولاً (ارتفاع الفتحة) = ${leftEyeOpenH.toFixed(2)} cm`
+                },
+                {
+                    key: 'interEye',
+                    name: '↔️ ما بين العينين',
+                    desc: `عرضاً (بين المدمعين) = ${interEyeSpan.direct.toFixed(2)} cm | فرق الطول (ΔY) = ${interEyeSpan.dy.toFixed(2)} cm`
+                },
+                {
+                    key: 'nose',
+                    name: '👃 مقاس الأنف',
+                    desc: `طولاً (من الحاجب للقاعدة) = ${noseLenSpan.direct.toFixed(2)} cm | عرضاً (بين الفتحتين) = ${noseWidSpan.direct.toFixed(2)} cm`
+                },
+                {
+                    key: 'mouth',
+                    name: '👄 مقاس الفم',
+                    desc: `عرضاً (بين الزاويتين) = ${mouthWidSpan.direct.toFixed(2)} cm | يبعد عن الأنف طولاً = ${noseToMouth.dy.toFixed(2)} cm`
+                },
+                {
+                    key: 'chinJaw',
+                    name: '🧔 الذقن والفك',
+                    desc: `من الفم لذروة الذقن طولاً = ${mouthToChin.dy.toFixed(2)} cm | عرض الفك = ${(faceW.direct * 0.78).toFixed(2)} cm`
+                },
+                {
+                    key: 'fullFace',
+                    name: '📐 الوجه الكلي',
+                    desc: `طولاً (الجبهة للذقن) = ${faceH.direct.toFixed(2)} cm | عرضاً (بين الخدين) = ${faceW.direct.toFixed(2)} cm`
+                },
+                {
+                    key: 'thirds',
+                    name: '📊 أثلاث الوجه طولاً',
+                    desc: `الجبهة = ${t1.dy.toFixed(2)} cm | الأنف = ${t2.dy.toFixed(2)} cm | الذقن = ${t3.dy.toFixed(2)} cm`
+                },
+                {
+                    key: 'axis',
+                    name: '📍 موقع المحور على الشاشة',
+                    desc: `الجبهة (يمين ${topSc.xCm.toFixed(1)}, أسفل ${topSc.yCm.toFixed(1)}) | الحاجب (${browSc.xCm.toFixed(1)}, ${browSc.yCm.toFixed(1)}) | الأنف (${noseSc.xCm.toFixed(1)}, ${noseSc.yCm.toFixed(1)}) | الذقن (${chinSc.xCm.toFixed(1)}, ${chinSc.yCm.toFixed(1)}) cm`
+                }
+            ];
+
+            let html = '';
+            items.forEach(item => {
+                const isWActive = coordsRulerState.active && coordsRulerState.key === `${item.key}:w`;
+                const isHActive = coordsRulerState.active && coordsRulerState.key === `${item.key}:h`;
+                html += `<tr>
+                    <td style="font-weight:bold; color:#38bdf8; white-space:nowrap;">${item.name}</td>
+                    <td style="color:#ffd700; font-weight:bold; line-height:1.55;">${item.desc}</td>
+                    <td>
+                        <div class="coords-ruler-btns">
+                            <button class="mini-ruler-btn ${isWActive ? 'active-w' : ''}" onclick="toggleCoordsPartRuler('${item.key}', 'w')">↔ عرض</button>
+                            <button class="mini-ruler-btn ${isHActive ? 'active-h' : ''}" onclick="toggleCoordsPartRuler('${item.key}', 'h')">↕ طول</button>
+                        </div>
+                    </td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function copyActualCoordinates() {
+            const tbody = document.getElementById('coordsTableBody');
+            if (!tbody) return;
+            const { wCm, hCm } = getScreenCmDimensions();
+            const lines = [`مقاسات الوجه وملامحه بالسنتيمتر (مقاس الشاشة: ${wCm} × ${hCm} cm)`, '---'];
+            Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
+                const cells = tr.querySelectorAll('td');
+                if (cells.length >= 2) {
+                    lines.push(`${cells[0].textContent}: ${cells[1].textContent}`);
+                }
+            });
+            const text = lines.join('\n');
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => alert('تم نسخ مقاسات الوجه وملامحه بالسنتيمتر بنجاح!'));
+            } else {
+                alert(text);
+            }
+        }
+
+        async function runAutoFeatureDetection() {
+            if (!currentImage) {
+                createDefaultFeaturesFromGrid();
+                redraw();
+                return;
+            }
+            if (isLandmarkerReady && faceLandmarker) {
+                detectBanner.style.display = 'block';
+                try {
+                    const result = faceLandmarker.detect(currentImage);
+                    processLandmarker3DResults(result);
+                    return;
+                } catch (err) {
+                    detectBanner.style.display = 'none';
+                }
+            }
+            computeImageCoordinatesFromCurrentImage();
+        }
+
+        async function recalculateAllMeasurements() {
+            if (isLocked) {
+                alert('يرجى فتح القفل أولاً لتحديث القياسات.');
+                return;
+            }
+            if (currentImage) {
+                await runAutoFeatureDetection();
+            } else {
+                createDefaultFeaturesFromGrid();
+                redraw();
+            }
+        }
+
+        const radiusRange = document.getElementById('radiusRange');
+        const angleRange = document.getElementById('angleRange');
+        const thickRange = document.getElementById('thickRange');
+        const opacityRange = document.getElementById('opacityRange');
+
+        radiusRange.addEventListener('input', (e) => {
+            if (isLocked) return;
+            const oldR = state.radius;
+            state.radius = parseInt(e.target.value);
+            const ratio = state.radius / oldR;
+
+            state.yOffsets.hair *= ratio;
+            state.yOffsets.brow *= ratio;
+            state.yOffsets.nose *= ratio;
+            state.yOffsets.chin *= ratio;
+
+            state.bounds.topY *= ratio;
+            state.bounds.bottomY *= ratio;
+            state.bounds.leftX *= ratio;
+            state.bounds.rightX *= ratio;
+
+            if (features && !currentImage) {
+                for (let k in features) {
+                    features[k].x = state.cx + (features[k].x - state.cx) * ratio;
+                    features[k].y = state.cy + (features[k].y - state.cy) * ratio;
+                }
+            }
+
+            document.getElementById('radiusVal').textContent = state.radius;
+            buildAnatomicalLandmarksList();
+            updateActualCoordsPanel();
+            redraw();
+        });
+
+        angleRange.addEventListener('input', (e) => {
+            if (isLocked) return;
+            state.angle = parseInt(e.target.value);
+            document.getElementById('angleVal').textContent = state.angle + '°';
+            buildAnatomicalLandmarksList();
+            redraw();
+        });
+
+        thickRange.addEventListener('input', (e) => {
+            baseThickness = parseInt(e.target.value);
+            document.getElementById('thickVal').textContent = baseThickness;
+            redraw();
+        });
+
+        opacityRange.addEventListener('input', (e) => {
+            lineOpacity = parseInt(e.target.value) / 100;
+            document.getElementById('opacityVal').textContent = e.target.value + '%';
+            redraw();
+        });
+
+        document.getElementById('colorSelect').addEventListener('change', (e) => {
+            lineColor = e.target.value;
+            redraw();
+        });
+
+        function toggleFullscreen() {
+            document.body.classList.toggle('fullscreen-mode');
+            fitCanvasAspectToContainer();
+            const btn = document.getElementById('btnFullscreen');
+            if (document.body.classList.contains('fullscreen-mode')) {
+                btn.textContent = '✕';
+                btn.classList.add('active');
+            } else {
+                btn.textContent = '⛶';
+                btn.classList.remove('active');
+            }
+            redraw();
+        }
+
+        function toggleLock() {
+            isLocked = !isLocked;
+            const btn = document.getElementById('btnLock');
+            if (isLocked) {
+                btn.textContent = '🔒';
+                btn.classList.add('locked');
+            } else {
+                btn.textContent = '🔓';
+                btn.classList.remove('locked');
+            }
+            redraw();
+        }
+
+        function toggleGrayscale() {
+            isGrayscale = !isGrayscale;
+            document.getElementById('btnGrayscale').classList.toggle('active', isGrayscale);
+            redraw();
+        }
+
+        function resetZoom() {
+            view.scale = 1;
+            view.offsetX = 0;
+            view.offsetY = 0;
+            document.getElementById('btnZoomReset').textContent = '100%';
+            updateActualCoordsPanel();
+            redraw();
+        }
+
+        function setMode(mode, btn) {
+            currentMode = mode;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            const propCard = document.getElementById('propCard');
+            const rulerCard = document.getElementById('rulerCard');
+            const coordsCard = document.getElementById('coordsCard');
+
+            propCard.classList.toggle('show', mode === 'anatomy');
+            rulerCard.classList.toggle('show', mode === 'ruler' || (mode === 'coords' && isCoordsMainRulerActive));
+            coordsCard.classList.toggle('show', mode === 'coords');
+            if (typeof syncCoordsToolButtonsUI === 'function') syncCoordsToolButtonsUI();
+
+            if ((mode === 'anatomy' || mode === 'coords') && !hasDetectedOnce) {
+                runAutoFeatureDetection();
+            } else if (mode === 'ruler') {
+                resetParallelRulers();
+            } else if (mode === 'coords') {
+                updateActualCoordsPanel();
+            }
+            redraw();
+        }
+
+        function resetLines() {
+            if (isLocked) return;
+            const r = state.radius;
+            state.yOffsets = {
+                hair: -r * 1.15,
+                brow: -r * 0.25,
+                nose: r * 0.55,
+                chin: r * 1.35
+            };
+            state.bounds = {
+                topY: -r * 1.35,
+                bottomY: r * 1.35,
+                leftX: -r * 0.95,
+                rightX: r * 0.95
+            };
+            state.angle = 0;
+            headPose3D = { yaw: 0, pitch: 0, roll: 0 };
+            updatePoseStripUI();
+            angleRange.value = 0;
+            document.getElementById('angleVal').textContent = '0°';
+            hasDetectedOnce = false;
+            aiVisualOverlay.lightDir = null;
+            aiVisualOverlay.shadowZones = [];
+            aiVisualOverlay.corrections = [];
+            document.getElementById('btnAiLayer').style.display = 'none';
+
+            if (currentImage) {
+                runAutoFeatureDetection();
+            } else {
+                createDefaultFeaturesFromGrid();
+            }
+            resetParallelRulers();
+            redraw();
+        }
+
+        document.getElementById('imageUpload').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const img = new Image();
+            img.onload = () => {
+                currentImage = img;
+                lineartCanvasCache = null;
+                shadingCache = null;
+                features = null;
+                actualKeyPoints = null;
+                hasDetectedOnce = false;
+                const exactW = img.naturalWidth || img.width || 720;
+                const exactH = img.naturalHeight || img.height || 960;
+                canvas.width = exactW;
+                canvas.height = exactH;
+                const wInputEl = document.getElementById('screenWidthCmInput');
+                const hInputEl = document.getElementById('screenHeightCmInput');
+                if (wInputEl && hInputEl) {
+                    const curW = parseFloat(wInputEl.value) || 6.0;
+                    hInputEl.value = (curW * (exactH / exactW)).toFixed(1);
+                }
+                fitCanvasAspectToContainer();
+
+                state.cx = exactW / 2;
+                state.cy = exactH / 2.2;
+                state.radius = Math.round(Math.min(exactW, exactH) * 0.28);
+
+                radiusRange.max = Math.max(600, Math.round(Math.max(exactW, exactH) * 0.65));
+                radiusRange.value = state.radius;
+                document.getElementById('radiusVal').textContent = state.radius;
+
+                if (isLineartMode) rebuildLineartCache();
+                if (isShadingGuideActive) buildShadingGuideCache();
+                resetZoom();
+                resetLines();
+            };
+            img.src = URL.createObjectURL(file);
+        });
+
+        function screenToImagePos(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            const imgAspect = canvas.width / canvas.height;
+            const rectAspect = rect.width / rect.height;
+
+            let renderW, renderH, offsetLeft, offsetTop;
+            if (imgAspect > rectAspect) {
+                renderW = rect.width;
+                renderH = rect.width / imgAspect;
+                offsetLeft = 0;
+                offsetTop = (rect.height - renderH) / 2;
+            } else {
+                renderH = rect.height;
+                renderW = rect.height * imgAspect;
+                offsetTop = 0;
+                offsetLeft = (rect.width - renderW) / 2;
+            }
+
+            const relX = (clientX - rect.left - offsetLeft) / renderW;
+            const relY = (clientY - rect.top - offsetTop) / renderH;
+
+            const rawX = relX * canvas.width;
+            const rawY = relY * canvas.height;
+
+            return {
+                x: (rawX - view.offsetX) / view.scale,
+                y: (rawY - view.offsetY) / view.scale
+            };
+        }
+
+        function toLocalGridSpace(px, py) {
+            const dx = px - state.cx;
+            const dy = py - state.cy;
+            const rad = -state.angle * Math.PI / 180;
+            return {
+                x: dx * Math.cos(rad) - dy * Math.sin(rad),
+                y: dx * Math.sin(rad) + dy * Math.cos(rad)
+            };
+        }
+
+        function handleStart(clientX, clientY) {
+            const pos = screenToImagePos(clientX, clientY);
+            const ptHitThreshold = Math.max(32, canvas.width * 0.045) / view.scale;
+
+            if (currentMode === 'ruler' || (currentMode === 'coords' && isCoordsMainRulerActive)) {
+                const rPos = toRulerAxisSpace(pos.x, pos.y);
+                const coord = parallelRuler.orientation === 'horizontal' ? rPos.y : rPos.x;
+                const d1 = Math.abs(coord - parallelRuler.line1);
+                const d2 = Math.abs(coord - parallelRuler.line2);
+                const lineThreshold = Math.max(36, canvas.width * 0.055) / view.scale;
+
+                if (d1 < lineThreshold || d2 < lineThreshold) {
+                    dragTarget = d1 <= d2 ? 'ruler:1' : 'ruler:2';
+                    return;
+                }
+            }
+
+            if (currentMode === 'coords' && coordsRulerState.active) {
+                const coord = coordsRulerState.orientation === 'horizontal' ? pos.y : pos.x;
+                const d1 = Math.abs(coord - coordsRulerState.line1);
+                const d2 = Math.abs(coord - coordsRulerState.line2);
+                const lineThreshold = Math.max(34, canvas.width * 0.05) / view.scale;
+
+                if (d1 < lineThreshold || d2 < lineThreshold) {
+                    dragTarget = d1 <= d2 ? 'coordsRuler:1' : 'coordsRuler:2';
+                    return;
+                }
+            }
+
+            // التقاط الشاقول من المركز أو من أي نقطة على خطيه الأفقي أو العمودي
+            if (plumbState.active) {
+                const plumbLineHit = Math.max(30, canvas.width * 0.045) / view.scale;
+                if (plumbState.dual && (dist(pos, plumbState.p2) < ptHitThreshold || isNearPlumbCrosshair(pos, plumbState.p2, plumbLineHit))) {
+                    dragTarget = 'plumb:2';
+                    plumbState.activeIndex = 1;
+                    dragStart = { x: pos.x - plumbState.p2.x, y: pos.y - plumbState.p2.y };
+                    return;
+                }
+                if (dist(pos, plumbState.p1) < ptHitThreshold || isNearPlumbCrosshair(pos, plumbState.p1, plumbLineHit)) {
+                    dragTarget = 'plumb:1';
+                    plumbState.activeIndex = 0;
+                    dragStart = { x: pos.x - plumbState.p1.x, y: pos.y - plumbState.p1.y };
+                    return;
+                }
+            }
+
+            if (isLocked || !isGridVisible || currentMode === 'ruler') return;
+
+            if ((currentMode === 'anatomy' || currentMode === 'coords') && features) {
+                const featureKeys = [
+                    'leftEyeOuter', 'leftEyeInner',
+                    'rightEyeInner', 'rightEyeOuter',
+                    'mouthLeft', 'mouthRight',
+                    'noseLeft', 'noseRight'
+                ];
+                let closestKey = null;
+                let minD = ptHitThreshold;
+                for (let k of featureKeys) {
+                    const d = dist(pos, features[k]);
+                    if (d < minD) {
+                        minD = d;
+                        closestKey = k;
+                    }
+                }
+                if (closestKey) {
+                    dragTarget = 'feat:' + closestKey;
+                    return;
+                }
+            }
+
+            const local = toLocalGridSpace(pos.x, pos.y);
+            const lineHitThreshold = Math.max(26, canvas.width * 0.04) / view.scale;
+
+            if (currentMode === 'anatomy') {
+                if (Math.abs(local.y - state.bounds.topY) < lineHitThreshold && Math.abs(local.x) < state.radius * 2) {
+                    dragTarget = 'bound:topY';
+                    return;
+                }
+                if (Math.abs(local.y - state.bounds.bottomY) < lineHitThreshold && Math.abs(local.x) < state.radius * 2) {
+                    dragTarget = 'bound:bottomY';
+                    return;
+                }
+                if (Math.abs(local.x - state.bounds.leftX) < lineHitThreshold && Math.abs(local.y) < state.radius * 2) {
+                    dragTarget = 'bound:leftX';
+                    return;
+                }
+                if (Math.abs(local.x - state.bounds.rightX) < lineHitThreshold && Math.abs(local.y) < state.radius * 2) {
+                    dragTarget = 'bound:rightX';
+                    return;
+                }
+            }
+
+            const lines = ['hair', 'brow', 'nose', 'chin'];
+            for (let key of lines) {
+                if (Math.abs(local.y - state.yOffsets[key]) < lineHitThreshold && Math.abs(local.x) < state.radius * 1.8) {
+                    dragTarget = key;
+                    return;
+                }
+            }
+
+            dragTarget = 'center';
+            dragStart = { x: pos.x - state.cx, y: pos.y - state.cy };
+        }
+
+        function handleMove(clientX, clientY) {
+            if (!dragTarget) return;
+            const pos = screenToImagePos(clientX, clientY);
+
+            if (dragTarget === 'ruler:1' || dragTarget === 'ruler:2') {
+                const rPos = toRulerAxisSpace(pos.x, pos.y);
+                const val = parallelRuler.orientation === 'horizontal' ? rPos.y : rPos.x;
+                if (dragTarget === 'ruler:1') parallelRuler.line1 = val;
+                else parallelRuler.line2 = val;
+                redraw();
+                return;
+            }
+
+            if (dragTarget === 'coordsRuler:1' || dragTarget === 'coordsRuler:2') {
+                const val = coordsRulerState.orientation === 'horizontal' ? pos.y : pos.x;
+                if (dragTarget === 'coordsRuler:1') coordsRulerState.line1 = val;
+                else coordsRulerState.line2 = val;
+                redraw();
+                return;
+            }
+
+            if (dragTarget === 'plumb:1') {
+                plumbState.p1.x = pos.x - dragStart.x;
+                plumbState.p1.y = pos.y - dragStart.y;
+                applyMagneticSnap(plumbState.p1);
+                redraw();
+                return;
+            } else if (dragTarget === 'plumb:2') {
+                plumbState.p2.x = pos.x - dragStart.x;
+                plumbState.p2.y = pos.y - dragStart.y;
+                applyMagneticSnap(plumbState.p2);
+                redraw();
+                return;
+            }
+
+            if (isLocked || !isGridVisible) return;
+
+            if (dragTarget.startsWith('feat:')) {
+                const key = dragTarget.split(':')[1];
+                features[key] = { x: pos.x, y: pos.y };
+                buildAnatomicalLandmarksList();
+                updateActualCoordsPanel();
+            } else if (dragTarget.startsWith('bound:')) {
+                const bKey = dragTarget.split(':')[1];
+                const localNow = toLocalGridSpace(pos.x, pos.y);
+                if (bKey === 'topY' || bKey === 'bottomY') {
+                    state.bounds[bKey] = localNow.y;
+                } else {
+                    state.bounds[bKey] = localNow.x;
+                }
+            } else if (dragTarget === 'center') {
+                const dx = (pos.x - dragStart.x) - state.cx;
+                const dy = (pos.y - dragStart.y) - state.cy;
+                state.cx += dx;
+                state.cy += dy;
+                if (features && !currentImage) {
+                    for (let k in features) {
+                        features[k].x += dx;
+                        features[k].y += dy;
+                    }
+                }
+                buildAnatomicalLandmarksList();
+                updateActualCoordsPanel();
+            } else {
+                const localNow = toLocalGridSpace(pos.x, pos.y);
+                state.yOffsets[dragTarget] = localNow.y;
+                buildAnatomicalLandmarksList();
+            }
+            redraw();
+        }
+
+        function handleEnd() {
+            dragTarget = null;
+            initialPinchDist = null;
+            lastPinchCenter = null;
+        }
+
+        canvas.addEventListener('mousedown', e => handleStart(e.clientX, e.clientY));
+        canvas.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY));
+        canvas.addEventListener('mouseup', handleEnd);
+
+        canvas.addEventListener('touchstart', e => {
+            if (e.touches.length === 1) {
+                handleStart(e.touches[0].clientX, e.touches[0].clientY);
+            } else if (e.touches.length === 2) {
+                dragTarget = null;
+                initialPinchDist = getPinchDist(e.touches);
+                initialViewScale = view.scale;
+                lastPinchCenter = getPinchCenter(e.touches);
+            }
+        });
+
+        canvas.addEventListener('touchmove', e => {
+            e.preventDefault();
+            if (e.touches.length === 1) {
+                handleMove(e.touches[0].clientX, e.touches[0].clientY);
+            } else if (e.touches.length === 2 && initialPinchDist) {
+                const currentDist = getPinchDist(e.touches);
+                const newScale = Math.min(5, Math.max(0.8, initialViewScale * (currentDist / initialPinchDist)));
+                const center = getPinchCenter(e.touches);
+                const rect = canvas.getBoundingClientRect();
+                const scaleFactor = canvas.width / rect.width;
+
+                if (lastPinchCenter) {
+                    view.offsetX += (center.x - lastPinchCenter.x) * scaleFactor;
+                    view.offsetY += (center.y - lastPinchCenter.y) * scaleFactor;
+                }
+                lastPinchCenter = center;
+                view.scale = newScale;
+                document.getElementById('btnZoomReset').textContent = `${Math.round(view.scale * 100)}%`;
+                updateActualCoordsPanel();
+                redraw();
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', handleEnd);
+
+        function getPinchDist(touches) {
+            return Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+        }
+
+        function getPinchCenter(touches) {
+            return {
+                x: (touches[0].clientX + touches[1].clientX) / 2,
+                y: (touches[0].clientY + touches[1].clientY) / 2
+            };
+        }
+
+        function getPrecisePxToCm() {
+            const scaleVal = document.getElementById('headHeightScale').value;
+            const totalHeadPx = Math.max(80, Math.abs(state.bounds.bottomY - state.bounds.topY));
+
+            if (scaleVal === 'screen') {
+                const { hCm } = getScreenCmDimensions();
+                return (hCm / Math.max(1, canvas.height)) * view.scale;
+            } else {
+                const targetHeadCm = parseFloat(scaleVal) || 18.0;
+                return targetHeadCm / totalHeadPx;
+            }
+        }
+
+        function redraw() {
+            ctx.save();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.translate(view.offsetX, view.offsetY);
+            ctx.scale(view.scale, view.scale);
+
+            if (currentImage) {
+                if (isShadingGuideActive && shadingCache) {
+                    ctx.drawImage(shadingCache, 0, 0, canvas.width, canvas.height);
+                } else if (isLineartMode && lineartCanvasCache) {
+                    ctx.drawImage(lineartCanvasCache, 0, 0, canvas.width, canvas.height);
+                } else {
+                    if (isGrayscale) {
+                        ctx.filter = 'grayscale(100%) contrast(115%)';
+                    }
+                    ctx.drawImage(currentImage, 0, 0, canvas.width, canvas.height);
+                    ctx.filter = 'none';
+                }
+            } else {
+                ctx.fillStyle = '#141414';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#777';
+                ctx.font = `${Math.round(canvas.width * 0.035)}px Tahoma`;
+                ctx.textAlign = 'center';
+                ctx.fillText('اضغط "رفع صورة من الاستديو" للبدء', canvas.width / 2, canvas.height / 2);
+            }
+
+            const pxToCm = getPrecisePxToCm();
+
+            if (currentMode === 'ruler') {
+                drawParallelRulers(pxToCm);
+            } else if (currentMode === 'coords') {
+                drawActualCoordinatesOverlay();
+            } else if (isGridVisible) {
+                drawGrid(pxToCm);
+                if (currentMode === 'anatomy' && features) {
+                    drawInteractiveAnatomy(pxToCm);
+                }
+            }
+
+            if (aiVisualOverlay.visible) {
+                drawAiVisualOverlayOnFace();
+            }
+
+            if (plumbState.active) {
+                drawPlumbLinesOverlay(pxToCm);
+            }
+
+            ctx.restore();
+            updateMeasurements(pxToCm);
+            updatePlumbAnalysisReport(pxToCm);
+        }
+
+        function drawActualCoordinatesOverlay() {
+            if (!features) return;
+            const resFactor = Math.max(1, canvas.width / 600);
+            const ptR = 4.5 * resFactor / Math.sqrt(view.scale);
+            const kp = actualKeyPoints || {};
+            const points = [
+                { pt: kp.topHead, color: '#FFD700', tag: 'قمة الجبهة' },
+                { pt: kp.browCenter, color: '#FFD700', tag: 'الحاجبين' },
+                { pt: features.leftEyeOuter, color: '#00E5FF', tag: '' },
+                { pt: features.leftEyeInner, color: '#00E5FF', tag: '' },
+                { pt: features.rightEyeInner, color: '#00E5FF', tag: '' },
+                { pt: features.rightEyeOuter, color: '#00E5FF', tag: '' },
+                { pt: kp.noseBase, color: '#FF9100', tag: 'الأنف' },
+                { pt: features.noseLeft, color: '#FF9100', tag: '' },
+                { pt: features.noseRight, color: '#FF9100', tag: '' },
+                { pt: features.mouthLeft, color: '#FF3366', tag: '' },
+                { pt: features.mouthRight, color: '#FF3366', tag: '' },
+                { pt: kp.leftCheek, color: '#A78BFA', tag: '' },
+                { pt: kp.rightCheek, color: '#A78BFA', tag: '' },
+                { pt: kp.chin, color: '#00FF88', tag: 'الذقن' }
+            ];
+
+            ctx.save();
+            ctx.shadowColor = 'rgba(0,0,0,0.9)';
+            ctx.shadowBlur = 3 * resFactor;
+
+            if (kp.topHead && kp.chin) {
+                ctx.strokeStyle = 'rgba(0, 229, 255, 0.7)';
+                ctx.lineWidth = (1.8 * resFactor) / Math.sqrt(view.scale);
+                ctx.setLineDash([6 * resFactor, 4 * resFactor]);
+                ctx.beginPath();
+                ctx.moveTo(kp.topHead.x, kp.topHead.y);
+                ctx.lineTo(kp.chin.x, kp.chin.y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            if (kp.leftCheek && kp.rightCheek) {
+                ctx.strokeStyle = 'rgba(167, 139, 250, 0.7)';
+                ctx.lineWidth = (1.8 * resFactor) / Math.sqrt(view.scale);
+                ctx.setLineDash([6 * resFactor, 4 * resFactor]);
+                ctx.beginPath();
+                ctx.moveTo(kp.leftCheek.x, kp.leftCheek.y);
+                ctx.lineTo(kp.rightCheek.x, kp.rightCheek.y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            points.forEach(item => {
+                if (!item.pt) return;
+                ctx.fillStyle = item.color;
+                ctx.beginPath();
+                ctx.arc(item.pt.x, item.pt.y, ptR, 0, Math.PI * 2);
+                ctx.fill();
+
+                if (item.tag && !isCoordsGridActive) {
+                    const sc = imagePointToScreenCm(item.pt);
+                    const label = `${item.tag} (${sc.xCm.toFixed(1)}, ${sc.yCm.toFixed(1)} cm)`;
+                    drawLabelBadge(label, item.pt.x, item.pt.y - 16 * resFactor, 'rgba(0,0,0,0.85)', item.color, resFactor);
+                }
+            });
+
+            if (isCoordsGridActive) {
+                drawCoordsGridWithMeasurements(resFactor);
+            }
+
+            if (isCoordsMainRulerActive) {
+                drawParallelRulers(getUniformScreenCmPerPx());
+            }
+
+            if (coordsRulerState.active) {
+                drawCoordsActiveRulers(resFactor);
+            }
+
+            ctx.restore();
+        }
+
+        function drawCoordsActiveRulers(resFactor) {
+            const { wCm, hCm } = getScreenCmDimensions();
+            const lw = (2.8 * resFactor) / Math.sqrt(view.scale);
+            const handleR = (8 * resFactor) / Math.sqrt(view.scale);
+            const span = Math.max(canvas.width, canvas.height) * 1.5;
+
+            const l1 = coordsRulerState.line1;
+            const l2 = coordsRulerState.line2;
+
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+            ctx.shadowBlur = 4 * resFactor;
+
+            if (coordsRulerState.orientation === 'horizontal') {
+                const yTop = Math.min(l1, l2);
+                const yBot = Math.max(l1, l2);
+                const distCm = (yBot - yTop) * getUniformScreenCmPerPx();
+
+                ctx.fillStyle = 'rgba(0, 255, 136, 0.12)';
+                ctx.fillRect(state.cx - span, yTop, span * 2, yBot - yTop);
+
+                [
+                    { y: l1, color: '#00FF88' },
+                    { y: l2, color: '#00FF88' }
+                ].forEach(item => {
+                    ctx.strokeStyle = item.color;
+                    ctx.fillStyle = item.color;
+                    ctx.lineWidth = lw;
+                    ctx.beginPath();
+                    ctx.moveTo(state.cx - span, item.y);
+                    ctx.lineTo(state.cx + span, item.y);
+                    ctx.stroke();
+
+                    const gripOffset = state.radius * 1.15;
+                    [state.cx - gripOffset, state.cx + gripOffset].forEach(gx => {
+                        ctx.beginPath();
+                        ctx.arc(gx, item.y, handleR, 0, Math.PI * 2);
+                        ctx.stroke();
+                    });
+                });
+
+                ctx.strokeStyle = '#FFD700';
+                ctx.fillStyle = '#FFD700';
+                ctx.lineWidth = lw * 0.9;
+                ctx.beginPath();
+                ctx.moveTo(state.cx, yTop);
+                ctx.lineTo(state.cx, yBot);
+                ctx.stroke();
+
+                drawArrowHead(state.cx, yTop, -Math.PI / 2, 10 * resFactor);
+                drawArrowHead(state.cx, yBot, Math.PI / 2, 10 * resFactor);
+
+                drawLabelBadge(`↕ طولاً = ${distCm.toFixed(2)} cm`, state.cx + 56 * resFactor, (yTop + yBot) / 2, 'rgba(0, 25, 15, 0.94)', '#00FF88', resFactor);
+            } else {
+                const xLeft = Math.min(l1, l2);
+                const xRight = Math.max(l1, l2);
+                const distCm = (xRight - xLeft) * getUniformScreenCmPerPx();
+
+                ctx.fillStyle = 'rgba(0, 229, 255, 0.12)';
+                ctx.fillRect(xLeft, state.cy - span, xRight - xLeft, span * 2);
+
+                [
+                    { x: l1, color: '#00E5FF' },
+                    { x: l2, color: '#00E5FF' }
+                ].forEach(item => {
+                    ctx.strokeStyle = item.color;
+                    ctx.fillStyle = item.color;
+                    ctx.lineWidth = lw;
+                    ctx.beginPath();
+                    ctx.moveTo(item.x, state.cy - span);
+                    ctx.lineTo(item.x, state.cy + span);
+                    ctx.stroke();
+
+                    const gripOffset = state.radius * 1.15;
+                    [state.cy - gripOffset, state.cy + gripOffset].forEach(gy => {
+                        ctx.beginPath();
+                        ctx.arc(item.x, gy, handleR, 0, Math.PI * 2);
+                        ctx.stroke();
+                    });
+                });
+
+                ctx.strokeStyle = '#FFD700';
+                ctx.fillStyle = '#FFD700';
+                ctx.lineWidth = lw * 0.9;
+                ctx.beginPath();
+                ctx.moveTo(xLeft, state.cy);
+                ctx.lineTo(xRight, state.cy);
+                ctx.stroke();
+
+                drawArrowHead(xLeft, state.cy, Math.PI, 10 * resFactor);
+                drawArrowHead(xRight, state.cy, 0, 10 * resFactor);
+
+                drawLabelBadge(`↔ عرضاً = ${distCm.toFixed(2)} cm`, (xLeft + xRight) / 2, state.cy - 24 * resFactor, 'rgba(0, 20, 30, 0.94)', '#00E5FF', resFactor);
+            }
+
+            ctx.restore();
+        }
+
+        function drawPlumbLinesOverlay(pxToCm) {
+            const resFactor = Math.max(1, canvas.width / 600);
+            const axisDeg = plumbState.alignWithHead ? state.angle : 0;
+
+            if (plumbState.snapEnabled && landmarksList.length > 0) {
+                ctx.save();
+                ctx.fillStyle = 'rgba(0, 229, 255, 0.45)';
+                landmarksList.forEach(lm => {
+                    ctx.beginPath();
+                    ctx.arc(lm.x, lm.y, 2.5 * resFactor / Math.sqrt(view.scale), 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                ctx.restore();
+            }
+
+            drawSinglePlumb(plumbState.p1, '#00E5FF', '1', axisDeg, pxToCm, resFactor);
+
+            if (plumbState.dual) {
+                drawSinglePlumb(plumbState.p2, '#FF9100', '2', axisDeg, pxToCm, resFactor);
+                drawDualPlumbBridge(plumbState.p1, plumbState.p2, axisDeg, pxToCm, resFactor);
+            }
+        }
+
+        function drawSinglePlumb(pt, color, numLabel, axisDeg, pxToCm, resFactor) {
+            const span = Math.max(canvas.width, canvas.height) * 1.5;
+            const lw = (1.8 * resFactor) / Math.sqrt(view.scale);
+            const handleR = (7.5 * resFactor) / Math.sqrt(view.scale);
+            const effectivePxToCm = getUniformScreenCmPerPx();
+            const cmStepPx = 1 / Math.max(0.001, effectivePxToCm);
+
+            ctx.save();
+            ctx.translate(pt.x, pt.y);
+            ctx.rotate(axisDeg * Math.PI / 180);
+
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+            ctx.shadowBlur = 3 * resFactor;
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = lw;
+
+            ctx.beginPath();
+            ctx.moveTo(0, -span);
+            ctx.lineTo(0, span);
+            ctx.moveTo(-span, 0);
+            ctx.lineTo(span, 0);
+            ctx.stroke();
+
+            if (cmStepPx > 12) {
+                const tickLen = 4 * resFactor / Math.sqrt(view.scale);
+                ctx.beginPath();
+                for (let d = cmStepPx; d < span * 0.6; d += cmStepPx) {
+                    ctx.moveTo(-tickLen, d); ctx.lineTo(tickLen, d);
+                    ctx.moveTo(-tickLen, -d); ctx.lineTo(tickLen, -d);
+                    ctx.moveTo(d, -tickLen); ctx.lineTo(d, tickLen);
+                    ctx.moveTo(-d, -tickLen); ctx.lineTo(-d, tickLen);
+                }
+                ctx.stroke();
+            }
+
+            ctx.beginPath();
+            ctx.arc(0, 0, handleR, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(0, 0, 1.5 * resFactor / Math.sqrt(view.scale), 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+
+            const badgeText = pt.snappedName ? `🧲 ${pt.snappedName}` : `نقطة ${numLabel}`;
+            const offsetTop = (numLabel === '1') ? -22 : 22;
+            drawLabelBadge(badgeText, pt.x, pt.y + (offsetTop * resFactor / Math.sqrt(view.scale)), 'rgba(0,0,0,0.82)', color, resFactor);
+        }
+
+        function drawDualPlumbBridge(p1, p2, axisDeg, pxToCm, resFactor) {
+            const rad = axisDeg * Math.PI / 180;
+            const dxWorld = p2.x - p1.x;
+            const dyWorld = p2.y - p1.y;
+
+            const uDiff = dxWorld * Math.cos(rad) + dyWorld * Math.sin(rad);
+            const vDiff = -dxWorld * Math.sin(rad) + dyWorld * Math.cos(rad);
+
+            const cornerX = p1.x + uDiff * Math.cos(rad);
+            const cornerY = p1.y + uDiff * Math.sin(rad);
+
+            ctx.save();
+            ctx.strokeStyle = '#00FF88';
+            ctx.lineWidth = (2.4 * resFactor) / Math.sqrt(view.scale);
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+            ctx.lineWidth = (1.5 * resFactor) / Math.sqrt(view.scale);
+            ctx.setLineDash([5 * resFactor, 4 * resFactor]);
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(cornerX, cornerY);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+            ctx.restore();
+
+            const m = measurePlumbDeltaCm(p1, p2, axisDeg, pxToCm);
+            const directCm = m.directCm.toFixed(2);
+            const dxCm = m.absDxCm.toFixed(2);
+            const dyCm = m.absDyCm.toFixed(2);
+
+            if (dist(p1, p2) > 12) {
+                drawLabelBadge(`📏 ${directCm} سم`, (p1.x + p2.x) / 2, (p1.y + p2.y) / 2, 'rgba(0, 30, 15, 0.92)', '#00FF88', resFactor);
+            }
+            if (Math.abs(uDiff) > 25) {
+                drawLabelBadge(`↔ ${dxCm} سم`, (p1.x + cornerX) / 2, (p1.y + cornerY) / 2 - 14 * resFactor, 'rgba(0,0,0,0.85)', '#FF9100', resFactor);
+            }
+            if (Math.abs(vDiff) > 25) {
+                drawLabelBadge(`↕ ${dyCm} سم`, (cornerX + p2.x) / 2 + 30 * resFactor, (cornerY + p2.y) / 2, 'rgba(0,0,0,0.85)', '#FFD700', resFactor);
+            }
+        }
+
+        function getAnatomicalRegionCoords(partName) {
+            const r = state.radius;
+            const { hair, brow, nose, chin } = state.yOffsets;
+            const midEyeY = brow + (nose - brow) * 0.28;
+            const mouthY = nose + (chin - nose) * 0.35;
+
+            const regions = {
+                'cheek_left':       { lx: -r * 0.48, ly: (midEyeY + nose) / 2, rx: r * 0.22, ry: r * 0.28 },
+                'cheek_right':      { lx:  r * 0.48, ly: (midEyeY + nose) / 2, rx: r * 0.22, ry: r * 0.28 },
+                'nose_base':        { lx: 0,         ly: nose + r * 0.05,      rx: r * 0.24, ry: r * 0.12 },
+                'jaw_bottom':       { lx: 0,         ly: chin - r * 0.12,      rx: r * 0.42, ry: r * 0.15 },
+                'eye_socket_left':  { lx: -r * 0.32, ly: midEyeY,              rx: r * 0.20, ry: r * 0.14 },
+                'eye_socket_right': { lx:  r * 0.32, ly: midEyeY,              rx: r * 0.20, ry: r * 0.14 },
+                'forehead_left':    { lx: -r * 0.35, ly: (hair + brow) / 2,    rx: r * 0.25, ry: r * 0.22 },
+                'forehead_right':   { lx:  r * 0.35, ly: (hair + brow) / 2,    rx: r * 0.25, ry: r * 0.22 },
+                'left_eye':         { lx: -r * 0.32, ly: midEyeY,              rx: r * 0.18, ry: r * 0.12 },
+                'right_eye':        { lx:  r * 0.32, ly: midEyeY,              rx: r * 0.18, ry: r * 0.12 },
+                'nose':             { lx: 0,         ly: (brow + nose) / 2,    rx: r * 0.18, ry: r * 0.25 },
+                'mouth':            { lx: 0,         ly: mouthY,               rx: r * 0.28, ry: r * 0.14 },
+                'jaw':              { lx: 0,         ly: (nose + chin) / 2,    rx: r * 0.45, ry: r * 0.25 },
+                'brow':             { lx: 0,         ly: brow,                 rx: r * 0.50, ry: r * 0.10 }
+            };
+            return regions[partName] || { lx: 0, ly: 0, rx: r * 0.2, ry: r * 0.2 };
+        }
+
+        function drawAiVisualOverlayOnFace() {
+            const resFactor = Math.max(1, canvas.width / 600);
+            const lw = (3 * resFactor) / Math.sqrt(view.scale);
+            const r = state.radius;
+
+            ctx.save();
+            ctx.translate(state.cx, state.cy);
+            ctx.rotate(state.angle * Math.PI / 180);
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+            ctx.shadowBlur = 5 * resFactor;
+
+            if (aiVisualOverlay.lightDir) {
+                const ld = aiVisualOverlay.lightDir;
+                const rad = (ld.angleDeg || 45) * Math.PI / 180;
+                const startDist = r * 1.65;
+                const endDist = r * 1.05;
+
+                const x1 = Math.cos(rad) * startDist;
+                const y1 = -Math.sin(rad) * startDist;
+                const x2 = Math.cos(rad) * endDist;
+                const y2 = -Math.sin(rad) * endDist;
+
+                ctx.strokeStyle = '#FFD700';
+                ctx.fillStyle = '#FFD700';
+                ctx.lineWidth = lw * 1.4;
+
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+
+                const arrowAng = Math.atan2(y2 - y1, x2 - x1);
+                const headLen = 14 * resFactor;
+                ctx.beginPath();
+                ctx.moveTo(x2, y2);
+                ctx.lineTo(x2 - headLen * Math.cos(arrowAng - Math.PI / 6), y2 - headLen * Math.sin(arrowAng - Math.PI / 6));
+                ctx.lineTo(x2 - headLen * Math.cos(arrowAng + Math.PI / 6), y2 - headLen * Math.sin(arrowAng + Math.PI / 6));
+                ctx.closePath();
+                ctx.fill();
+
+                drawLabelBadge(`☀️ ${ld.label || 'اتجاه الضوء'}`, x1, y1 - 14 * resFactor, 'rgba(0,0,0,0.88)', '#FFD700', resFactor);
+            }
+
+            if (aiVisualOverlay.shadowZones && aiVisualOverlay.shadowZones.length > 0) {
+                aiVisualOverlay.shadowZones.forEach(sz => {
+                    const reg = getAnatomicalRegionCoords(sz.part);
+                    ctx.save();
+                    ctx.strokeStyle = '#4FACFE';
+                    ctx.fillStyle = 'rgba(79, 172, 254, 0.25)';
+                    ctx.lineWidth = lw;
+                    ctx.setLineDash([6 * resFactor, 4 * resFactor]);
+
+                    ctx.beginPath();
+                    ctx.ellipse(reg.lx, reg.ly, reg.rx, reg.ry, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.restore();
+
+                    if (sz.label) {
+                        drawLabelBadge(`🌗 ${sz.label}`, reg.lx, reg.ly, 'rgba(0,0,0,0.88)', '#4FACFE', resFactor);
+                    }
+                });
+            }
+
+            if (aiVisualOverlay.corrections && aiVisualOverlay.corrections.length > 0) {
+                aiVisualOverlay.corrections.forEach((corr, idx) => {
+                    const reg = getAnatomicalRegionCoords(corr.part);
+                    ctx.strokeStyle = '#FF3366';
+                    ctx.fillStyle = 'rgba(255, 51, 102, 0.25)';
+                    ctx.lineWidth = lw * 1.2;
+
+                    ctx.beginPath();
+                    ctx.ellipse(reg.lx, reg.ly, reg.rx, reg.ry, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    drawLabelBadge(`⚠️ ${idx + 1}: ${corr.text}`, reg.lx, reg.ly - reg.ry - 12 * resFactor, 'rgba(20,0,0,0.9)', '#FF6B8B', resFactor);
+                });
+            }
+
+            ctx.restore();
+        }
+
+        function drawLabelBadge(text, x, y, bgColor, textColor, resFactor) {
+            const fontSize = Math.round((11 * resFactor) / Math.sqrt(view.scale));
+            ctx.save();
+            ctx.font = `bold ${fontSize}px Tahoma`;
+            const metrics = ctx.measureText(text);
+            const padX = 5 * resFactor / Math.sqrt(view.scale);
+            const padY = 2.5 * resFactor / Math.sqrt(view.scale);
+            const w = metrics.width + padX * 2;
+            const h = fontSize + padY * 2;
+
+            ctx.fillStyle = bgColor;
+            ctx.beginPath();
+            ctx.roundRect(x - w / 2, y - h / 2, w, h, 4 * resFactor);
+            ctx.fill();
+
+            ctx.fillStyle = textColor;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, x, y);
+            ctx.restore();
+        }
+
+        function drawInteractiveAnatomy(pxToCm) {
+            const f = features;
+            const resFactor = Math.max(1, canvas.width / 600);
+            const lw = (baseThickness * 0.9 * resFactor) / Math.sqrt(view.scale);
+            const ptR = 5.5 * resFactor / Math.sqrt(view.scale);
+
+            ctx.save();
+            ctx.globalAlpha = lineOpacity;
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+            ctx.shadowBlur = 4 * resFactor;
+
+            ctx.strokeStyle = '#00FFFF';
+            ctx.fillStyle = '#00FFFF';
+            ctx.lineWidth = lw;
+
+            drawAdjustableEye(f.leftEyeOuter, f.leftEyeInner, ptR);
+            drawAdjustableEye(f.rightEyeInner, f.rightEyeOuter, ptR);
+
+            const leftEyeCm = (dist(f.leftEyeOuter, f.leftEyeInner) * pxToCm).toFixed(1);
+            const rightEyeCm = (dist(f.rightEyeInner, f.rightEyeOuter) * pxToCm).toFixed(1);
+            drawLabelBadge(`${leftEyeCm} سم`, (f.leftEyeOuter.x + f.leftEyeInner.x) / 2, (f.leftEyeOuter.y + f.leftEyeInner.y) / 2 - 18 * resFactor, 'rgba(0,0,0,0.85)', '#00FFFF', resFactor);
+            drawLabelBadge(`${rightEyeCm} سم`, (f.rightEyeInner.x + f.rightEyeOuter.x) / 2, (f.rightEyeInner.y + f.rightEyeOuter.y) / 2 - 18 * resFactor, 'rgba(0,0,0,0.85)', '#00FFFF', resFactor);
+
+            ctx.strokeStyle = '#00FF44';
+            ctx.beginPath();
+            ctx.moveTo(f.leftEyeInner.x, f.leftEyeInner.y);
+            ctx.lineTo(f.rightEyeInner.x, f.rightEyeInner.y);
+            ctx.stroke();
+
+            const interEyeCm = (dist(f.leftEyeInner, f.rightEyeInner) * pxToCm).toFixed(1);
+            drawLabelBadge(`${interEyeCm} سم`, (f.leftEyeInner.x + f.rightEyeInner.x) / 2, (f.leftEyeInner.y + f.rightEyeInner.y) / 2 + 18 * resFactor, 'rgba(0,0,0,0.85)', '#00FF44', resFactor);
+
+            ctx.strokeStyle = '#FF9900';
+            ctx.fillStyle = '#FF9900';
+            ctx.beginPath();
+            ctx.moveTo(f.noseLeft.x, f.noseLeft.y);
+            ctx.lineTo(f.noseRight.x, f.noseRight.y);
+            ctx.stroke();
+
+            [f.noseLeft, f.noseRight].forEach(pt => {
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, ptR, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            const noseCm = (dist(f.noseLeft, f.noseRight) * pxToCm).toFixed(1);
+            drawLabelBadge(`${noseCm} سم`, (f.noseLeft.x + f.noseRight.x) / 2, (f.noseLeft.y + f.noseRight.y) / 2 - 16 * resFactor, 'rgba(0,0,0,0.85)', '#FF9900', resFactor);
+
+            ctx.strokeStyle = '#FF3366';
+            ctx.fillStyle = '#FF3366';
+            ctx.beginPath();
+            ctx.moveTo(f.mouthLeft.x, f.mouthLeft.y);
+            ctx.lineTo(f.mouthRight.x, f.mouthRight.y);
+            ctx.stroke();
+
+            [f.mouthLeft, f.mouthRight].forEach(pt => {
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, ptR, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            const mouthCm = (dist(f.mouthLeft, f.mouthRight) * pxToCm).toFixed(1);
+            drawLabelBadge(`${mouthCm} سم`, (f.mouthLeft.x + f.mouthRight.x) / 2, (f.mouthLeft.y + f.mouthRight.y) / 2 + 18 * resFactor, 'rgba(0,0,0,0.85)', '#FF3366', resFactor);
+
+            ctx.restore();
+        }
+
+        function drawAdjustableEye(p1, p2, ptR) {
+            const midX = (p1.x + p2.x) / 2;
+            const midY = (p1.y + p2.y) / 2;
+            const len = dist(p1, p2);
+            const ang = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+
+            ctx.save();
+            ctx.translate(midX, midY);
+            ctx.rotate(ang);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, len / 2, len * 0.22, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+
+            [p1, p2].forEach(pt => {
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, ptR, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function drawGrid(pxToCm) {
+            ctx.save();
+            ctx.globalAlpha = lineOpacity;
+
+            const resFactor = Math.max(1, canvas.width / 600);
+            const lw = (baseThickness * resFactor) / Math.sqrt(view.scale);
+            const fontSize = Math.round((14 * resFactor) / Math.sqrt(view.scale));
+
+            ctx.translate(state.cx, state.cy);
+            ctx.rotate(state.angle * Math.PI / 180);
+
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+            ctx.shadowBlur = 4 * resFactor;
+            ctx.shadowOffsetX = 1 * resFactor;
+            ctx.shadowOffsetY = 1 * resFactor;
+
+            ctx.strokeStyle = lineColor;
+            ctx.fillStyle = lineColor;
+            ctx.lineWidth = lw;
+
+            const r = state.radius;
+            const { hair, brow, nose, chin } = state.yOffsets;
+            const yawRatio = Math.max(-1, Math.min(1, headPose3D.yaw / 65));
+            const pitchCurve = (headPose3D.pitch / 45) * (r * 0.22);
+
+            if (currentMode === 'front' || currentMode === 'anatomy') {
+                ctx.beginPath();
+                ctx.arc(0, 0, r, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.save();
+                ctx.setLineDash([8 * resFactor, 6 * resFactor]);
+                ctx.beginPath();
+                ctx.ellipse(0, 0, r * 0.68, r * 0.85, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+
+                ctx.beginPath();
+                ctx.moveTo(0, hair - r * 0.2);
+                ctx.lineTo(0, chin + r * 0.2);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(-r * 0.68, 0);
+                ctx.lineTo(-r * 0.45, nose);
+                ctx.lineTo(0, chin);
+                ctx.moveTo(r * 0.68, 0);
+                ctx.lineTo(r * 0.45, nose);
+                ctx.lineTo(0, chin);
+                ctx.stroke();
+
+            } else if (currentMode === 'threeQuarter') {
+                ctx.beginPath();
+                ctx.arc(0, 0, r, 0, Math.PI * 2);
+                ctx.stroke();
+
+                const dir = yawRatio >= 0 ? 1 : -1;
+                const absY = Math.max(0.25, Math.abs(yawRatio));
+                const sidePlaneX = -dir * r * (0.28 + absY * 0.22);
+                const sidePlaneRx = r * (0.48 - absY * 0.14);
+                const centerCurveX = dir * r * (0.22 + absY * 0.35);
+
+                ctx.save();
+                ctx.setLineDash([8 * resFactor, 6 * resFactor]);
+                ctx.beginPath();
+                ctx.ellipse(sidePlaneX, 0, sidePlaneRx, r * 0.72, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+
+                ctx.beginPath();
+                ctx.moveTo(centerCurveX * 0.85, hair - r * 0.1);
+                ctx.quadraticCurveTo(centerCurveX * 1.25, 0, centerCurveX * 0.7, chin);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(sidePlaneX, r * 0.35);
+                ctx.lineTo(sidePlaneX + dir * r * 0.2, nose * 1.15);
+                ctx.lineTo(centerCurveX * 0.7, chin);
+                ctx.stroke();
+
+            } else if (currentMode === 'side') {
+                const dir = yawRatio >= 0 ? 1 : -1;
+                ctx.beginPath();
+                ctx.arc(0, 0, r, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(0, hair - r * 0.1);
+                ctx.lineTo(0, chin);
+                ctx.moveTo(dir * r, brow);
+                ctx.lineTo(dir * r * 0.85, chin);
+                ctx.stroke();
+            }
+
+            const lineSpan = r * 1.5;
+            drawCurvedOrFlatLine(hair, lineSpan, pitchCurve * 0.6, 'الشعر', lw, fontSize, resFactor);
+            drawCurvedOrFlatLine(brow, lineSpan, pitchCurve, 'الحواجب', lw, fontSize, resFactor);
+            drawCurvedOrFlatLine(nose, lineSpan, pitchCurve * 0.7, 'الأنف', lw, fontSize, resFactor);
+            drawCurvedOrFlatLine(chin, lineSpan, 0, 'الذقن', lw, fontSize, resFactor);
+
+            if (currentMode === 'anatomy') {
+                drawFaceDimensionFrame(pxToCm, lw, resFactor);
+
+                const t1Cm = (Math.abs(brow - hair) * pxToCm).toFixed(1);
+                const t2Cm = (Math.abs(nose - brow) * pxToCm).toFixed(1);
+                const t3Cm = (Math.abs(chin - nose) * pxToCm).toFixed(1);
+
+                const bracketX = lineSpan + (18 * resFactor);
+                drawVerticalSpanBracket(bracketX, hair, brow, `${t1Cm} سم`, resFactor);
+                drawVerticalSpanBracket(bracketX, brow, nose, `${t2Cm} سم`, resFactor);
+                drawVerticalSpanBracket(bracketX, nose, chin, `${t3Cm} سم`, resFactor);
+            }
+
+            ctx.beginPath();
+            ctx.arc(0, 0, 7 * resFactor, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawCurvedOrFlatLine(y, span, curveOffset, label, lw, fontSize, resFactor) {
+            ctx.lineWidth = lw;
+            ctx.beginPath();
+            ctx.moveTo(-span, y);
+            if (Math.abs(curveOffset) > 2 && currentMode !== 'anatomy') {
+                ctx.quadraticCurveTo(0, y - curveOffset, span, y);
+            } else {
+                ctx.lineTo(span, y);
+            }
+            ctx.stroke();
+
+            if (!isLocked) {
+                ctx.beginPath();
+                ctx.arc(-span, y, 6 * resFactor, 0, Math.PI * 2);
+                ctx.arc(span, y, 6 * resFactor, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.font = `bold ${fontSize}px Tahoma`;
+            ctx.textAlign = 'right';
+            ctx.fillText(label, -span - (10 * resFactor), y + (4 * resFactor));
+        }
+
+        function drawFaceDimensionFrame(pxToCm, lw, resFactor) {
+            const { topY, bottomY, leftX, rightX } = state.bounds;
+            const hSpan = Math.max(Math.abs(leftX), Math.abs(rightX)) + 45 * resFactor;
+            const vTop = Math.min(topY, bottomY) - 35 * resFactor;
+            const vBot = Math.max(topY, bottomY) + 35 * resFactor;
+            const handleR = 6.5 * resFactor / Math.sqrt(view.scale);
+
+            ctx.save();
+            ctx.strokeStyle = '#FF55FF';
+            ctx.fillStyle = '#FF55FF';
+            ctx.lineWidth = lw * 0.9;
+            ctx.setLineDash([10 * resFactor, 6 * resFactor]);
+
+            [topY, bottomY].forEach(y => {
+                ctx.beginPath();
+                ctx.moveTo(-hSpan, y);
+                ctx.lineTo(hSpan, y);
+                ctx.stroke();
+
+                if (!isLocked) {
+                    ctx.save();
+                    ctx.setLineDash([]);
+                    ctx.beginPath();
+                    ctx.arc(-hSpan, y, handleR, 0, Math.PI * 2);
+                    ctx.arc(hSpan, y, handleR, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            });
+
+            [leftX, rightX].forEach(x => {
+                ctx.beginPath();
+                ctx.moveTo(x, vTop);
+                ctx.lineTo(x, vBot);
+                ctx.stroke();
+
+                if (!isLocked) {
+                    ctx.save();
+                    ctx.setLineDash([]);
+                    ctx.beginPath();
+                    ctx.arc(x, vTop, handleR, 0, Math.PI * 2);
+                    ctx.arc(x, vBot, handleR, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            });
+
+            ctx.setLineDash([]);
+
+            const totalHCm = (Math.abs(bottomY - topY) * pxToCm).toFixed(1);
+            const totalWCm = (Math.abs(rightX - leftX) * pxToCm).toFixed(1);
+
+            drawLabelBadge(`العرض: ${totalWCm} سم`, (leftX + rightX) / 2, vTop - 16 * resFactor, 'rgba(0,0,0,0.85)', '#FF55FF', resFactor);
+            drawLabelBadge(`الطول: ${totalHCm} سم`, -hSpan - 42 * resFactor, (topY + bottomY) / 2, 'rgba(0,0,0,0.85)', '#FF55FF', resFactor);
+
+            ctx.restore();
+        }
+
+        function drawVerticalSpanBracket(x, y1, y2, label, resFactor) {
+            ctx.save();
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 2 * resFactor / Math.sqrt(view.scale);
+            ctx.beginPath();
+            ctx.moveTo(x - 5 * resFactor, y1);
+            ctx.lineTo(x, y1);
+            ctx.lineTo(x, y2);
+            ctx.lineTo(x - 5 * resFactor, y2);
+            ctx.stroke();
+
+            drawLabelBadge(label, x + 28 * resFactor, (y1 + y2) / 2, 'rgba(0,0,0,0.85)', '#FFD700', resFactor);
+            ctx.restore();
+        }
+
+        function dist(p1, p2) {
+            return Math.hypot(p2.x - p1.x, p2.y - p1.y);
+        }
+
+        function updateMeasurements(pxToCm) {
+            const faceHPx = Math.max(1, Math.abs(state.bounds.bottomY - state.bounds.topY));
+            const faceWPx = Math.max(1, Math.abs(state.bounds.rightX - state.bounds.leftX));
+
+            const faceHCm = (faceHPx * pxToCm).toFixed(1);
+            const faceWCm = (faceWPx * pxToCm).toFixed(1);
+            const hwRatioNum = faceHPx / faceWPx;
+            const hwRatio = hwRatioNum.toFixed(2);
+            const wPct = Math.round((faceWPx / faceHPx) * 100);
+
+            document.getElementById('m_faceH').textContent = `${faceHCm} سم`;
+            document.getElementById('m_faceW').textContent = `${faceWCm} سم`;
+            document.getElementById('m_faceRatio').textContent = `${hwRatio} : 1`;
+            document.getElementById('m_facePct').textContent = `العرض ${wPct}% من الطول`;
+
+            let faceTypeLabel = `متوازن (${hwRatio} : 1)`;
+            if (hwRatioNum >= 1.48) {
+                faceTypeLabel = `طويل / نحيف (${hwRatio} : 1)`;
+            } else if (hwRatioNum <= 1.32) {
+                faceTypeLabel = `عريض / مستدير (${hwRatio} : 1)`;
+            }
+            document.getElementById('m_faceTypeTag').textContent = faceTypeLabel;
+
+            const d1 = Math.abs(state.yOffsets.brow - state.yOffsets.hair);
+            const d2 = Math.abs(state.yOffsets.nose - state.yOffsets.brow);
+            const d3 = Math.abs(state.yOffsets.chin - state.yOffsets.nose);
+            const totalD = Math.max(1, d1 + d2 + d3);
+
+            const p1 = Math.round((d1 / totalD) * 100);
+            const p2 = Math.round((d2 / totalD) * 100);
+            const p3 = Math.round((d3 / totalD) * 100);
+
+            document.getElementById('m_t1Pct').textContent = `${p1}%`;
+            document.getElementById('m_t2Pct').textContent = `${p2}%`;
+            document.getElementById('m_t3Pct').textContent = `${p3}%`;
+
+            document.getElementById('m_t1').textContent = `${(d1 * pxToCm).toFixed(1)} سم (القياسي: 33%)`;
+            document.getElementById('m_t2').textContent = `${(d2 * pxToCm).toFixed(1)} سم (القياسي: 33%)`;
+            document.getElementById('m_t3').textContent = `${(d3 * pxToCm).toFixed(1)} سم (القياسي: 33%)`;
+
+            if (features) {
+                const f = features;
+                const leftEyePx = dist(f.leftEyeOuter, f.leftEyeInner);
+                const rightEyePx = dist(f.rightEyeInner, f.rightEyeOuter);
+                const avgEyePx = Math.max(1, (leftEyePx + rightEyePx) / 2);
+
+                const interEyePx = dist(f.leftEyeInner, f.rightEyeInner);
+                const mouthPx = dist(f.mouthLeft, f.mouthRight);
+                const nosePx = dist(f.noseLeft, f.noseRight);
+
+                const rEyeUnit = (rightEyePx / avgEyePx).toFixed(2);
+                const lEyeUnit = (leftEyePx / avgEyePx).toFixed(2);
+                const interEyeUnit = (interEyePx / avgEyePx).toFixed(2);
+                const mouthUnit = (mouthPx / avgEyePx).toFixed(2);
+                const noseUnit = (nosePx / avgEyePx).toFixed(2);
+
+                document.getElementById('m_eyesRatio').textContent = `${rEyeUnit} / ${lEyeUnit} وحدة`;
+                document.getElementById('m_eyesLen').textContent = `${(rightEyePx * pxToCm).toFixed(1)} / ${(leftEyePx * pxToCm).toFixed(1)} سم`;
+
+                document.getElementById('m_interEyeRatio').textContent = `${interEyeUnit} × العين`;
+                document.getElementById('m_interEye').textContent = `${(interEyePx * pxToCm).toFixed(1)} سم (القياسي: 1.0×)`;
+
+                document.getElementById('m_mouthRatio').textContent = `${mouthUnit} × العين`;
+                document.getElementById('m_mouthW').textContent = `${(mouthPx * pxToCm).toFixed(1)} سم (القياسي: 1.5×)`;
+
+                document.getElementById('m_noseRatio').textContent = `${noseUnit} × العين`;
+                document.getElementById('m_noseW').textContent = `${(nosePx * pxToCm).toFixed(1)} سم (القياسي: 1.0×)`;
+            }
+        }
+
+        fitCanvasAspectToContainer();
+        createDefaultFeaturesFromGrid();
+        redraw();
+    </script>
+</body>
+</html>
