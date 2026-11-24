@@ -3049,6 +3049,22 @@
                 'axis': {
                     w1: Math.min(topPt.x, chinPt.x), w2: Math.max(topPt.x, chinPt.x),
                     h1: topPt.y, h2: chinPt.y
+                },
+                'leftEyeToFace': {
+                    w1: leftCheek.x, w2: f.leftEyeOuter.x,
+                    h1: Math.min(leftCheek.y, f.leftEyeOuter.y), h2: Math.max(leftCheek.y, f.leftEyeOuter.y)
+                },
+                'rightEyeToFace': {
+                    w1: f.rightEyeOuter.x, w2: rightCheek.x,
+                    h1: Math.min(rightCheek.y, f.rightEyeOuter.y), h2: Math.max(rightCheek.y, f.rightEyeOuter.y)
+                },
+                'browToEye': {
+                    w1: f.leftEyeInner.x, w2: f.rightEyeInner.x,
+                    h1: browPt.y, h2: (f.leftEyeOuter.y + f.leftEyeInner.y + f.rightEyeInner.y + f.rightEyeOuter.y) / 4
+                },
+                'noseToMouth': {
+                    w1: f.mouthLeft.x, w2: f.mouthRight.x,
+                    h1: nosePt.y, h2: mouthMid.y - dist(f.mouthLeft, f.mouthRight) * 0.22
                 }
             };
             return map[partKey] || null;
@@ -3169,6 +3185,42 @@
                     key: 'thirds',
                     name: '📊 أثلاث الوجه طولاً',
                     desc: `الجبهة = ${t1.dy.toFixed(2)} cm | الأنف = ${t2.dy.toFixed(2)} cm | الذقن = ${t3.dy.toFixed(2)} cm`
+                },
+                {
+                    key: 'leftEyeToFace',
+                    name: '↔️ نهاية العين اليسرى ← حافة الوجه',
+                    desc: (() => {
+                        const s = spanCmBetween(f.leftEyeOuter, leftCheek);
+                        return `عرضاً = ${s.dx.toFixed(2)} cm | مسافة مباشرة = ${s.direct.toFixed(2)} cm`;
+                    })()
+                },
+                {
+                    key: 'rightEyeToFace',
+                    name: '↔️ نهاية العين اليمنى ← حافة الوجه',
+                    desc: (() => {
+                        const s = spanCmBetween(f.rightEyeOuter, rightCheek);
+                        return `عرضاً = ${s.dx.toFixed(2)} cm | مسافة مباشرة = ${s.direct.toFixed(2)} cm`;
+                    })()
+                },
+                {
+                    key: 'browToEye',
+                    name: '↕️ الحاجب ← بداية العين',
+                    desc: (() => {
+                        const eyeY = (f.leftEyeOuter.y + f.leftEyeInner.y + f.rightEyeInner.y + f.rightEyeOuter.y) / 4;
+                        const eyePt = { x: browPt.x, y: eyeY };
+                        const s = spanCmBetween(browPt, eyePt);
+                        return `طولاً (عمودياً) = ${s.dy.toFixed(2)} cm | مسافة مباشرة = ${s.direct.toFixed(2)} cm`;
+                    })()
+                },
+                {
+                    key: 'noseToMouth',
+                    name: '↕️ نهاية الأنف ← بداية الفم',
+                    desc: (() => {
+                        const mouthTopY = mouthMid.y - dist(f.mouthLeft, f.mouthRight) * 0.22;
+                        const mouthStartPt = { x: mouthMid.x, y: mouthTopY };
+                        const s = spanCmBetween(nosePt, mouthStartPt);
+                        return `طولاً (عمودياً) = ${s.dy.toFixed(2)} cm | مسافة مباشرة = ${s.direct.toFixed(2)} cm`;
+                    })()
                 },
                 {
                     key: 'axis',
