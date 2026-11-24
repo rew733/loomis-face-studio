@@ -100,7 +100,7 @@
             overflow: hidden;
             background-color: #141414;
             border: 1px solid #333;
-            touch-action: none;
+            touch-action: pan-y;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -900,6 +900,31 @@
             text-align: center;
         }
         .apply-canvas-btn.show { display: block; }
+        .quick-scroll-fab {
+            position: fixed;
+            bottom: 14px;
+            left: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            z-index: 9500;
+        }
+        .scroll-fab-btn {
+            background: rgba(30, 41, 59, 0.92);
+            color: #ffd700;
+            border: 1px solid #475569;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+        }
+        body.fullscreen-mode .quick-scroll-fab { display: none; }
     </style>
 </head>
 <body>
@@ -1341,6 +1366,7 @@
 
         // حالة شبكة لوميس المعتمدة على الإحداثيات داخل تبويب الإحداثيات
         let isCoordsGridActive = false;
+        let isCoordsMainRulerActive = false;
 
         let features = null;
         let actualKeyPoints = null;
@@ -1408,6 +1434,62 @@
         }
 
         // --- زر تفاعلي داخل تبويب الإحداثيات لعرض/إخفاء شبكة لوميس مع المقاسات الحية جوار كل خط ---
+        function syncCoordsToolButtonsUI() {
+            const rBtn = document.getElementById('btnToggleCoordsMainRuler');
+            if (rBtn) {
+                if (isCoordsMainRulerActive) {
+                    rBtn.textContent = '✅ إخفاء المسطرة';
+                    rBtn.style.background = '#00ff88';
+                    rBtn.style.color = '#000';
+                    rBtn.style.borderColor = '#00ff88';
+                } else {
+                    rBtn.textContent = '📏 المسطرة الموحدة';
+                    rBtn.style.background = '#1c3144';
+                    rBtn.style.color = '#e0f2fe';
+                    rBtn.style.borderColor = '#0284c7';
+                }
+            }
+            const pBtn = document.getElementById('btnToggleCoordsPlumb');
+            if (pBtn) {
+                if (plumbState.active) {
+                    pBtn.textContent = '✅ إخفاء الشاقول';
+                    pBtn.style.background = '#00e5ff';
+                    pBtn.style.color = '#000';
+                    pBtn.style.borderColor = '#00e5ff';
+                } else {
+                    pBtn.textContent = '➕ الشاقول الموحد';
+                    pBtn.style.background = '#1c3144';
+                    pBtn.style.color = '#e0f2fe';
+                    pBtn.style.borderColor = '#0284c7';
+                }
+            }
+        }
+
+        function toggleCoordsMainRuler() {
+            isCoordsMainRulerActive = !isCoordsMainRulerActive;
+            if (isCoordsMainRulerActive) {
+                resetParallelRulers();
+                const cont = document.getElementById('canvasContainer');
+                if (cont) cont.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            const rulerCard = document.getElementById('rulerCard');
+            if (rulerCard) {
+                rulerCard.classList.toggle('show', currentMode === 'ruler' || (currentMode === 'coords' && isCoordsMainRulerActive));
+            }
+            syncCoordsToolButtonsUI();
+            redraw();
+        }
+
+        function toggleCoordsPlumb() {
+            const wasActive = plumbState.active;
+            togglePlumbTool();
+            if (!wasActive && plumbState.active) {
+                const cont = document.getElementById('canvasContainer');
+                if (cont) cont.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            syncCoordsToolButtonsUI();
+        }
+
         function toggleCoordsGridOverlay() {
             if (!features) {
                 alert('يرجى رفع صورة أو تحديث القراءة أولاً.');
@@ -1903,7 +1985,7 @@
             const l1 = parallelRuler.line1;
             const l2 = parallelRuler.line2;
             const distPx = Math.abs(l2 - l1);
-            const distCm = (distPx * pxToCm).toFixed(2);
+            const distCm = (distPx * getUniformScreenCmPerPx()).toFixed(2);
             document.getElementById('rulerDistanceVal').textContent = `${distCm} سم`;
 
             if (parallelRuler.orientation === 'horizontal') {
@@ -2171,27 +2253,16 @@
             const dyWorld = p2.y - p1.y;
             const uDiffPx = dxWorld * Math.cos(rad) + dyWorld * Math.sin(rad);
             const vDiffPx = -dxWorld * Math.sin(rad) + dyWorld * Math.cos(rad);
-
-            if (currentMode === 'coords') {
-                const uCmPerPx = getUniformScreenCmPerPx();
-                const signedDxCm = uDiffPx * uCmPerPx;
-                const signedDyCm = vDiffPx * uCmPerPx;
-                const directCm = Math.hypot(dxWorld, dyWorld) * uCmPerPx;
-                return {
-                    signedDxCm,
-                    signedDyCm,
-                    absDxCm: Math.abs(signedDxCm),
-                    absDyCm: Math.abs(signedDyCm),
-                    directCm
-                };
-            }
-
+            const uCmPerPx = getUniformScreenCmPerPx();
+            const signedDxCm = uDiffPx * uCmPerPx;
+            const signedDyCm = vDiffPx * uCmPerPx;
+            const directCm = Math.hypot(dxWorld, dyWorld) * uCmPerPx;
             return {
-                signedDxCm: uDiffPx * pxToCm,
-                signedDyCm: vDiffPx * pxToCm,
-                absDxCm: Math.abs(uDiffPx) * pxToCm,
-                absDyCm: Math.abs(vDiffPx) * pxToCm,
-                directCm: Math.hypot(dxWorld, dyWorld) * pxToCm
+                signedDxCm,
+                signedDyCm,
+                absDxCm: Math.abs(signedDxCm),
+                absDyCm: Math.abs(signedDyCm),
+                directCm
             };
         }
 
@@ -3611,7 +3682,7 @@
         });
 
         canvas.addEventListener('touchmove', e => {
-            e.preventDefault();
+            if (dragTarget || e.touches.length === 2) e.preventDefault();
             if (e.touches.length === 1) {
                 handleMove(e.touches[0].clientX, e.touches[0].clientY);
             } else if (e.touches.length === 2 && initialPinchDist) {
@@ -3777,6 +3848,10 @@
 
             if (isCoordsGridActive) {
                 drawCoordsGridWithMeasurements(resFactor);
+            }
+
+            if (isCoordsMainRulerActive) {
+                drawParallelRulers(getUniformScreenCmPerPx());
             }
 
             if (coordsRulerState.active) {
@@ -4527,5 +4602,9 @@
         createDefaultFeaturesFromGrid();
         redraw();
     </script>
+    <div class="quick-scroll-fab" aria-label="تنقل سريع">
+        <button class="scroll-fab-btn" title="إلى الأعلى" onclick="window.scrollTo({ top: 0, behavior: 'smooth' })">▲</button>
+        <button class="scroll-fab-btn" title="إلى الأسفل" onclick="window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })">▼</button>
+    </div>
 </body>
 </html>
