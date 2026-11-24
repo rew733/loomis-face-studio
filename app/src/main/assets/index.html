@@ -1382,18 +1382,25 @@
             return { wCm, hCm };
         }
 
+        function getUniformScreenCmPerPx() {
+            const { wCm } = getScreenCmDimensions();
+            const w = Math.max(1, canvas.width);
+            return (wCm / w) * view.scale;
+        }
+
         function imagePointToScreenCm(pt) {
             const { wCm, hCm } = getScreenCmDimensions();
             const w = Math.max(1, canvas.width);
             const h = Math.max(1, canvas.height);
+            const cmPerPx = wCm / w;
 
-            // تحويل إحداثيات الصورة إلى موضعها الفعلي داخل إطار شاشة العرض (مع مراعاة التكبير والتمرير)
-            const screenNormX = (pt.x * view.scale + view.offsetX) / w;
-            const screenNormY = (pt.y * view.scale + view.offsetY) / h;
+            // تحويل إحداثيات الصورة إلى سنتيمترات موحدة (نفس مقياس الطول والعرض لمنع تشويه النسب)
+            const screenXCm = (pt.x * view.scale + view.offsetX) * cmPerPx;
+            const screenYCm = (pt.y * view.scale + view.offsetY) * cmPerPx;
 
             return {
-                xCm: screenNormX * wCm,
-                yCm: screenNormY * hCm,
+                xCm: screenXCm,
+                yCm: screenYCm,
                 pctX: (pt.x / w) * 100,
                 pctY: (pt.y / h) * 100
             };
@@ -2167,20 +2174,10 @@
             const vDiffPx = -dxWorld * Math.sin(rad) + dyWorld * Math.cos(rad);
 
             if (currentMode === 'coords') {
-                const { wCm, hCm } = getScreenCmDimensions();
-                const sx = (view.scale / Math.max(1, canvas.width)) * wCm;
-                const sy = (view.scale / Math.max(1, canvas.height)) * hCm;
-
-                // تحويل مركبتي u و v إلى السنتيمتر الفعلي للشاشة بدقة متطابقة مع جدول الإحداثيات
-                const uVecXCm = (uDiffPx * Math.cos(rad)) * sx;
-                const uVecYCm = (uDiffPx * Math.sin(rad)) * sy;
-                const signedDxCm = (uDiffPx >= 0 ? 1 : -1) * Math.hypot(uVecXCm, uVecYCm);
-
-                const vVecXCm = (-vDiffPx * Math.sin(rad)) * sx;
-                const vVecYCm = (vDiffPx * Math.cos(rad)) * sy;
-                const signedDyCm = (vDiffPx >= 0 ? 1 : -1) * Math.hypot(vVecXCm, vVecYCm);
-
-                const directCm = Math.hypot(dxWorld * sx, dyWorld * sy);
+                const uCmPerPx = getUniformScreenCmPerPx();
+                const signedDxCm = uDiffPx * uCmPerPx;
+                const signedDyCm = vDiffPx * uCmPerPx;
+                const directCm = Math.hypot(dxWorld, dyWorld) * uCmPerPx;
                 return {
                     signedDxCm,
                     signedDyCm,
@@ -3800,7 +3797,7 @@
             if (coordsRulerState.orientation === 'horizontal') {
                 const yTop = Math.min(l1, l2);
                 const yBot = Math.max(l1, l2);
-                const distCm = ((yBot - yTop) * view.scale / Math.max(1, canvas.height)) * hCm;
+                const distCm = (yBot - yTop) * getUniformScreenCmPerPx();
 
                 ctx.fillStyle = 'rgba(0, 255, 136, 0.12)';
                 ctx.fillRect(state.cx - span, yTop, span * 2, yBot - yTop);
@@ -3840,7 +3837,7 @@
             } else {
                 const xLeft = Math.min(l1, l2);
                 const xRight = Math.max(l1, l2);
-                const distCm = ((xRight - xLeft) * view.scale / Math.max(1, canvas.width)) * wCm;
+                const distCm = (xRight - xLeft) * getUniformScreenCmPerPx();
 
                 ctx.fillStyle = 'rgba(0, 229, 255, 0.12)';
                 ctx.fillRect(xLeft, state.cy - span, xRight - xLeft, span * 2);
@@ -3911,8 +3908,7 @@
             const handleR = (7.5 * resFactor) / Math.sqrt(view.scale);
             let effectivePxToCm = pxToCm;
             if (currentMode === 'coords') {
-                const { hCm } = getScreenCmDimensions();
-                effectivePxToCm = (hCm / Math.max(1, canvas.height)) * view.scale;
+                effectivePxToCm = getUniformScreenCmPerPx();
             }
             const cmStepPx = 1 / Math.max(0.001, effectivePxToCm);
 
