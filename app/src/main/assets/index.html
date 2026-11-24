@@ -1261,16 +1261,10 @@
                 return;
             }
 
-            // ملء عرض الحاوية بالكامل وضبط الارتفاع تلقائياً حسب نسبة أبعاد الصورة لمنع أي فراغ أسود جانبي
+            // ملء عرض الحاوية بالكامل وضبط الارتفاع تلقائياً حسب نسبة أبعاد الصورة لمنع أي سواد جانبي نهائياً
             const cw = Math.max(240, cont.clientWidth || Math.min(window.innerWidth * 0.96, 480));
-            const maxAllowedH = Math.round(window.innerHeight * 0.78);
-            let dispW = cw;
-            let dispH = Math.round(cw / imgRatio);
-
-            if (dispH > maxAllowedH) {
-                dispH = maxAllowedH;
-                dispW = Math.round(dispH * imgRatio);
-            }
+            const dispW = cw;
+            const dispH = Math.round(cw / imgRatio);
 
             cont.style.height = `${dispH}px`;
             canvas.style.width = `${dispW}px`;
@@ -1490,7 +1484,7 @@
             const mouthWCm = spanCmBetween(f.mouthLeft, f.mouthRight).direct.toFixed(2);
 
             const lw = (baseThickness * 0.85 * resFactor) / Math.sqrt(view.scale);
-            const lineSpan = r * 1.38;
+            const lineSpan = r * 1.18;
 
             ctx.save();
             ctx.translate(cx, cy);
@@ -1544,12 +1538,11 @@
                 ctx.lineTo(lineSpan, item.y);
                 ctx.stroke();
 
-                // بطاقة اسم الخط + بعده عن أعلى الصورة بالسنتيمتر جوار طرف الخط
-                drawLabelBadge(`${item.name} (من الأعلى ${item.posCm} cm)`, -lineSpan - 58 * resFactor, item.y, 'rgba(0,0,0,0.88)', lineColor, resFactor);
+                drawLabelBadge(item.name, -lineSpan - 26 * resFactor, item.y, 'rgba(0,0,0,0.88)', lineColor, resFactor);
             });
 
-            // 3. أقواس الأثلاث العمودية على يمين الشبكة مع رقم مقاس كل ثلث بالسنتيمتر
-            const bx = lineSpan + 12 * resFactor;
+            // 3. أقواس الأثلاث العمودية على يمين الكرة مع رقم مقاس كل ثلث بالسنتيمتر (داخل حدود الصورة بوضوح)
+            const bx = r * 1.05;
             drawVerticalSpanBracket(bx, lTop.y, lBrow.y, `${t1Cm} cm`, resFactor);
             drawVerticalSpanBracket(bx, lBrow.y, lNose.y, `${t2Cm} cm`, resFactor);
             drawVerticalSpanBracket(bx, lNose.y, lChin.y, `${t3Cm} cm`, resFactor);
@@ -3355,6 +3348,12 @@
                 const exactH = img.naturalHeight || img.height || 960;
                 canvas.width = exactW;
                 canvas.height = exactH;
+                const wInputEl = document.getElementById('screenWidthCmInput');
+                const hInputEl = document.getElementById('screenHeightCmInput');
+                if (wInputEl && hInputEl) {
+                    const curW = parseFloat(wInputEl.value) || 6.0;
+                    hInputEl.value = (curW * (exactH / exactW)).toFixed(1);
+                }
                 fitCanvasAspectToContainer();
 
                 state.cx = exactW / 2;
@@ -3767,7 +3766,7 @@
                 ctx.arc(item.pt.x, item.pt.y, ptR, 0, Math.PI * 2);
                 ctx.fill();
 
-                if (item.tag) {
+                if (item.tag && !isCoordsGridActive) {
                     const sc = imagePointToScreenCm(item.pt);
                     const label = `${item.tag} (${sc.xCm.toFixed(1)}, ${sc.yCm.toFixed(1)} cm)`;
                     drawLabelBadge(label, item.pt.x, item.pt.y - 16 * resFactor, 'rgba(0,0,0,0.85)', item.color, resFactor);
