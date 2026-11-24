@@ -3489,15 +3489,23 @@
             const pos = screenToImagePos(clientX, clientY);
             const ptHitThreshold = Math.max(32, canvas.width * 0.045) / view.scale;
 
-            if (currentMode === 'ruler') {
-                const rPos = toRulerAxisSpace(pos.x, pos.y);
-                const coord = parallelRuler.orientation === 'horizontal' ? rPos.y : rPos.x;
-                const d1 = Math.abs(coord - parallelRuler.line1);
-                const d2 = Math.abs(coord - parallelRuler.line2);
-                const lineThreshold = Math.max(36, canvas.width * 0.055) / view.scale;
-
-                if (d1 < lineThreshold || d2 < lineThreshold) {
-                    dragTarget = d1 <= d2 ? 'ruler:1' : 'ruler:2';
+            // التقاط الشاقول أولاً في كل الاتجاهات (أفقي، عمودي، مائل)
+            if (plumbState.active) {
+                const plumbLineHit = Math.max(34, canvas.width * 0.05) / view.scale;
+                if (plumbState.dual && (dist(pos, plumbState.p2) < ptHitThreshold * 1.2 || isNearPlumbCrosshair(pos, plumbState.p2, plumbLineHit))) {
+                    dragTarget = 'plumb:2';
+                    plumbState.activeIndex = 1;
+                    dragStart = { x: pos.x - plumbState.p2.x, y: pos.y - plumbState.p2.y };
+                    const cont = document.getElementById('canvasContainer');
+                    if (cont) cont.style.touchAction = 'none';
+                    return;
+                }
+                if (dist(pos, plumbState.p1) < ptHitThreshold * 1.2 || isNearPlumbCrosshair(pos, plumbState.p1, plumbLineHit)) {
+                    dragTarget = 'plumb:1';
+                    plumbState.activeIndex = 0;
+                    dragStart = { x: pos.x - plumbState.p1.x, y: pos.y - plumbState.p1.y };
+                    const cont = document.getElementById('canvasContainer');
+                    if (cont) cont.style.touchAction = 'none';
                     return;
                 }
             }
@@ -3506,27 +3514,29 @@
                 const coord = coordsRulerState.orientation === 'horizontal' ? pos.y : pos.x;
                 const d1 = Math.abs(coord - coordsRulerState.line1);
                 const d2 = Math.abs(coord - coordsRulerState.line2);
-                const lineThreshold = Math.max(34, canvas.width * 0.05) / view.scale;
+                const lineThreshold = Math.max(38, canvas.width * 0.055) / view.scale;
 
                 if (d1 < lineThreshold || d2 < lineThreshold) {
                     dragTarget = d1 <= d2 ? 'coordsRuler:1' : 'coordsRuler:2';
+                    dragStart = { x: pos.x, y: pos.y, baseLine: dragTarget === 'coordsRuler:1' ? coordsRulerState.line1 : coordsRulerState.line2 };
+                    const cont = document.getElementById('canvasContainer');
+                    if (cont) cont.style.touchAction = 'none';
                     return;
                 }
             }
 
-            // التقاط الشاقول من المركز أو من أي نقطة على خطيه الأفقي أو العمودي
-            if (plumbState.active) {
-                const plumbLineHit = Math.max(30, canvas.width * 0.045) / view.scale;
-                if (plumbState.dual && (dist(pos, plumbState.p2) < ptHitThreshold || isNearPlumbCrosshair(pos, plumbState.p2, plumbLineHit))) {
-                    dragTarget = 'plumb:2';
-                    plumbState.activeIndex = 1;
-                    dragStart = { x: pos.x - plumbState.p2.x, y: pos.y - plumbState.p2.y };
-                    return;
-                }
-                if (dist(pos, plumbState.p1) < ptHitThreshold || isNearPlumbCrosshair(pos, plumbState.p1, plumbLineHit)) {
-                    dragTarget = 'plumb:1';
-                    plumbState.activeIndex = 0;
-                    dragStart = { x: pos.x - plumbState.p1.x, y: pos.y - plumbState.p1.y };
+            if (currentMode === 'ruler' || (currentMode === 'coords' && isCoordsMainRulerActive)) {
+                const rPos = toRulerAxisSpace(pos.x, pos.y);
+                const coord = parallelRuler.orientation === 'horizontal' ? rPos.y : rPos.x;
+                const d1 = Math.abs(coord - parallelRuler.line1);
+                const d2 = Math.abs(coord - parallelRuler.line2);
+                const lineThreshold = Math.max(40, canvas.width * 0.06) / view.scale;
+
+                if (d1 < lineThreshold || d2 < lineThreshold) {
+                    dragTarget = d1 <= d2 ? 'ruler:1' : 'ruler:2';
+                    dragStart = { x: pos.x, y: pos.y, baseLine: dragTarget === 'ruler:1' ? parallelRuler.line1 : parallelRuler.line2 };
+                    const cont = document.getElementById('canvasContainer');
+                    if (cont) cont.style.touchAction = 'none';
                     return;
                 }
             }
@@ -3613,13 +3623,13 @@
             if (dragTarget === 'plumb:1') {
                 plumbState.p1.x = pos.x - dragStart.x;
                 plumbState.p1.y = pos.y - dragStart.y;
-                applyMagneticSnap(plumbState.p1);
+                plumbState.p1.snappedName = null;
                 redraw();
                 return;
             } else if (dragTarget === 'plumb:2') {
                 plumbState.p2.x = pos.x - dragStart.x;
                 plumbState.p2.y = pos.y - dragStart.y;
-                applyMagneticSnap(plumbState.p2);
+                plumbState.p2.snappedName = null;
                 redraw();
                 return;
             }
@@ -3661,9 +3671,14 @@
         }
 
         function handleEnd() {
+            if (dragTarget === 'plumb:1') applyMagneticSnap(plumbState.p1);
+            if (dragTarget === 'plumb:2') applyMagneticSnap(plumbState.p2);
             dragTarget = null;
             initialPinchDist = null;
             lastPinchCenter = null;
+            const cont = document.getElementById('canvasContainer');
+            if (cont) cont.style.touchAction = 'pan-y';
+            redraw();
         }
 
         canvas.addEventListener('mousedown', e => handleStart(e.clientX, e.clientY));
