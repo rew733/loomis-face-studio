@@ -1526,15 +1526,30 @@
             const leftCheek = kp.leftCheek || { x: state.cx + state.bounds.leftX, y: state.cy };
             const rightCheek = kp.rightCheek || { x: state.cx + state.bounds.rightX, y: state.cy };
 
-            const faceWpx = Math.max(40, dist(leftCheek, rightCheek));
-            const faceHpx = Math.max(60, dist(topPt, chinPt));
-            const cx = (leftCheek.x + rightCheek.x) / 2;
-            const cy = browPt.y + faceHpx * 0.08;
-            const r = Math.max(faceWpx, faceHpx * 0.76) * 0.58;
-
             const eyeAngleRad = Math.atan2(f.rightEyeOuter.y - f.leftEyeOuter.y, f.rightEyeOuter.x - f.leftEyeOuter.x);
             const deg = Math.max(-60, Math.min(60, Math.round(eyeAngleRad * 180 / Math.PI)));
             const rad = deg * Math.PI / 180;
+
+            const rawMidX = (leftCheek.x + rightCheek.x) / 2;
+            const faceHpx = Math.max(60, dist(topPt, chinPt));
+            const baseCy = browPt.y + faceHpx * 0.08;
+
+            const toLocalBase = (pt) => {
+                const dx = pt.x - rawMidX;
+                const dy = pt.y - baseCy;
+                return {
+                    x: dx * Math.cos(-rad) - dy * Math.sin(-rad),
+                    y: dx * Math.sin(-rad) + dy * Math.cos(-rad)
+                };
+            };
+
+            const bLeft = toLocalBase(leftCheek);
+            const bRight = toLocalBase(rightCheek);
+            const midOffsetLocalX = (bLeft.x + bRight.x) / 2;
+
+            // توسيط محور الدوران والمنتصف الرأسي بدقة بين حافتي الوجه اليسرى واليمنى على المحور المائل
+            const cx = rawMidX + midOffsetLocalX * Math.cos(rad);
+            const cy = baseCy + midOffsetLocalX * Math.sin(rad);
 
             const toLocal = (pt) => {
                 const dx = pt.x - cx;
@@ -1551,6 +1566,9 @@
             const lChin = toLocal(chinPt);
             const lLeft = toLocal(leftCheek);
             const lRight = toLocal(rightCheek);
+
+            const faceWpx = Math.max(40, Math.abs(lRight.x - lLeft.x));
+            const r = Math.max(faceWpx, faceHpx * 0.76) * 0.58;
 
             // حساب المقاسات الفعلية بالسنتيمتر الموحد بحيث يطابق الطول الكلي مجموع الأثلاث الثلاثة تماماً
             const uCm = getUniformScreenCmPerPx();
@@ -2858,8 +2876,18 @@
                         }
                     }
 
-                    state.cx = faceCenterX;
-                    state.cy = browCenterY + faceHeightPx * 0.08;
+                    const rollRadSync = (Math.max(-60, Math.min(60, headPose3D.roll))) * Math.PI / 180;
+                    const cySync = browCenterY + faceHeightPx * 0.08;
+                    const dxLC = leftCheek.x - faceCenterX;
+                    const dyLC = leftCheek.y - cySync;
+                    const dxRC = rightCheek.x - faceCenterX;
+                    const dyRC = rightCheek.y - cySync;
+                    const lxSync = dxLC * Math.cos(-rollRadSync) - dyLC * Math.sin(-rollRadSync);
+                    const rxSync = dxRC * Math.cos(-rollRadSync) - dyRC * Math.sin(-rollRadSync);
+                    const midShiftSync = (lxSync + rxSync) / 2;
+
+                    state.cx = faceCenterX + midShiftSync * Math.cos(rollRadSync);
+                    state.cy = cySync + midShiftSync * Math.sin(rollRadSync);
                     const effectiveSpan = Math.max(faceWidthPx, faceHeightPx * 0.76);
                     state.radius = Math.round(effectiveSpan * 0.58);
                     radiusRange.value = state.radius;
