@@ -1526,30 +1526,15 @@
             const leftCheek = kp.leftCheek || { x: state.cx + state.bounds.leftX, y: state.cy };
             const rightCheek = kp.rightCheek || { x: state.cx + state.bounds.rightX, y: state.cy };
 
+            const faceWpx = Math.max(40, dist(leftCheek, rightCheek));
+            const faceHpx = Math.max(60, dist(topPt, chinPt));
+            const cx = (leftCheek.x + rightCheek.x) / 2;
+            const cy = browPt.y + faceHpx * 0.08;
+            const r = Math.max(faceWpx, faceHpx * 0.76) * 0.58;
+
             const eyeAngleRad = Math.atan2(f.rightEyeOuter.y - f.leftEyeOuter.y, f.rightEyeOuter.x - f.leftEyeOuter.x);
             const deg = Math.max(-60, Math.min(60, Math.round(eyeAngleRad * 180 / Math.PI)));
             const rad = deg * Math.PI / 180;
-
-            const rawMidX = (leftCheek.x + rightCheek.x) / 2;
-            const faceHpx = Math.max(60, dist(topPt, chinPt));
-            const baseCy = browPt.y + faceHpx * 0.08;
-
-            const toLocalBase = (pt) => {
-                const dx = pt.x - rawMidX;
-                const dy = pt.y - baseCy;
-                return {
-                    x: dx * Math.cos(-rad) - dy * Math.sin(-rad),
-                    y: dx * Math.sin(-rad) + dy * Math.cos(-rad)
-                };
-            };
-
-            const bLeft = toLocalBase(leftCheek);
-            const bRight = toLocalBase(rightCheek);
-            const midOffsetLocalX = (bLeft.x + bRight.x) / 2;
-
-            // توسيط محور الدوران والمنتصف الرأسي بدقة بين حافتي الوجه اليسرى واليمنى على المحور المائل
-            const cx = rawMidX + midOffsetLocalX * Math.cos(rad);
-            const cy = baseCy + midOffsetLocalX * Math.sin(rad);
 
             const toLocal = (pt) => {
                 const dx = pt.x - cx;
@@ -1567,10 +1552,7 @@
             const lLeft = toLocal(leftCheek);
             const lRight = toLocal(rightCheek);
 
-            const faceWpx = Math.max(40, Math.abs(lRight.x - lLeft.x));
-            const r = Math.max(faceWpx, faceHpx * 0.76) * 0.58;
-
-            // حساب المقاسات الفعلية بالسنتيمتر الموحد بحيث يطابق الطول الكلي مجموع الأثلاث الثلاثة تماماً
+            // حساب المقاسات الفعلية بالسنتيمتر الموحد
             const uCm = getUniformScreenCmPerPx();
             const t1Val = Math.abs(lBrow.y - lTop.y) * uCm;
             const t2Val = Math.abs(lNose.y - lBrow.y) * uCm;
@@ -1579,7 +1561,7 @@
             const t2Cm = t2Val.toFixed(2);
             const t3Cm = t3Val.toFixed(2);
             const totalHCm = (t1Val + t2Val + t3Val).toFixed(2);
-            const totalWCm = (Math.abs(lRight.x - lLeft.x) * uCm).toFixed(2);
+            const totalWCm = (spanCmBetween(leftCheek, rightCheek).direct).toFixed(2);
             const rEyeCm = spanCmBetween(f.rightEyeInner, f.rightEyeOuter).direct.toFixed(2);
             const lEyeCm = spanCmBetween(f.leftEyeOuter, f.leftEyeInner).direct.toFixed(2);
             const interEyeCm = spanCmBetween(f.leftEyeInner, f.rightEyeInner).direct.toFixed(2);
@@ -2876,18 +2858,8 @@
                         }
                     }
 
-                    const rollRadSync = (Math.max(-60, Math.min(60, headPose3D.roll))) * Math.PI / 180;
-                    const cySync = browCenterY + faceHeightPx * 0.08;
-                    const dxLC = leftCheek.x - faceCenterX;
-                    const dyLC = leftCheek.y - cySync;
-                    const dxRC = rightCheek.x - faceCenterX;
-                    const dyRC = rightCheek.y - cySync;
-                    const lxSync = dxLC * Math.cos(-rollRadSync) - dyLC * Math.sin(-rollRadSync);
-                    const rxSync = dxRC * Math.cos(-rollRadSync) - dyRC * Math.sin(-rollRadSync);
-                    const midShiftSync = (lxSync + rxSync) / 2;
-
-                    state.cx = faceCenterX + midShiftSync * Math.cos(rollRadSync);
-                    state.cy = cySync + midShiftSync * Math.sin(rollRadSync);
+                    state.cx = faceCenterX;
+                    state.cy = browCenterY + faceHeightPx * 0.08;
                     const effectiveSpan = Math.max(faceWidthPx, faceHeightPx * 0.76);
                     state.radius = Math.round(effectiveSpan * 0.58);
                     radiusRange.value = state.radius;
@@ -2905,26 +2877,13 @@
                     const localLeft = toLocalGridSpace(leftFaceEdge.x, leftFaceEdge.y);
                     const localRight = toLocalGridSpace(rightFaceEdge.x, rightFaceEdge.y);
 
-                    // حساب منبت الشعر التشريحي الصحيح (نقطة lm[10] في MediaPipe تقع أسفل منبت الشعر الفعلي)
-                    const midThird = Math.max(10, localNose.y - localBrow.y);
-                    const lowerThird = Math.max(10, localChin.y - localNose.y);
-                    const avgThird = (midThird + lowerThird) * 0.5;
-                    const trueHairY = localBrow.y - avgThird * 0.88;
-
+                    state.yOffsets.hair = localTop.y;
                     state.yOffsets.brow = localBrow.y;
                     state.yOffsets.nose = localNose.y;
                     state.yOffsets.chin = localChin.y;
-                    state.yOffsets.hair = trueHairY;
 
-                    // تحديث نقطة منبت الشعر في الإحداثيات الفعلية لتطابق المنبت الصحيح
-                    const radHair = state.angle * Math.PI / 180;
-                    actualKeyPoints.topHead = {
-                        x: state.cx - trueHairY * Math.sin(radHair),
-                        y: state.cy + trueHairY * Math.cos(radHair)
-                    };
-
-                    const faceSpanY = localChin.y - trueHairY;
-                    state.bounds.topY = trueHairY - faceSpanY * 0.10;
+                    const faceSpanY = Math.max(40, localChin.y - localTop.y);
+                    state.bounds.topY = localTop.y - faceSpanY * 0.14;
                     state.bounds.bottomY = localChin.y;
                     state.bounds.leftX = localLeft.x;
                     state.bounds.rightX = localRight.x;
