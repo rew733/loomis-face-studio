@@ -1545,12 +1545,18 @@
                 };
             };
 
-            const lTop = toLocal(topPt);
+            const lTopRaw = toLocal(topPt);
             const lBrow = toLocal(browPt);
             const lNose = toLocal(nosePt);
             const lChin = toLocal(chinPt);
             const lLeft = toLocal(leftCheek);
             const lRight = toLocal(rightCheek);
+
+            // رفع مستوى خط الشعر عن منتصف الجبهة ليصل إلى منبت الشعر الفعلي
+            const browToTopSpan = Math.max(12, Math.abs(lBrow.y - lTopRaw.y));
+            const midToNoseSpan = Math.max(12, Math.abs(lNose.y - lBrow.y));
+            const hairLocalY = Math.min(lTopRaw.y - browToTopSpan * 0.45, lBrow.y - midToNoseSpan * 1.12);
+            const lTop = { x: lTopRaw.x, y: hairLocalY };
 
             // حساب المقاسات الفعلية بالسنتيمتر الموحد
             const uCm = getUniformScreenCmPerPx();
@@ -2877,13 +2883,17 @@
                     const localLeft = toLocalGridSpace(leftFaceEdge.x, leftFaceEdge.y);
                     const localRight = toLocalGridSpace(rightFaceEdge.x, rightFaceEdge.y);
 
-                    state.yOffsets.hair = localTop.y;
+                    const browSpanP = Math.max(12, Math.abs(localBrow.y - localTop.y));
+                    const noseSpanP = Math.max(12, Math.abs(localNose.y - localBrow.y));
+                    const adjustedHairY = Math.min(localTop.y - browSpanP * 0.45, localBrow.y - noseSpanP * 1.12);
+
+                    state.yOffsets.hair = adjustedHairY;
                     state.yOffsets.brow = localBrow.y;
                     state.yOffsets.nose = localNose.y;
                     state.yOffsets.chin = localChin.y;
 
-                    const faceSpanY = Math.max(40, localChin.y - localTop.y);
-                    state.bounds.topY = localTop.y - faceSpanY * 0.14;
+                    const faceSpanY = Math.max(40, localChin.y - adjustedHairY);
+                    state.bounds.topY = adjustedHairY - faceSpanY * 0.12;
                     state.bounds.bottomY = localChin.y;
                     state.bounds.leftX = localLeft.x;
                     state.bounds.rightX = localRight.x;
