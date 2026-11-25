@@ -2909,7 +2909,7 @@
                     const midThird = Math.max(10, localNose.y - localBrow.y);
                     const lowerThird = Math.max(10, localChin.y - localNose.y);
                     const avgThird = (midThird + lowerThird) * 0.5;
-                    const trueHairY = Math.min(localTop.y - avgThird * 0.22, localBrow.y - avgThird * 0.96);
+                    const trueHairY = localBrow.y - avgThird * 0.88;
 
                     state.yOffsets.brow = localBrow.y;
                     state.yOffsets.nose = localNose.y;
@@ -2957,14 +2957,14 @@
             const w = canvas.width;
             const h = canvas.height;
             const cx = w * 0.5;
-            const topY = h * 0.13;
-            const browY = h * 0.34;
-            const eyeY = h * 0.38;
-            const noseY = h * 0.54;
-            const mouthY = h * 0.67;
-            const chinY = h * 0.80;
+            const topY = h * 0.17;
+            const browY = h * 0.28;
+            const eyeY = h * 0.35;
+            const noseY = h * 0.46;
+            const mouthY = h * 0.56;
+            const chinY = h * 0.66;
 
-            const faceW = Math.min(w, h) * 0.44;
+            const faceW = Math.min(w, h) * 0.40;
             const eyeW = faceW / 5;
 
             features = {
