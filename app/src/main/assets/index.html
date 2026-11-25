@@ -1366,6 +1366,7 @@
 
         // حالة شبكة لوميس المعتمدة على الإحداثيات داخل تبويب الإحداثيات
         let isCoordsGridActive = false;
+        let isCoordsOverlayVisible = true;
         let isCoordsMainRulerActive = false;
 
         let features = null;
@@ -1532,7 +1533,7 @@
             const r = Math.max(faceWpx, faceHpx * 0.76) * 0.58;
 
             const eyeAngleRad = Math.atan2(f.rightEyeOuter.y - f.leftEyeOuter.y, f.rightEyeOuter.x - f.leftEyeOuter.x);
-            const deg = Math.max(-60, Math.min(60, headPose3D.roll || Math.round(eyeAngleRad * 180 / Math.PI)));
+            const deg = Math.max(-60, Math.min(60, Math.round(eyeAngleRad * 180 / Math.PI)));
             const rad = deg * Math.PI / 180;
 
             const toLocal = (pt) => {
@@ -2829,12 +2830,14 @@
                 };
                 lastDetectedSource = 'رصد فعلي حي (FaceLandmarker 3D)';
 
+                const eyeAngleRad = Math.atan2(rightEyeOuter.y - leftEyeOuter.y, rightEyeOuter.x - leftEyeOuter.x);
+                const eyeRollDeg = Math.round(eyeAngleRad * 180 / Math.PI);
                 if (result.facialTransformationMatrixes && result.facialTransformationMatrixes.length > 0) {
                     const mat = result.facialTransformationMatrixes[0].data;
-                    headPose3D = extractEulerFromMatrix(mat);
+                    const euler = extractEulerFromMatrix(mat);
+                    headPose3D = { yaw: euler.yaw, pitch: euler.pitch, roll: eyeRollDeg };
                 } else {
-                    const eyeAngleRad = Math.atan2(rightEyeOuter.y - leftEyeOuter.y, rightEyeOuter.x - leftEyeOuter.x);
-                    headPose3D = { yaw: 0, pitch: 0, roll: Math.round(eyeAngleRad * 180 / Math.PI) };
+                    headPose3D = { yaw: 0, pitch: 0, roll: eyeRollDeg };
                 }
                 updatePoseStripUI();
 
@@ -3400,9 +3403,21 @@
         }
 
         function setMode(mode, btn) {
+            if (mode === 'coords' && currentMode === 'coords' && isCoordsOverlayVisible) {
+                isCoordsOverlayVisible = false;
+                if (btn) btn.classList.remove('active');
+                document.getElementById('coordsCard').classList.remove('show');
+                redraw();
+                return;
+            }
+
+            if (mode === 'coords') {
+                isCoordsOverlayVisible = true;
+            }
+
             currentMode = mode;
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+            if (btn) btn.classList.add('active');
 
             const propCard = document.getElementById('propCard');
             const rulerCard = document.getElementById('rulerCard');
@@ -3410,7 +3425,7 @@
 
             propCard.classList.toggle('show', mode === 'anatomy');
             rulerCard.classList.toggle('show', mode === 'ruler');
-            coordsCard.classList.toggle('show', mode === 'coords');
+            coordsCard.classList.toggle('show', mode === 'coords' && isCoordsOverlayVisible);
 
             if ((mode === 'anatomy' || mode === 'coords') && !hasDetectedOnce) {
                 runAutoFeatureDetection();
@@ -3829,7 +3844,7 @@
 
             if (currentMode === 'ruler') {
                 drawParallelRulers(pxToCm);
-            } else if (currentMode === 'coords') {
+            } else if (currentMode === 'coords' && isCoordsOverlayVisible) {
                 drawActualCoordinatesOverlay();
             } else if (isGridVisible) {
                 drawGrid(pxToCm);
